@@ -10,7 +10,7 @@
     "lint": "eslint . && steiger ./src",
     "format": "prettier --write .",
     "test": "vitest run",
-    "fonts": "node scripts/subset-fonts.mjs",
+    "fonts": "tsx scripts/subset-fonts.mjs",
     "budget": "node scripts/check-budget.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run budget"
   },
@@ -30,6 +30,7 @@
     "steiger": "^0.8.1",
     "subset-font": "^2.9.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.19.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",

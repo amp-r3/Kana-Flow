@@ -81,6 +81,12 @@ export default tseslint.config(
         },
       ],
       '@typescript-eslint/no-unnecessary-condition': 'error',
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        {
+          allowNumber: true,
+        },
+      ],
       'no-restricted-syntax': [
         'error',
         {
