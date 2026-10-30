@@ -36,10 +36,10 @@ export type ExtendedRowId =
 
 export type RowId = BasicRowId | DakutenRowId | YoonRowId | ExtendedRowId;
 
-export type SingleScript = 'hiragana' | 'katakana';
-export type Script = 'hiragana' | 'katakana' | 'both';
+export type Script = 'hiragana' | 'katakana';
+export type ScriptMode = Script | 'both';
 
-export type KanaKey = `${SingleScript}:${string}`;
+export type KanaKey = `${Script}:${string}`;
 
 export type KanaEntry = {
   readonly hiragana?: string;
@@ -65,7 +65,7 @@ export type ReadingHint = {
 export type ContentItem = {
   readonly id: string;
   readonly text: string;
-  readonly script: SingleScript;
+  readonly script: Script;
   readonly meaning: { readonly en: string; readonly ru: string };
   readonly readingHints?: readonly ReadingHint[];
 };
@@ -73,7 +73,7 @@ export type ContentItem = {
 export type PromptItem = {
   readonly key: string;
   readonly text: string;
-  readonly script?: SingleScript;
+  readonly script?: Script;
   readonly meaning?: { readonly en: string; readonly ru: string };
   readonly readingHints?: readonly ReadingHint[];
 };
@@ -81,7 +81,7 @@ export type PromptItem = {
 export type Strictness = 'learner' | 'ime';
 
 export type PracticeSettings = {
-  readonly script: Script;
+  readonly script: ScriptMode;
   readonly content: ContentKind;
   readonly strictness: Strictness;
   readonly rowIds: readonly RowId[];

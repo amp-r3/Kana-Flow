@@ -6,7 +6,7 @@ export type {
   YoonRowId,
   ExtendedRowId,
   Script,
-  SingleScript,
+  ScriptMode,
   KanaKey,
   KanaEntry,
   KanaRow,
@@ -43,6 +43,10 @@ export {
   canonical,
   romajiForKey,
 } from './lib/engine';
+
+export {
+  shouldAbsorb,
+} from './lib/absorption';
 
 export {
   buildPool,

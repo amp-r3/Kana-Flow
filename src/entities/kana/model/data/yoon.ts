@@ -86,9 +86,9 @@ export const yoonRows: readonly KanaRow[] = [
     name: 'Ja - Ju - Jo',
     category: 'yoon',
     entries: [
-      { hiragana: 'じゃ', katakana: 'ジャ', ime: ['ja', 'zya', 'jya'], learner: ['dya'] },
-      { hiragana: 'じゅ', katakana: 'ジュ', ime: ['ju', 'zyu', 'jyu'], learner: ['dyu'] },
-      { hiragana: 'じょ', katakana: 'ジョ', ime: ['jo', 'zyo', 'jyo'], learner: ['dyo'] },
+      { hiragana: 'じゃ', katakana: 'ジャ', ime: ['ja', 'zya', 'jya'], learner: [] },
+      { hiragana: 'じゅ', katakana: 'ジュ', ime: ['ju', 'zyu', 'jyu'], learner: [] },
+      { hiragana: 'じょ', katakana: 'ジョ', ime: ['jo', 'zyo', 'jyo'], learner: [] },
     ],
   },
   {

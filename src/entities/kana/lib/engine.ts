@@ -2,7 +2,7 @@ import type {
   KanaKey,
   PromptItem,
   Strictness,
-  SingleScript,
+  Script,
 } from '../model/types';
 import { allKanaRows } from '../model/data';
 
@@ -120,7 +120,7 @@ function tokenizeText(text: string): RawToken[] {
 
     // Check ん / ン
     if (char === 'ん' || char === 'ン') {
-      const script: SingleScript = char === 'ん' ? 'hiragana' : 'katakana';
+      const script: Script = char === 'ん' ? 'hiragana' : 'katakana';
       rawTokens.push({
         glyph: char,
         kanaKey: `${script}:${char}`,

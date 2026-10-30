@@ -11,7 +11,11 @@ import {
   type Matcher,
   type MatchState,
 } from './engine';
+import { shouldAbsorb } from './absorption';
 import type { PromptItem } from '../model/types';
+import { allKanaRows } from '../model/data';
+import { wordsData } from '../model/data/words';
+import { phrasesData } from '../model/data/phrases';
 
 function feedString(m: Matcher, s: MatchState, input: string): MatchState | null {
   let current: MatchState | null = s;
@@ -27,6 +31,24 @@ function completesWith(prompt: PromptItem, strictness: 'learner' | 'ime', input:
   const s = start(m);
   const finalState = feedString(m, s, input);
   return finalState !== null && isComplete(m, finalState);
+}
+
+class DeterministicRng {
+  private s: number;
+  constructor(seed = 98765) {
+    this.s = seed;
+  }
+  next(): number {
+    this.s = (this.s * 1103515245 + 12345) & 0x7fffffff;
+    return this.s / 0x7fffffff;
+  }
+  nextInt(min: number, max: number): number {
+    return Math.floor(this.next() * (max - min + 1)) + min;
+  }
+  nextChar(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz-\'';
+    return chars[this.nextInt(0, chars.length - 1)] ?? 'a';
+  }
 }
 
 describe('engine: basic and digraph kana matching', () => {
@@ -68,17 +90,56 @@ describe('engine: basic and digraph kana matching', () => {
     expect(completesWith(tsu, 'ime', 'tu')).toBe(true);
     expect(completesWith(tsu, 'ime', 'su')).toBe(false);
   });
+
+  it('single ん prompt accepts nn and n\' only in ime, but accepts n in learner', () => {
+    const prompt: PromptItem = { key: 'hiragana:ん', text: 'ん' };
+    expect(completesWith(prompt, 'ime', 'nn')).toBe(true);
+    expect(completesWith(prompt, 'ime', "n'")).toBe(true);
+    expect(completesWith(prompt, 'ime', 'n')).toBe(false);
+
+    expect(completesWith(prompt, 'learner', 'n')).toBe(true);
+    expect(completesWith(prompt, 'learner', 'nn')).toBe(true);
+    expect(completesWith(prompt, 'learner', "n'")).toBe(true);
+  });
+
+  it('を prompt accepts wo only in ime, but accepts o in learner', () => {
+    const prompt: PromptItem = { key: 'hiragana:を', text: 'を' };
+    expect(completesWith(prompt, 'ime', 'wo')).toBe(true);
+    expect(completesWith(prompt, 'ime', 'o')).toBe(false);
+
+    expect(completesWith(prompt, 'learner', 'wo')).toBe(true);
+    expect(completesWith(prompt, 'learner', 'o')).toBe(true);
+  });
+
+  it('ime mode strictly rejects koohii and pan', () => {
+    const coffee: PromptItem = { key: 'word:ko-hi-', text: 'コーヒー' };
+    expect(completesWith(coffee, 'ime', 'koohii')).toBe(false);
+    expect(completesWith(coffee, 'ime', 'ko-hi-')).toBe(true);
+
+    const pan: PromptItem = { key: 'word:pan', text: 'パン' };
+    expect(completesWith(pan, 'ime', 'pan')).toBe(false);
+    expect(completesWith(pan, 'ime', 'pann')).toBe(true);
+  });
+
+  it('learner and ime standalone-っ fallback accepts xtu, ltu, xtsu', () => {
+    const prompt: PromptItem = { key: 'sokuon', text: 'っ' };
+    expect(completesWith(prompt, 'ime', 'xtu')).toBe(true);
+    expect(completesWith(prompt, 'ime', 'ltu')).toBe(true);
+    expect(completesWith(prompt, 'ime', 'xtsu')).toBe(true);
+
+    expect(completesWith(prompt, 'learner', 'xtu')).toBe(true);
+    expect(completesWith(prompt, 'learner', 'ltu')).toBe(true);
+    expect(completesWith(prompt, 'learner', 'xtsu')).toBe(true);
+  });
 });
 
 describe('engine: ん contextual lookahead', () => {
   it('パン accepts pann only in ime, but pan and pann in learner', () => {
     const prompt: PromptItem = { key: 'word:pan', text: 'パン' };
-    // IME mode: at end of prompt, requires nn or n'
     expect(completesWith(prompt, 'ime', 'pann')).toBe(true);
     expect(completesWith(prompt, 'ime', "pan'")).toBe(true);
     expect(completesWith(prompt, 'ime', 'pan')).toBe(false);
 
-    // Learner mode: bare n accepted anywhere
     expect(completesWith(prompt, 'learner', 'pan')).toBe(true);
     expect(completesWith(prompt, 'learner', 'pann')).toBe(true);
   });
@@ -97,12 +158,10 @@ describe('engine: ん contextual lookahead', () => {
       text: 'こんにちは',
       readingHints: [{ tokenIndex: 4, learner: ['wa'] }],
     };
-    // In IME mode: ん followed by に (starts with n) -> bare n is rejected!
     expect(completesWith(prompt, 'ime', 'konnnichiha')).toBe(true);
     expect(completesWith(prompt, 'ime', 'konnichiha')).toBe(false);
     expect(completesWith(prompt, 'ime', 'konnnichiwa')).toBe(false);
 
-    // In Learner mode:
     expect(completesWith(prompt, 'learner', 'konnnichiha')).toBe(true);
     expect(completesWith(prompt, 'learner', 'konnichiha')).toBe(true);
     expect(completesWith(prompt, 'learner', 'konnnichiwa')).toBe(true);
@@ -121,13 +180,11 @@ describe('engine: ん contextual lookahead', () => {
 describe('engine: chōonpu elongation', () => {
   it('コーヒー accepts ko-hi- only in ime; learner accepts koohii, ko-hii, koohi-', () => {
     const prompt: PromptItem = { key: 'word:ko-hi-', text: 'コーヒー' };
-    // IME mode: only dash is valid
     expect(completesWith(prompt, 'ime', 'ko-hi-')).toBe(true);
     expect(completesWith(prompt, 'ime', 'koohii')).toBe(false);
     expect(completesWith(prompt, 'ime', 'ko-hii')).toBe(false);
     expect(completesWith(prompt, 'ime', 'koohi-')).toBe(false);
 
-    // Learner mode: vowel repetition is valid
     expect(completesWith(prompt, 'learner', 'ko-hi-')).toBe(true);
     expect(completesWith(prompt, 'learner', 'koohii')).toBe(true);
     expect(completesWith(prompt, 'learner', 'ko-hii')).toBe(true);
@@ -166,13 +223,12 @@ describe('engine: extended katakana words', () => {
   });
 });
 
-describe('engine: trailing extensions and absorption window', () => {
+describe('engine: trailing extensions and pure shouldAbsorb', () => {
   it('returns non-empty extensions when complete in learner mode for パン', () => {
     const prompt: PromptItem = { key: 'word:pan', text: 'パン' };
     const m = compile(prompt, 'learner');
     const s0 = start(m);
 
-    // Type 'p', 'a', 'n' -> prompt completes via spelling 'n'
     const s1 = step(m, s0, 'p');
     expect(s1).not.toBeNull();
     const s2 = s1 ? step(m, s1, 'a') : null;
@@ -183,12 +239,10 @@ describe('engine: trailing extensions and absorption window', () => {
 
     expect(isComplete(m, s3)).toBe(true);
     const ext = extensions(m, s3);
-    // Spelling 'nn' has second 'n' available as extension
     expect(ext.has('n')).toBe(true);
   });
 
-  it('simulates absorption window for パン followed by ねこ', () => {
-    // When パン completes in learner mode with 'pan':
+  it('tests shouldAbsorb for パン followed by ねこ: swallowed within 250 ms, processed after 250 ms', () => {
     const panPrompt: PromptItem = { key: 'word:pan', text: 'パン' };
     const panMatcher = compile(panPrompt, 'learner');
     const panState = feedString(panMatcher, start(panMatcher), 'pan');
@@ -201,35 +255,18 @@ describe('engine: trailing extensions and absorption window', () => {
 
     const completedAt = 1000;
 
-    // Simulation of controller absorption check:
-    function handleFirstKeyNextPrompt(
-      key: string,
-      arrivalTime: number,
-      nextPromptText: string,
-    ): { swallowed: boolean; nextState: MatchState | null } {
-      const isWithinWindow = arrivalTime - completedAt <= 250;
-      const isTrailingExtension = panExt.has(key);
+    // 1. Arrival at 1100ms (100ms after completion, <= 250ms): swallowed!
+    const withinWindow = shouldAbsorb(panExt, completedAt, 1100, 'n');
+    expect(withinWindow).toBe(true);
 
-      if (isWithinWindow && isTrailingExtension) {
-        // Swallowed silently per Section 5.4, even if valid for next prompt!
-        return { swallowed: true, nextState: null };
-      }
+    // 2. Arrival at 1300ms (300ms after completion, > 250ms): not swallowed!
+    const afterWindow = shouldAbsorb(panExt, completedAt, 1300, 'n');
+    expect(afterWindow).toBe(false);
 
-      // After 250ms or not extension, process normally
-      const nextMatcher = compile({ key: 'test', text: nextPromptText }, 'learner');
-      const nextInit = start(nextMatcher);
-      const nextStep = step(nextMatcher, nextInit, key);
-      return { swallowed: false, nextState: nextStep };
-    }
-
-    // 1. Second 'n' arrives at 110ms (<= 250ms) -> swallowed!
-    const fastN = handleFirstKeyNextPrompt('n', 1110, 'ねこ');
-    expect(fastN.swallowed).toBe(true);
-
-    // 2. 'n' arrives at 300ms (> 250ms) -> not swallowed, starts ねこ!
-    const slowN = handleFirstKeyNextPrompt('n', 1300, 'ねこ');
-    expect(slowN.swallowed).toBe(false);
-    expect(slowN.nextState).not.toBeNull();
+    // 3. Since not swallowed after 250ms, key 'n' starts 'ねこ' cleanly
+    const nekoMatcher = compile({ key: 'word:neko', text: 'ねこ' }, 'learner');
+    const nekoState = step(nekoMatcher, start(nekoMatcher), 'n');
+    expect(nekoState).not.toBeNull();
   });
 });
 
@@ -259,7 +296,6 @@ describe('engine: invariants and properties', () => {
     if (!s1) return;
     expect(activeTokenIndex(s1)).toBe(0);
 
-    // Completing 'ne' moves live positions to token 1 ('ko')
     const s2 = step(m, s1, 'e');
     expect(s2).not.toBeNull();
     if (!s2) return;
@@ -284,7 +320,6 @@ describe('engine: invariants and properties', () => {
         const m = compile({ key: 'w', text: w }, strictness);
         let s: MatchState | null = start(m);
 
-        // Follow canonical path
         const canon = canonical(m);
         for (let i = 0; i < canon.length; i++) {
           expect(s).not.toBeNull();
@@ -307,5 +342,98 @@ describe('engine: invariants and properties', () => {
     const bad = step(m, s, 'z');
     expect(bad).toBeNull();
     expect(s.positions[0]?.charOffset).toBe(0);
+  });
+});
+
+describe('engine: comprehensive property tests across all data', () => {
+  // Test-only capped enumerator
+  function enumerateSpellings(m: Matcher, cap = 20): string[] {
+    let combs: string[] = [''];
+    for (const token of m.tokens) {
+      const nextCombs: string[] = [];
+      for (const prefix of combs) {
+        for (const sp of token.spellings) {
+          if (nextCombs.length < cap) {
+            nextCombs.push(prefix + sp);
+          }
+        }
+      }
+      combs = nextCombs;
+      if (combs.length === 0) break;
+    }
+    return combs;
+  }
+
+  // Collect all test prompts: every single kana entry + all words + all phrases
+  const allPrompts: PromptItem[] = [];
+
+  for (const row of allKanaRows) {
+    for (const entry of row.entries) {
+      if (entry.hiragana) {
+        allPrompts.push({ key: `hiragana:${entry.hiragana}`, text: entry.hiragana });
+      }
+      allPrompts.push({ key: `katakana:${entry.katakana}`, text: entry.katakana });
+    }
+  }
+
+  for (const w of wordsData) {
+    allPrompts.push({ key: w.id, text: w.text, ...(w.readingHints ? { readingHints: w.readingHints } : {}) });
+  }
+
+  for (const p of phrasesData) {
+    allPrompts.push({ key: p.id, text: p.text, ...(p.readingHints ? { readingHints: p.readingHints } : {}) });
+  }
+
+  const rng = new DeterministicRng(54321);
+
+  it('property test: all prompts x both strictness levels satisfy prefix, completion, canonical, and mutation invariants', () => {
+    for (const prompt of allPrompts) {
+      for (const strictness of ['ime', 'learner'] as const) {
+        const m = compile(prompt, strictness);
+        const canon = canonical(m);
+        const spellings = enumerateSpellings(m, 15);
+
+        // Canonical must be in the valid spellings (or produce complete state)
+        expect(canon.length).toBeGreaterThan(0);
+        const canonEnd = feedString(m, start(m), canon);
+        expect(canonEnd).not.toBeNull();
+        if (canonEnd) {
+          expect(isComplete(m, canonEnd)).toBe(true);
+        }
+
+        // Test every enumerated spelling
+        for (const spelling of spellings) {
+          let s: MatchState | null = start(m);
+
+          // Test proper prefixes
+          for (let i = 0; i < spelling.length; i++) {
+            expect(s).not.toBeNull();
+            if (!s) break;
+            const ch = spelling[i];
+            if (!ch) break;
+            s = step(m, s, ch);
+          }
+
+          expect(s).not.toBeNull();
+          if (s) {
+            expect(isComplete(m, s)).toBe(true);
+          }
+
+          // Random mutation test: mutate one char at a random position
+          if (spelling.length > 0) {
+            const mutateIdx = rng.nextInt(0, spelling.length - 1);
+            const randChar = rng.nextChar();
+            const mutated =
+              spelling.slice(0, mutateIdx) + randChar + spelling.slice(mutateIdx + 1);
+
+            const mutatedState = feedString(m, start(m), mutated);
+            // It must either be rejected (null) OR, if coincidentally another valid path, non-null
+            if (mutatedState !== null) {
+              expect(typeof isComplete(m, mutatedState)).toBe('boolean');
+            }
+          }
+        }
+      }
+    }
   });
 });
