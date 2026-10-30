@@ -1,0 +1,103 @@
+export type ValidTestConfig =
+  | { readonly kind: 'time'; readonly seconds: 15 | 30 | 60 | 120 }
+  | { readonly kind: 'count'; readonly prompts: 10 | 25 | 50 | 100 };
+
+export type ValidSettings = {
+  readonly v: 1;
+  readonly script: 'hiragana' | 'katakana' | 'both';
+  readonly content: 'single' | 'words' | 'phrases';
+  readonly strictness: 'learner' | 'ime';
+  readonly rowIds: readonly string[];
+  readonly weakFocus: boolean;
+  readonly test: ValidTestConfig;
+};
+
+export type ValidKanaStats = {
+  readonly a: number;
+  readonly m: number;
+  readonly t: number;
+};
+
+export type ValidProgress = {
+  readonly v: 1;
+  readonly stats: Record<string, ValidKanaStats>;
+};
+
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function isTestConfig(value: unknown): value is ValidTestConfig {
+  if (!isObject(value)) return false;
+
+  if (value['kind'] === 'time') {
+    const s = value['seconds'];
+    return s === 15 || s === 30 || s === 60 || s === 120;
+  }
+
+  if (value['kind'] === 'count') {
+    const p = value['prompts'];
+    return p === 10 || p === 25 || p === 50 || p === 100;
+  }
+
+  return false;
+}
+
+export function isSettings(value: unknown): value is ValidSettings {
+  if (!isObject(value)) return false;
+  if (value['v'] !== 1) return false;
+
+  const script = value['script'];
+  if (script !== 'hiragana' && script !== 'katakana' && script !== 'both') {
+    return false;
+  }
+
+  const content = value['content'];
+  if (content !== 'single' && content !== 'words' && content !== 'phrases') {
+    return false;
+  }
+
+  const strictness = value['strictness'];
+  if (strictness !== 'learner' && strictness !== 'ime') {
+    return false;
+  }
+
+  const rowIds = value['rowIds'];
+  if (!Array.isArray(rowIds) || rowIds.length === 0) {
+    return false;
+  }
+  if (!rowIds.every((r) => typeof r === 'string')) {
+    return false;
+  }
+
+  if (typeof value['weakFocus'] !== 'boolean') {
+    return false;
+  }
+
+  return isTestConfig(value['test']);
+}
+
+export function isKanaStats(value: unknown): value is ValidKanaStats {
+  if (!isObject(value)) return false;
+  return (
+    typeof value['a'] === 'number' &&
+    typeof value['m'] === 'number' &&
+    typeof value['t'] === 'number'
+  );
+}
+
+export function isProgress(value: unknown): value is ValidProgress {
+  if (!isObject(value)) return false;
+  if (value['v'] !== 1) return false;
+
+  const stats = value['stats'];
+  if (!isObject(stats)) return false;
+
+  for (const key of Object.keys(stats)) {
+    if (!isKanaStats(stats[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}

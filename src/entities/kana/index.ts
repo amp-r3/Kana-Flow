@@ -26,6 +26,26 @@ export {
   allKanaRows,
 } from './model/data';
 
+export {
+  scriptSetting,
+  contentSetting,
+  strictnessSetting,
+  rowIdsSetting,
+  weakFocusSetting,
+  DEFAULT_BASIC_ROWS,
+  initPracticeSettings,
+  getPracticeSettings,
+  setScript,
+  setContent,
+  setStrictness,
+  setWeakFocus,
+  toggleWeakFocus,
+  toggleRow,
+  selectAllRows,
+  clearRows,
+  presetBasic,
+} from './model/store';
+
 export type {
   Token,
   Matcher,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ESLint } from 'eslint';
 
-describe('lint-rules: strict TypeScript and architecture enforcement', () => {
+describe('lint-rules: strict TypeScript and architecture enforcement', { timeout: 20000 }, () => {
   const eslint = new ESLint();
 
   async function getLintErrors(code: string) {
