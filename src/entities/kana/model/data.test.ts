@@ -13,7 +13,7 @@ describe('data integrity: rows', () => {
     expect(idSet.size).toBe(31);
   });
 
-  it('matches all declared RowId union members', () => {
+  it('RowId union equals the rows', () => {
     const expectedRowIds: readonly RowId[] = [
       'vowels',
       'k',
@@ -95,7 +95,7 @@ describe('data integrity: content items', () => {
     }
   });
 
-  it('every script x kind pool has at least 3 items', () => {
+  it('every script x kind pool has >= 3 items', () => {
     const hiraganaWords = wordsData.filter((w) => w.script === 'hiragana');
     const katakanaWords = wordsData.filter((w) => w.script === 'katakana');
     const hiraganaPhrases = phrasesData.filter((p) => p.script === 'hiragana');

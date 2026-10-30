@@ -149,15 +149,17 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
         </div>
       </div>
 
-      {/* Unfocused "Click to focus" indicator */}
-      {!isFocused && (
-        <div
-          className="pointer-events-none -mt-4 text-xs text-text-dim bg-surface-2/90 border border-border px-3 py-1 rounded-full shadow-md"
-          aria-hidden="true"
-        >
-          {t('stage.clickToFocus')}
-        </div>
-      )}
+      {/* Unfocused "Click to focus" indicator (fixed height to prevent layout shift on blur) */}
+      <div className="h-6 -mt-4 flex items-center justify-center">
+        {!isFocused && (
+          <div
+            className="pointer-events-none text-xs text-text-dim bg-surface-2/90 border border-border px-3 py-1 rounded-full shadow-md"
+            aria-hidden="true"
+          >
+            {t('stage.clickToFocus')}
+          </div>
+        )}
+      </div>
 
       {/* Bottom hints & restart button */}
       <div className="w-full flex flex-wrap items-center justify-between gap-3 text-xs text-text-dim pt-2">

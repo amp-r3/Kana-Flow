@@ -200,8 +200,29 @@ Every commit and pull request must satisfy `npm run verify`, which runs the foll
 3. **`npm run test` (`vitest run`)**: Full unit, integration, property, and render-isolation test suite.
 4. **`npm run build` (`vite build`)**: Production client bundle build.
 5. **`npm run budget` (`node scripts/check-budget.mjs`)**: Enforces hard budget limits:
-   - Initial HTML gzip: ≤ 5 KB (Actual: 0.28 KB)
-   - Initial JS gzip: ≤ 35 KB (Actual: 23.51 KB)
-   - Initial CSS gzip: ≤ 10 KB (Actual: 6.52 KB)
+   - Initial HTML gzip: ≤ 5 KB (Actual: 0.27 KB)
+   - Initial JS gzip: ≤ 35 KB (Actual: 24.42 KB via Vite / 23.69 KB via gzip)
+   - Initial CSS gzip: ≤ 10 KB (Actual: 4.96 KB)
    - Preloaded Fonts (woff2): ≤ 45 KB per file (Actual: 14.95 KB JetBrains Mono, 16.45 KB Noto Sans JP)
-   - Total First Load: ≤ 160 KB (Actual: 61.71 KB)
+   - Total First Load: ≤ 160 KB (Actual: 60.32 KB)
+
+---
+
+## 7. Public Domain API Signatures & Contract Specifications
+
+### `entities/progress`
+- `updateKanaStats(prev: KanaStats | undefined, mistakes: number, ms: number): KanaStats`: Completely pure function; calculates new attempt count `a`, mistake count `m`, EMA response latency `t` ($\alpha = 0.3$), and applies `decayStats` (halving `a` and `m` when $a > 50$). Returns a fresh `KanaStats` object without mutating `prev`.
+- `ProgressMap`: Defined as `ReadonlyMap<string, KanaStats>`, guaranteeing immutable consumption by weights calculators.
+- `computeItemWeight(tokenKeys: readonly string[], weights: ReadonlyMap<string, number>): number`: Evaluates prompt weight for words/phrases by computing the arithmetic mean over all constituent token kana keys (unseen keys defaulting to weight 3.0 per Plan Section 8).
+
+### `entities/session`
+- `finishTest(endTimeMs?: number): SessionMetrics`: Transitions `phase.value = 'finished'`, evaluates final `SessionMetrics`, stores the result into `metrics.value`, and returns `SessionMetrics` directly.
+- `metrics: Signal<SessionMetrics | null>`: Reactive signal holding `null` during `idle` and `running` phases, populated on session completion.
+
+### `entities/kana`
+- `buildPool(settings: PracticeSettings, content?: readonly ContentItem[]): readonly PromptItem[]`: Builds the prompt pool. In `words` and `phrases` content modes, if `content` is empty or no vocabulary items match the active script mode, it automatically falls back to constructing the single-kana pool matching `settings.rowIds` and `settings.script` (Plan 5.5).
+- `pickPrompt(pool: readonly PromptItem[], weights: ReadonlyMap<string, number>, rng: Rng, previousKey: string | null): PromptItem`: Selects the next prompt using weighted distribution. Rejects empty pool with an invariant Error.
+
+### End-to-End Browser Certification (`e2e/`)
+- `@playwright/test` is installed as a pure `devDependency` and invoked via `npm run e2e`.
+- It executes outside `npm run verify` to test browser-native focus restoration, click coordinate physics, and cross-reload local storage synchronization.

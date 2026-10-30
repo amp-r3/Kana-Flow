@@ -41,6 +41,11 @@ describe('input-adapter: desktop keydown mapping', () => {
   });
 
   it('falls back to event.code for Cyrillic and other non-Latin layouts', () => {
+    // Russian layout: Cyrillic 'а' on physical KeyF maps to 'f'
+    expect(handleKeyDown(makeKeyEvent({ key: 'а', code: 'KeyF' }))).toEqual({
+      kind: 'char',
+      char: 'f',
+    });
     // Russian layout: 'ф' corresponds to 'KeyA'
     expect(handleKeyDown(makeKeyEvent({ key: 'ф', code: 'KeyA' }))).toEqual({
       kind: 'char',

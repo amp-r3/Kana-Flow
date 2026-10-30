@@ -3,3 +3,5 @@ dist/
 coverage/
 .DS_Store
 scripts/font-src/
+test-results/
+playwright-report/

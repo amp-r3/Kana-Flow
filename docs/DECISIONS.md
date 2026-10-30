@@ -103,6 +103,10 @@
   4. **Injectable Scheduler in TypingController:** Abstracted `setTimeout`/`setInterval` behind an injectable `Scheduler` interface (`defaultScheduler` in `shared/lib`, `FakeScheduler` in tests). The controller owns the deadline timer, 1 Hz live stats ticker, shake flag clearing (~280 ms), and automatically ends count tests upon the final prompt.
   5. **Decoupled Live Stats Counters:** Live stats display reads cheap atomic signals (`correctKeystrokes`, `mistakeCount`, `sessionStartedAt`, and controller `tickerNow`) rather than executing expensive `computeMetrics` on every keystroke. Full `metrics` is computed once, on session finish.
   6. **Side Effect Separation for Locale:** Removed DOM mutation (`document.documentElement.lang`) from `shared/i18n/locale.ts` and placed reactive effect inside `app/init.ts`, keeping `shared/` pure of UI side effects.
+  7. **`updateKanaStats` Pure Signature:** Kept `updateKanaStats(prev: KanaStats | undefined, mistakes: number, ms: number): KanaStats` completely pure, returning a newly allocated and decayed `KanaStats` object without mutating `prev`.
+  8. **`ProgressMap` Type Definition:** Explicitly typed as `ReadonlyMap<string, KanaStats>` for immutable domain reads.
+  9. **`computeItemWeight` Token Array API:** Signature is `computeItemWeight(tokenKeys: readonly string[], weights: ReadonlyMap<string, number>): number`, evaluating the arithmetic mean across all constituent token keys of words/phrases (defaulting unseen tokens to weight 3.0).
+  10. **`finishTest` Return and `metrics` Signal Type:** `finishTest(endTimeMs?: number): SessionMetrics` sets `phase.value = 'finished'`, updates `metrics.value = computed`, and returns the metrics directly. The `metrics` signal is typed as `Signal<SessionMetrics | null>` (initialized to `null` while `idle` / `running`).
 
 ### ADR 015: Merging Widgets Layer into `pages/trainer/ui/`
 - **Context:** `steiger` enforces `fsd/insignificant-slice` requiring slices to have more than one consumer across the codebase. Private components previously placed in `widgets/` were consumed solely by `pages/trainer`.
@@ -122,4 +126,20 @@
   - **Segmented Radio Group Semantics:** `Segmented` control uses `role="radiogroup"` with individual options bearing `role="radio"` and dynamic `aria-checked` attributes.
   - **Reduced Motion Support:** `@media (prefers-reduced-motion: reduce)` disables shake animations and transitions across all elements.
 - **Justification:** Conforms to WCAG 2.1 AA keyboard navigation and accessibility standards.
+
+### ADR 018: Playwright E2E Test Suite for Real Browser Focus Redirection and Layout Physics Verification
+- **Context:** Happy-dom simulates DOM trees in Node.js but does not emulate genuine browser window focus, native button activation, mouse drag/click coordinate mechanics, or Cumulative Layout Shift (CLS) during focus changes.
+- **Decision:**
+  - Add Playwright as a `devDependency` (`@playwright/test`) with test specs isolated under `e2e/`.
+  - Add script `"e2e": "playwright test"` to `package.json`.
+  - Keep `npm run verify` untouched and fast (Node/happy-dom unit tests only via `vitest`), running `e2e` separately for browser certification.
+  - Fix focus-induced layout jump: reserved a fixed `h-6 -mt-4` height for the "Click to focus" indicator so blurring the input never triggers vertical recentering of flex parents, ensuring mouse click coordinates remain stable.
+- **Justification:** Real browser testing pins keyboard-first autofocus, focus stealing recovery, dialog focus restoration, and cross-reload persistence under real Chromium layout and event-dispatch physics.
+
+### ADR 019: Runtime Fallback for Vocabulary Pools in `buildPool`
+- **Context:** Plan 5.5 requires: "If a pool is empty at runtime anyway, fall back to the single-kana pool."
+- **Decision:**
+  - In `buildPool(settings, content?)`, when `content === 'words' || content === 'phrases'`, if `content` is empty (`length === 0`) or if script filtering yields zero items (e.g. asking for Katakana phrases when none match), the function automatically falls back to building the single-kana pool according to `settings.rowIds` and `settings.script`.
+  - If the resulting single-kana pool is also empty (which only happens if `rowIds` is empty), `pickPrompt` throws a clear invariant error (`Cannot pick prompt from empty pool`).
+- **Justification:** Conforms directly to Plan 5.5 and prevents app crashing if vocabulary chunks are pending or fail to load.
 

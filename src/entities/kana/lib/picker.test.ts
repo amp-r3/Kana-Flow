@@ -94,6 +94,34 @@ describe('picker: pool building', () => {
     const bothPool = buildPool(bothSettings, sampleWords);
     expect(bothPool.length).toBe(2);
   });
+
+  it('falls back to single-kana pool when content is empty or has no script matches (plan 5.5)', () => {
+    const settings: PracticeSettings = {
+      script: 'hiragana',
+      content: 'words',
+      strictness: 'learner',
+      rowIds: ['vowels'],
+      weakFocus: false,
+    };
+    // Pass empty content array
+    const fallbackPool = buildPool(settings, []);
+    // Falls back to single kana vowels (5 hiragana items)
+    expect(fallbackPool.length).toBe(5);
+    expect(fallbackPool[0]?.key).toBe('hiragana:あ');
+
+    // Content with no items matching script
+    const katakanaOnlyWords: readonly ContentItem[] = [
+      {
+        id: 'word:pan',
+        text: 'パン',
+        script: 'katakana',
+        meaning: { en: 'Bread', ru: 'Хлеб' },
+      },
+    ];
+    const fallbackPool2 = buildPool(settings, katakanaOnlyWords);
+    expect(fallbackPool2.length).toBe(5);
+    expect(fallbackPool2[0]?.key).toBe('hiragana:あ');
+  });
 });
 
 describe('picker: prompt selection', () => {

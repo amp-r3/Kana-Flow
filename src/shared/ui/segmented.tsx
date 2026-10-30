@@ -41,6 +41,7 @@ export function Segmented<T extends string | number>({
             aria-checked={isSelected}
             disabled={disabled}
             onClick={() => {
+              console.log('Segmented button onClick, opt =', opt.value);
               if (opt.value !== value) {
                 onChange(opt.value);
               }
