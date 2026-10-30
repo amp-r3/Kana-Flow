@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeWeight,
   computeWeights,
+  computeItemWeight,
   decayStats,
   updateKanaStats,
 } from './weights';
@@ -77,5 +78,16 @@ describe('progress weights and decay', () => {
     expect(weights.get('hiragana:あ')).toBeLessThan(2.0); // strong
     expect(weights.get('hiragana:し')).toBeGreaterThan(3.5); // weak
     expect(weights.get('hiragana:ん')).toBe(3.0); // unseen
+  });
+
+  it('computeItemWeight computes the mean weight across all token keys', () => {
+    const weights = new Map<string, number>([
+      ['hiragana:あ', 1.0],
+      ['hiragana:い', 5.0],
+    ]);
+    expect(computeItemWeight(['hiragana:あ', 'hiragana:い'], weights)).toBe(3.0);
+    expect(computeItemWeight(['hiragana:あ'], weights)).toBe(1.0);
+    // Unseen key defaults to 3.0
+    expect(computeItemWeight(['hiragana:う'], weights)).toBe(3.0);
   });
 });

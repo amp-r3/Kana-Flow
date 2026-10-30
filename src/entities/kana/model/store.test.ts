@@ -1,0 +1,140 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  initPracticeSettings,
+  flushPracticeSettings,
+  getPracticeSettings,
+  scriptSetting,
+  contentSetting,
+  strictnessSetting,
+  rowIdsSetting,
+  weakFocusSetting,
+  setScript,
+  setContent,
+  setStrictness,
+  setWeakFocus,
+  toggleWeakFocus,
+  toggleRow,
+  selectAllRows,
+  clearRows,
+  presetBasic,
+} from './store';
+import { MemoryKeyValueStore, STORAGE_KEYS } from '@/shared/lib';
+
+describe('practice-settings store: domain rules, actions and persistence', () => {
+  let store: MemoryKeyValueStore;
+
+  beforeEach(() => {
+    store = new MemoryKeyValueStore();
+    initPracticeSettings(store);
+    presetBasic();
+  });
+
+  it('toggleRow toggles row and prevents removing the last row (domain rule)', () => {
+    // Start with basic rows
+    presetBasic();
+    expect(rowIdsSetting.value.length).toBe(10);
+
+    // Toggle off 'k'
+    const ok = toggleRow('k');
+    expect(ok).toBe(true);
+    expect(rowIdsSetting.value.includes('k')).toBe(false);
+
+    // Toggle 'k' back on
+    const okOn = toggleRow('k');
+    expect(okOn).toBe(true);
+    expect(rowIdsSetting.value.includes('k')).toBe(true);
+
+    // Reduce to 1 row
+    clearRows('vowels');
+    expect(rowIdsSetting.value).toEqual(['vowels']);
+
+    // Attempt to toggle off the last remaining row -> rejected!
+    const rejected = toggleRow('vowels');
+    expect(rejected).toBe(false);
+    expect(rowIdsSetting.value).toEqual(['vowels']);
+  });
+
+  it('clearRows keeps at least 1 row (default: vowels)', () => {
+    selectAllRows(['vowels', 'k', 's']);
+    expect(rowIdsSetting.value.length).toBe(3);
+
+    clearRows();
+    expect(rowIdsSetting.value).toEqual(['vowels']);
+    expect(rowIdsSetting.value.length).toBeGreaterThanOrEqual(1);
+
+    clearRows('k');
+    expect(rowIdsSetting.value).toEqual(['k']);
+  });
+
+  it('script switch updates scriptSetting and getPracticeSettings', () => {
+    setScript('hiragana');
+    expect(scriptSetting.value).toBe('hiragana');
+    expect(getPracticeSettings().script).toBe('hiragana');
+
+    setScript('katakana');
+    expect(scriptSetting.value).toBe('katakana');
+
+    setScript('both');
+    expect(scriptSetting.value).toBe('both');
+  });
+
+  it('content, strictness, and weakFocus switches update settings', () => {
+    setContent('words');
+    expect(contentSetting.value).toBe('words');
+
+    setStrictness('ime');
+    expect(strictnessSetting.value).toBe('ime');
+
+    setWeakFocus(false);
+    expect(weakFocusSetting.value).toBe(false);
+
+    toggleWeakFocus();
+    expect(weakFocusSetting.value).toBe(true);
+  });
+
+  it('persistence round-trip saves and restores settings correctly', () => {
+    setScript('katakana');
+    setContent('phrases');
+    setStrictness('ime');
+    clearRows('s');
+    setWeakFocus(false);
+    flushPracticeSettings();
+
+    // Verify stored JSON
+    const raw = store.get(STORAGE_KEYS.SETTINGS);
+    expect(raw).not.toBeNull();
+
+    // Create fresh store instance and re-hydrate
+    initPracticeSettings(store);
+    expect(scriptSetting.value).toBe('katakana');
+    expect(contentSetting.value).toBe('phrases');
+    expect(strictnessSetting.value).toBe('ime');
+    expect(rowIdsSetting.value).toEqual(['s']);
+    expect(weakFocusSetting.value).toBe(false);
+  });
+
+  it('corrupted or wrong-version settings fall back to defaults', () => {
+    // 1. Corrupted JSON
+    store.set(STORAGE_KEYS.SETTINGS, '{invalid json');
+    presetBasic();
+    initPracticeSettings(store);
+    expect(scriptSetting.value).toBe('both');
+    expect(rowIdsSetting.value.length).toBe(10);
+
+    // 2. Wrong version schema (e.g. v: 2)
+    const wrongVersion = {
+      v: 2,
+      script: 'katakana',
+      content: 'words',
+      strictness: 'ime',
+      rowIds: ['vowels'],
+      weakFocus: true,
+      test: { kind: 'time', seconds: 30 },
+    };
+    store.set(STORAGE_KEYS.SETTINGS, JSON.stringify(wrongVersion));
+    presetBasic();
+    initPracticeSettings(store);
+    // Should retain valid defaults
+    expect(scriptSetting.value).toBe('both');
+  });
+});

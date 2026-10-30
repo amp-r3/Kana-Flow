@@ -76,14 +76,15 @@
   - Abstract storage behind `KeyValueStore` interface with `LocalStorageStore` (safe against private browsing / quota throws) and `MemoryKeyValueStore` (for tests/SSR).
 - **Justification:** Follows FSD boundaries; practice configuration belongs to the kana domain entity, while test execution state belongs to session lifecycle.
 
-### ADR 012: Pure Weight Decay, Unseen Weight, and EMA Latency Tracking (entities/progress)
-- **Context:** User kana accuracy and latency must inform weighted random selection during `weakFocus` practice mode, decaying historical attempts over time.
+### ADR 012: Pure Weight Decay and Mistake-Based Kana Mastery Model (entities/progress)
+- **Context:** User kana accuracy must inform weighted random selection during `weakFocus` practice mode, decaying historical attempts over time.
 - **Decision:**
-  - Implement pure functions in `entities/progress/lib/weights.ts`: `computeWeight`, `computeWeights`, `decayStats`, and `updateKanaStats`.
-  - Unseen kana have weight 2.0; kana with mistake rate > 0.3 or latency > 1500 ms have weight 3.0; mastered kana have weight 0.5.
-  - Decay halves attempts and mistakes every 50 attempts (`HALF_LIFE_ATTEMPTS = 50`) while retaining smoothed latency.
-  - Update latency via EMA with alpha = 0.3 (`0.7 * prev + 0.3 * now`).
-- **Justification:** Guarantees deterministic weighting, testability with pure functions, and prevents over-penalizing past mistakes.
+  - Implement pure functions in `entities/progress/lib/weights.ts`: `computeWeakness`, `computeWeight`, `computeWeights`, `computeItemWeight`, `decayStats`, and `updateKanaStats`.
+  - Exactly implement Plan v1.1 section 8 formula: `weakness = (m + 1) / (a + 2)`, `weight = 1 + 4 * weakness`. Unseen kana (`a === 0`) naturally evaluates to `weakness = 1/2 = 0.5` -> `weight = 1 + 4 * 0.5 = 3.0` so new material is introduced.
+  - Weight computation is strictly mistake-based in v1; latency `t` is stored via EMA (alpha = 0.3) for future extensibility but unused for prompt weighting.
+  - Item weight for words/phrases is the arithmetic mean of its tokens' kana weights (`computeItemWeight`).
+  - Decay halves attempts `a` and mistakes `m` when attempts `a > 50` (`Math.floor(a / 2)`), keeping stats recent.
+- **Justification:** Exact adherence to Plan v1.1 section 8 specifications; deterministic and lightweight.
 
 ### ADR 013: Trailing Extension Absorption and Desktop Input Normalization (features/type-prompt)
 - **Context:** Fast typists transitioning from a word ending in single `n` (e.g. `パン`) to a word beginning with `n` (e.g. `ねこ`) or double-tapping `n` within 250ms must not suffer false-positive rejections.
@@ -92,3 +93,13 @@
   - In `TypingController`, if `extensions.size > 0` upon completion, record `lastCompletedAt`. If the subsequent key falls within the absorption window and matches an extension, swallow it silently without recording a keystroke or advancing the buffer.
   - `handleKeyDown` in `input-adapter.ts` maps `event.code` (e.g. `KeyA` .. `KeyZ`) to Latin characters when non-Latin keyboard layouts (e.g. Russian Cyrillic `KeyF` -> `a`) are active, while ignoring IME compositions (`isComposing`) and modifier combinations (`ctrl`, `meta`, `alt`).
 - **Justification:** Provides Monkeytype-grade input feel and eliminates input layout friction for international users.
+
+### ADR 014: Deviation Audit and Alignment with Plan v1.1
+- **Context:** Review and resolve all differences between intermediate prototype implementations and the authoritative `kana-flow-implementation-plan.md` (v1.1).
+- **Audit & Decisions:**
+  1. **`compile` Signature & Reading Hints:** Restored `compile(prompt: PromptItem, strictness: Strictness)`. Digraph and kana tables define base pronunciation; `readingHints` on `PromptItem` are applied strictly in `learner` mode at the designated `tokenIndex`. `は` accepts only `ha` across both modes by default; `こんにちは` accepts `wa` strictly via its attached readingHint (`はな` rejects `wana`).
+  2. **Prompt Picker API & Filtering:** Restored `buildPool(settings, content?)` and `pickPrompt(pool, weights, rng, previousKey)`. For words and phrases, filtering is governed strictly by `script` (`hiragana` -> hiragana items, `katakana` -> katakana items, `both` -> all); selected rows are ignored for content items per section 5.5. No immediate repeat when `pool.length > 1`.
+  3. **Weight Computation Formula:** Removed latency step functions; aligned with pure formula `weakness = (m + 1) / (a + 2)` and `weight = 1 + 4 * weakness`, giving unseen kana weight 3.0. Added `computeItemWeight` for word/phrase prompts.
+  4. **Injectable Scheduler in TypingController:** Abstracted `setTimeout`/`setInterval` behind an injectable `Scheduler` interface (`defaultScheduler` in `shared/lib`, `FakeScheduler` in tests). The controller owns the deadline timer, 1 Hz live stats ticker, shake flag clearing (~280 ms), and automatically ends count tests upon the final prompt.
+  5. **Decoupled Live Stats Counters:** Live stats display reads cheap atomic signals (`correctKeystrokes`, `mistakeCount`, `sessionStartedAt`, and controller `tickerNow`) rather than executing expensive `computeMetrics` on every keystroke. Full `metrics` is computed once, on session finish.
+  6. **Side Effect Separation for Locale:** Removed DOM mutation (`document.documentElement.lang`) from `shared/i18n/locale.ts` and placed reactive effect inside `app/init.ts`, keeping `shared/` pure of UI side effects.

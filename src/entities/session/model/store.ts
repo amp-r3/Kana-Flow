@@ -18,6 +18,11 @@ export const keystrokes = signal<readonly KeystrokeEvent[]>([]);
 export const promptResults = signal<readonly PromptResult[]>([]);
 export const metrics = signal<SessionMetrics | null>(null);
 
+// Cheap counters for live stats (avoids computing heavy metrics on every keystroke)
+export const correctKeystrokes = signal<number>(0);
+export const mistakeCount = signal<number>(0);
+export const sessionStartedAt = signal<number>(0);
+
 let boundStore: KeyValueStore | null = null;
 
 export function initSession(store: KeyValueStore): void {
@@ -28,11 +33,13 @@ export function initSession(store: KeyValueStore): void {
       const parsed: unknown = JSON.parse(raw);
       if (isSettings(parsed)) {
         testConfig.value = parsed.test;
+        return;
       }
     } catch {
       // Fallback to default
     }
   }
+  testConfig.value = DEFAULT_TEST_CONFIG;
 }
 
 export function setTestConfig(config: TestConfig): void {
@@ -42,12 +49,21 @@ export function setTestConfig(config: TestConfig): void {
   if (boundStore) {
     try {
       const raw = boundStore.get(STORAGE_KEYS.SETTINGS);
-      if (raw) {
-        const parsed: unknown = JSON.parse(raw);
-        if (isSettings(parsed)) {
-          const updated = { ...parsed, test: config };
-          boundStore.set(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
-        }
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (isSettings(parsed)) {
+        const updated = { ...parsed, test: config };
+        boundStore.set(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+      } else {
+        const defaultSettings = {
+          v: 1,
+          script: 'both',
+          content: 'single',
+          strictness: 'learner',
+          rowIds: ['vowels', 'k', 's', 't', 'n', 'h', 'm', 'y', 'r', 'w_n'],
+          weakFocus: true,
+          test: config,
+        };
+        boundStore.set(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
       }
     } catch {
       // Ignore error
@@ -55,8 +71,11 @@ export function setTestConfig(config: TestConfig): void {
   }
 }
 
-export function startTest(): void {
+export function startTest(startedAt: number): void {
   phase.value = 'running';
+  sessionStartedAt.value = startedAt;
+  correctKeystrokes.value = 0;
+  mistakeCount.value = 0;
   keystrokes.value = [];
   promptResults.value = [];
   metrics.value = null;
@@ -64,6 +83,15 @@ export function startTest(): void {
 
 export function recordKeystroke(at: number, accepted: boolean): void {
   keystrokes.value = [...keystrokes.value, { at, accepted }];
+  if (accepted) {
+    correctKeystrokes.value += 1;
+  } else {
+    mistakeCount.value += 1;
+  }
+}
+
+export function recordMistake(): void {
+  mistakeCount.value += 1;
 }
 
 export function recordPromptResult(result: PromptResult): void {
@@ -79,6 +107,9 @@ export function finishTest(endTimeMs?: number): SessionMetrics {
 
 export function resetSession(): void {
   phase.value = 'idle';
+  sessionStartedAt.value = 0;
+  correctKeystrokes.value = 0;
+  mistakeCount.value = 0;
   keystrokes.value = [];
   promptResults.value = [];
   metrics.value = null;

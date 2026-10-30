@@ -24,7 +24,7 @@ describe('i18n: translations and locale handling', () => {
     setLocale('en');
   });
 
-  it('setLocale persists locale to store and updates documentElement lang', () => {
+  it('setLocale persists locale to store and updates locale signal', () => {
     const store = new MemoryKeyValueStore();
     setLocale('ru', store);
     expect(store.get('kanaflow:locale')).toBe('ru');

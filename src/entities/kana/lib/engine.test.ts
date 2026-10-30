@@ -168,6 +168,18 @@ describe('engine: ん contextual lookahead', () => {
     expect(completesWith(prompt, 'learner', 'konnichiwa')).toBe(true);
   });
 
+  it('without a reading hint, は accepts only ha in both modes: はな learner accepts hana and rejects wana', () => {
+    const prompt: PromptItem = {
+      key: 'word:hana',
+      text: 'はな',
+    };
+    expect(completesWith(prompt, 'ime', 'hana')).toBe(true);
+    expect(completesWith(prompt, 'ime', 'wana')).toBe(false);
+
+    expect(completesWith(prompt, 'learner', 'hana')).toBe(true);
+    expect(completesWith(prompt, 'learner', 'wana')).toBe(false);
+  });
+
   it('ほんや requires nn before y in ime mode', () => {
     const prompt: PromptItem = { key: 'word:honya', text: 'ほんや' };
     expect(completesWith(prompt, 'ime', 'honnya')).toBe(true);

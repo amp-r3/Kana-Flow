@@ -65,6 +65,10 @@ function saveCurrentSettings(): void {
   }
 }
 
+export function flushPracticeSettings(): void {
+  debouncedSaver?.flush();
+}
+
 function notifyChange(): void {
   if (debouncedSaver) {
     debouncedSaver.trigger();
@@ -89,11 +93,19 @@ export function initPracticeSettings(store: KeyValueStore): void {
           rowIdsSetting.value = validRows;
         }
         weakFocusSetting.value = parsed.weakFocus;
+        return;
       }
     } catch {
       // Fallback silently to defaults
     }
   }
+
+  // Fallback to defaults
+  scriptSetting.value = 'both';
+  contentSetting.value = 'single';
+  strictnessSetting.value = 'learner';
+  rowIdsSetting.value = DEFAULT_BASIC_ROWS;
+  weakFocusSetting.value = true;
 
   if (typeof window !== 'undefined') {
     window.addEventListener('pagehide', () => {

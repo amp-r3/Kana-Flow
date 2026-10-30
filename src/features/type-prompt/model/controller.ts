@@ -22,13 +22,14 @@ import {
   promptResults,
   startTest,
   recordKeystroke,
+  recordMistake,
   recordPromptResult,
   finishTest,
   resetSession,
 } from '@/entities/session';
 import { recordTokenOutcomes, flushProgress } from '@/entities/progress';
-import type { Clock, Rng } from '@/shared/lib';
-import { defaultClock, defaultRng } from '@/shared/lib';
+import type { Clock, Scheduler, TimeoutHandle } from '@/shared/lib';
+import { defaultClock, defaultScheduler } from '@/shared/lib';
 
 export type TokenOutcomeTracker = {
   kanaKey: string | null;
@@ -44,12 +45,15 @@ export class TypingController {
   readonly imeNotice = signal<boolean>(false);
   readonly currentPrompt = signal<PromptItem | null>(null);
   readonly activeTokenIdx = signal<number>(0);
+  readonly canonicalRomaji = signal<string>('');
+  readonly tickerNow = signal<number>(0);
 
   private matcher: Matcher | null = null;
   private matchState: MatchState | null = null;
 
+  private nextPrompt: () => PromptItem;
   private clock: Clock;
-  private rng: Rng;
+  private scheduler: Scheduler;
 
   private promptStartedAt = 0;
   private tokenTrackers: TokenOutcomeTracker[] = [];
@@ -59,22 +63,25 @@ export class TypingController {
   private lastExtensions = new Set<string>();
   private lastCompletedAt = 0;
 
-  private deadlineTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private nextPromptFn: (() => PromptItem) | null = null;
+  private deadlineTimeoutHandle: TimeoutHandle | null = null;
+  private tickerIntervalHandle: TimeoutHandle | null = null;
+  private shakeTimeoutHandle: TimeoutHandle | null = null;
 
-  constructor(clock: Clock = defaultClock, rng: Rng = defaultRng) {
+  constructor(
+    nextPrompt: () => PromptItem,
+    clock: Clock = defaultClock,
+    scheduler: Scheduler = defaultScheduler,
+  ) {
+    this.nextPrompt = nextPrompt;
     this.clock = clock;
-    this.rng = rng;
-  }
-
-  setNextPromptFn(fn: () => PromptItem): void {
-    this.nextPromptFn = fn;
+    this.scheduler = scheduler;
   }
 
   loadPrompt(prompt: PromptItem, strictness: Strictness): void {
     this.currentPrompt.value = prompt;
     this.matcher = compile(prompt, strictness);
     this.matchState = start(this.matcher);
+    this.canonicalRomaji.value = canonical(this.matcher);
 
     this.typedBuffer.value = '';
     this.isAssisted.value = false;
@@ -119,6 +126,7 @@ export class TypingController {
       if (!this.isAssisted.value) {
         this.isAssisted.value = true;
         this.promptMistakes += 1;
+        recordMistake();
         const tracker = this.tokenTrackers[this.activeTokenIdx.value];
         if (tracker) {
           tracker.mistakes += 1;
@@ -148,7 +156,7 @@ export class TypingController {
 
     // First accepted/typed letter starts the test if idle
     if (phase.value === 'idle') {
-      startTest();
+      startTest(now);
       this.promptStartedAt = now;
       for (const tr of this.tokenTrackers) {
         tr.startedAt = now;
@@ -158,10 +166,16 @@ export class TypingController {
       const config = testConfig.value;
       if (config.kind === 'time') {
         const ms = config.seconds * 1000;
-        this.deadlineTimeoutId = setTimeout(() => {
+        this.deadlineTimeoutHandle = this.scheduler.setTimeout(() => {
           this.finishSession();
         }, ms);
       }
+
+      // 1 Hz ticker for live stats
+      this.tickerNow.value = now;
+      this.tickerIntervalHandle = this.scheduler.setInterval(() => {
+        this.tickerNow.value = this.clock.now();
+      }, 1000);
     }
 
     // Step the NFA engine
@@ -178,8 +192,12 @@ export class TypingController {
       }
 
       this.isShaking.value = true;
-      setTimeout(() => {
+      if (this.shakeTimeoutHandle) {
+        this.scheduler.clearTimeout(this.shakeTimeoutHandle);
+      }
+      this.shakeTimeoutHandle = this.scheduler.setTimeout(() => {
         this.isShaking.value = false;
+        this.shakeTimeoutHandle = null;
       }, 280);
       return;
     }
@@ -259,16 +277,22 @@ export class TypingController {
     }
 
     // Advance to next prompt immediately
-    if (this.nextPromptFn) {
-      const nextPrompt = this.nextPromptFn();
-      this.loadPrompt(nextPrompt, strictness);
-    }
+    const nextPrompt = this.nextPrompt();
+    this.loadPrompt(nextPrompt, strictness);
   }
 
   finishSession(): void {
-    if (this.deadlineTimeoutId) {
-      clearTimeout(this.deadlineTimeoutId);
-      this.deadlineTimeoutId = null;
+    if (this.deadlineTimeoutHandle) {
+      this.scheduler.clearTimeout(this.deadlineTimeoutHandle);
+      this.deadlineTimeoutHandle = null;
+    }
+    if (this.tickerIntervalHandle) {
+      this.scheduler.clearInterval(this.tickerIntervalHandle);
+      this.tickerIntervalHandle = null;
+    }
+    if (this.shakeTimeoutHandle) {
+      this.scheduler.clearTimeout(this.shakeTimeoutHandle);
+      this.shakeTimeoutHandle = null;
     }
     const now = this.clock.now();
     finishTest(now);
@@ -276,25 +300,25 @@ export class TypingController {
   }
 
   reset(): void {
-    if (this.deadlineTimeoutId) {
-      clearTimeout(this.deadlineTimeoutId);
-      this.deadlineTimeoutId = null;
+    if (this.deadlineTimeoutHandle) {
+      this.scheduler.clearTimeout(this.deadlineTimeoutHandle);
+      this.deadlineTimeoutHandle = null;
+    }
+    if (this.tickerIntervalHandle) {
+      this.scheduler.clearInterval(this.tickerIntervalHandle);
+      this.tickerIntervalHandle = null;
+    }
+    if (this.shakeTimeoutHandle) {
+      this.scheduler.clearTimeout(this.shakeTimeoutHandle);
+      this.shakeTimeoutHandle = null;
     }
     this.typedBuffer.value = '';
     this.isShaking.value = false;
     this.isAssisted.value = false;
     this.imeNotice.value = false;
     this.activeTokenIdx.value = 0;
+    this.canonicalRomaji.value = '';
     this.lastExtensions.clear();
     resetSession();
-  }
-
-  getRng(): Rng {
-    return this.rng;
-  }
-
-  getCanonicalReveal(): string {
-    if (!this.matcher) return '';
-    return canonical(this.matcher);
   }
 }

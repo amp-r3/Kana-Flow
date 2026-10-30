@@ -4,6 +4,9 @@ export { defaultRng } from './rng';
 export type { Clock } from './clock';
 export { defaultClock } from './clock';
 
+export type { Scheduler, TimeoutHandle } from './scheduler';
+export { defaultScheduler } from './scheduler';
+
 export type { KeyValueStore } from './storage';
 export {
   MemoryKeyValueStore,

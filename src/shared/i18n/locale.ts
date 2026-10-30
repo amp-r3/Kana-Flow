@@ -20,17 +20,11 @@ export function initLocale(store: KeyValueStore): void {
   if (persisted === 'en' || persisted === 'ru') {
     locale.value = persisted;
   }
-  if (typeof document !== 'undefined') {
-    document.documentElement.lang = locale.value;
-  }
 }
 
 export function setLocale(newLocale: Locale, store?: KeyValueStore): void {
   locale.value = newLocale;
   if (store) {
     store.set(STORAGE_KEYS.LOCALE, newLocale);
-  }
-  if (typeof document !== 'undefined') {
-    document.documentElement.lang = newLocale;
   }
 }

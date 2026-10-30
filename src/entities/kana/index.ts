@@ -34,6 +34,7 @@ export {
   weakFocusSetting,
   DEFAULT_BASIC_ROWS,
   initPracticeSettings,
+  flushPracticeSettings,
   getPracticeSettings,
   setScript,
   setContent,

@@ -22,6 +22,18 @@ export function computeWeights(
   return weights;
 }
 
+export function computeItemWeight(
+  tokenKeys: readonly string[],
+  weights: ReadonlyMap<string, number>,
+): number {
+  if (tokenKeys.length === 0) return 1;
+  let sum = 0;
+  for (const k of tokenKeys) {
+    sum += weights.get(k) ?? 3; // default unseen = 3
+  }
+  return sum / tokenKeys.length;
+}
+
 export function decayStats(stats: KanaStats): KanaStats {
   if (stats.a > 50) {
     return {

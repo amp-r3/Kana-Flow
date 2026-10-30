@@ -8,6 +8,7 @@ export {
   computeWeakness,
   computeWeight,
   computeWeights,
+  computeItemWeight,
   decayStats,
   updateKanaStats,
 } from './lib/weights';
