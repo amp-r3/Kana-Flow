@@ -44,6 +44,34 @@ describe('features/type-prompt: bindKeyboard', () => {
     expect(onIntent).toHaveBeenCalledWith({ kind: 'char', char: 'a' });
   });
 
+  it('Space/Enter/Backspace -> ignore, no mistake counted, no state change', () => {
+    const onIntent = vi.fn();
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+
+    bindKeyboard({ onIntent, getInputElement: () => input, target: input });
+
+    // Space
+    const space = new KeyboardEvent('keydown', { key: ' ', code: 'Space', cancelable: true });
+    input.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(false);
+    expect(onIntent).not.toHaveBeenCalled();
+
+    // Enter
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', cancelable: true });
+    input.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(false);
+    expect(onIntent).not.toHaveBeenCalled();
+
+    // Backspace
+    const backspace = new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', cancelable: true });
+    input.dispatchEvent(backspace);
+    expect(backspace.defaultPrevented).toBe(false);
+    expect(onIntent).not.toHaveBeenCalled();
+
+    document.body.removeChild(input);
+  });
+
   it('prevents default and dispatches reveal for Escape when inside input', () => {
     const onIntent = vi.fn();
     const input = document.createElement('input');

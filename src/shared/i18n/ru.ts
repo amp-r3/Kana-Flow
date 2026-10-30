@@ -1,4 +1,4 @@
-import type { TranslationKey } from './en';
+import type { en } from './en';
 
 export const ru = {
   // Top bar
@@ -55,4 +55,4 @@ export const ru = {
   'reset.confirm': 'Вы уверены, что хотите удалить всю статистику точности и времени?',
   'reset.action': 'Стереть все',
   'reset.cancel': 'Отмена',
-} as const satisfies Record<TranslationKey, string>;
+} as const satisfies Record<keyof typeof en, string>;

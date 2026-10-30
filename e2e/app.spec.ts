@@ -186,4 +186,39 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await enRadio.click();
     await expect(page.getByRole('button', { name: 'Kana Matrix' })).toBeVisible();
   });
+
+  test('(h) Space in the input does nothing; Esc reveals the answer and the prompt is assisted', async ({ page }) => {
+    await page.goto('/');
+    const input = page.locator('input[aria-label="Kana input sink"]');
+    await expect(input).toBeFocused();
+
+    // Check that revealed answer is not present initially
+    await expect(page.locator('text=Revealed:')).toHaveCount(0);
+
+    // Press Space inside the input sink
+    await page.keyboard.press('Space');
+
+    // Space is ignored: does not start test, does not reveal, does not count mistake
+    await expect(page.locator('text=wpm')).toHaveCount(0);
+    await expect(page.locator('text=Revealed:')).toHaveCount(0);
+
+    // Press Escape inside the input sink
+    await page.keyboard.press('Escape');
+
+    // Escape triggers reveal: canonical romaji is shown
+    await expect(page.locator('text=Revealed:')).toBeVisible();
+
+    // Type canonical answer to complete the assisted prompt
+    const arena = page.locator('[data-canonical]');
+    const canonical = await arena.getAttribute('data-canonical');
+    const firstGlyph = await page.locator('main .font-kana').innerText();
+    if (canonical) {
+      await page.keyboard.type(canonical, { delay: 15 });
+    }
+
+    // Prompt advances, test starts and reflects accuracy < 100% due to the reveal mistake
+    await expect(page.locator('main .font-kana')).not.toHaveText(firstGlyph, { timeout: 2000 });
+    await expect(page.locator('text=wpm')).toBeVisible();
+    await expect(page.locator('text=100%')).toHaveCount(0);
+  });
 });

@@ -1,3 +1,4 @@
+import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import type { KeyIntent } from '../lib/input-adapter';
 import type {
@@ -39,14 +40,23 @@ export type TokenOutcomeTracker = {
 };
 
 export class TypingController {
-  readonly typedBuffer = signal<string>('');
-  readonly isShaking = signal<boolean>(false);
-  readonly isAssisted = signal<boolean>(false);
-  readonly imeNotice = signal<boolean>(false);
-  readonly currentPrompt = signal<PromptItem | null>(null);
-  readonly activeTokenIdx = signal<number>(0);
-  readonly canonicalRomaji = signal<string>('');
-  readonly tickerNow = signal<number>(0);
+  private readonly _typedBuffer = signal<string>('');
+  private readonly _isShaking = signal<boolean>(false);
+  private readonly _isAssisted = signal<boolean>(false);
+  private readonly _imeNotice = signal<boolean>(false);
+  private readonly _currentPrompt = signal<PromptItem | null>(null);
+  private readonly _activeTokenIdx = signal<number>(0);
+  private readonly _canonicalRomaji = signal<string>('');
+  private readonly _tickerNow = signal<number>(0);
+
+  readonly typedBuffer: ReadonlySignal<string> = this._typedBuffer;
+  readonly isShaking: ReadonlySignal<boolean> = this._isShaking;
+  readonly isAssisted: ReadonlySignal<boolean> = this._isAssisted;
+  readonly imeNotice: ReadonlySignal<boolean> = this._imeNotice;
+  readonly currentPrompt: ReadonlySignal<PromptItem | null> = this._currentPrompt;
+  readonly activeTokenIdx: ReadonlySignal<number> = this._activeTokenIdx;
+  readonly canonicalRomaji: ReadonlySignal<string> = this._canonicalRomaji;
+  readonly tickerNow: ReadonlySignal<number> = this._tickerNow;
 
   private matcher: Matcher | null = null;
   private matchState: MatchState | null = null;
@@ -78,15 +88,15 @@ export class TypingController {
   }
 
   loadPrompt(prompt: PromptItem, strictness: Strictness): void {
-    this.currentPrompt.value = prompt;
+    this._currentPrompt.value = prompt;
     this.matcher = compile(prompt, strictness);
     this.matchState = start(this.matcher);
-    this.canonicalRomaji.value = canonical(this.matcher);
+    this._canonicalRomaji.value = canonical(this.matcher);
 
-    this.typedBuffer.value = '';
-    this.isAssisted.value = false;
-    this.isShaking.value = false;
-    this.activeTokenIdx.value = 0;
+    this._typedBuffer.value = '';
+    this._isAssisted.value = false;
+    this._isShaking.value = false;
+    this._activeTokenIdx.value = 0;
     this.promptMistakes = 0;
 
     const now = this.clock.now();
@@ -101,11 +111,11 @@ export class TypingController {
   }
 
   handleCompositionStart(): void {
-    this.imeNotice.value = true;
+    this._imeNotice.value = true;
   }
 
   handleCompositionEnd(): void {
-    this.imeNotice.value = false;
+    this._imeNotice.value = false;
   }
 
   handleIntent(intent: KeyIntent, strictness: Strictness): void {
@@ -121,13 +131,13 @@ export class TypingController {
 
     // Reveal intent (Esc)
     if (intent.kind === 'reveal') {
-      if (!this.matcher || !this.currentPrompt.value) return;
+      if (!this.matcher || !this._currentPrompt.value) return;
 
-      if (!this.isAssisted.value) {
-        this.isAssisted.value = true;
+      if (!this._isAssisted.value) {
+        this._isAssisted.value = true;
         this.promptMistakes += 1;
         recordMistake();
-        const tracker = this.tokenTrackers[this.activeTokenIdx.value];
+        const tracker = this.tokenTrackers[this._activeTokenIdx.value];
         if (tracker) {
           tracker.mistakes += 1;
         }
@@ -150,13 +160,18 @@ export class TypingController {
     // Expired or non-extension key clears absorption window
     this.lastExtensions.clear();
 
-    if (!this.matcher || !this.matchState || !this.currentPrompt.value) {
+    if (!this.matcher || !this.matchState || !this._currentPrompt.value) {
       return;
     }
 
     // First accepted/typed letter starts the test if idle
     if (phase.value === 'idle') {
       startTest(now);
+      if (this.promptMistakes > 0) {
+        for (let i = 0; i < this.promptMistakes; i++) {
+          recordMistake();
+        }
+      }
       this.promptStartedAt = now;
       for (const tr of this.tokenTrackers) {
         tr.startedAt = now;
@@ -172,9 +187,9 @@ export class TypingController {
       }
 
       // 1 Hz ticker for live stats
-      this.tickerNow.value = now;
+      this._tickerNow.value = now;
       this.tickerIntervalHandle = this.scheduler.setInterval(() => {
-        this.tickerNow.value = this.clock.now();
+        this._tickerNow.value = this.clock.now();
       }, 1000);
     }
 
@@ -186,17 +201,17 @@ export class TypingController {
       recordKeystroke(now, false);
       this.promptMistakes += 1;
 
-      const tracker = this.tokenTrackers[this.activeTokenIdx.value];
+      const tracker = this.tokenTrackers[this._activeTokenIdx.value];
       if (tracker) {
         tracker.mistakes += 1;
       }
 
-      this.isShaking.value = true;
+      this._isShaking.value = true;
       if (this.shakeTimeoutHandle) {
         this.scheduler.clearTimeout(this.shakeTimeoutHandle);
       }
       this.shakeTimeoutHandle = this.scheduler.setTimeout(() => {
-        this.isShaking.value = false;
+        this._isShaking.value = false;
         this.shakeTimeoutHandle = null;
       }, 280);
       return;
@@ -204,10 +219,10 @@ export class TypingController {
 
     // Accepted!
     recordKeystroke(now, true);
-    this.typedBuffer.value += ch;
+    this._typedBuffer.value += ch;
     this.matchState = nextState;
 
-    const prevTokenIdx = this.activeTokenIdx.value;
+    const prevTokenIdx = this._activeTokenIdx.value;
     const newTokenIdx = activeTokenIndex(nextState);
 
     // If active token advanced, mark completion latency for previous tokens
@@ -222,7 +237,7 @@ export class TypingController {
           nextTr.startedAt = now;
         }
       }
-      this.activeTokenIdx.value = Math.min(newTokenIdx, this.matcher.tokens.length - 1);
+      this._activeTokenIdx.value = Math.min(newTokenIdx, this.matcher.tokens.length - 1);
     }
 
     // Check prompt completion
@@ -232,7 +247,7 @@ export class TypingController {
   }
 
   private onPromptComplete(now: number, strictness: Strictness): void {
-    if (!this.matcher || !this.matchState || !this.currentPrompt.value) return;
+    if (!this.matcher || !this.matchState || !this._currentPrompt.value) return;
 
     // Finalize token outcomes
     for (const tr of this.tokenTrackers) {
@@ -248,11 +263,11 @@ export class TypingController {
     }));
 
     recordPromptResult({
-      key: this.currentPrompt.value.key,
+      key: this._currentPrompt.value.key,
       startedAt: this.promptStartedAt,
       endedAt: now,
       mistakes: this.promptMistakes,
-      assisted: this.isAssisted.value,
+      assisted: this._isAssisted.value,
       tokenOutcomes,
     });
 
@@ -312,12 +327,12 @@ export class TypingController {
       this.scheduler.clearTimeout(this.shakeTimeoutHandle);
       this.shakeTimeoutHandle = null;
     }
-    this.typedBuffer.value = '';
-    this.isShaking.value = false;
-    this.isAssisted.value = false;
-    this.imeNotice.value = false;
-    this.activeTokenIdx.value = 0;
-    this.canonicalRomaji.value = '';
+    this._typedBuffer.value = '';
+    this._isShaking.value = false;
+    this._isAssisted.value = false;
+    this._imeNotice.value = false;
+    this._activeTokenIdx.value = 0;
+    this._canonicalRomaji.value = '';
     this.lastExtensions.clear();
     resetSession();
   }

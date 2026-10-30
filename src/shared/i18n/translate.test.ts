@@ -2,12 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { en, ru, t, locale, setLocale } from './index';
 import { MemoryKeyValueStore } from '@/shared/lib';
 
+// Compile-time verification: ru satisfies Record<keyof typeof en, string>
+type _RuEnCompileTimeParity = typeof ru extends Record<keyof typeof en, string> ? true : false;
+type _AssertParity<T extends true> = T;
+export type _CheckedRuEnParity = _AssertParity<_RuEnCompileTimeParity>;
+
 describe('i18n: translations and locale handling', () => {
-  it('ru keys strictly match en keys (tested via compile-time satisfies and runtime equality)', () => {
+  it('has exact runtime key parity between en and ru dictionaries', () => {
     const enKeys = Object.keys(en).sort();
     const ruKeys = Object.keys(ru).sort();
     expect(ruKeys).toEqual(enKeys);
     expect(enKeys.length).toBeGreaterThan(0);
+
+    const enValues = Object.values(en);
+    const ruValues = Object.values(ru);
+    for (const val of enValues) {
+      expect(val.length).toBeGreaterThan(0);
+    }
+    for (const val of ruValues) {
+      expect(val.length).toBeGreaterThan(0);
+    }
   });
 
   it('translates strings for active locale with parameter interpolation', () => {

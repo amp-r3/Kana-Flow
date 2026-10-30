@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { allKanaRows } from './data';
 import { wordsData } from './data/words';
 import { phrasesData } from './data/phrases';
-import type { RowId } from './types';
+import { compile, canonical } from '../lib/engine';
+import type { RowId, PromptItem } from './types';
 
 describe('data integrity: rows', () => {
   it('contains exactly 31 rows with unique IDs', () => {
@@ -51,7 +52,7 @@ describe('data integrity: rows', () => {
     expect(actualRowIds).toEqual(expectedRowIds);
   });
 
-  it('every entry has at least one IME spelling, with canonical as first', () => {
+  it('every entry has an ime spelling with canonical first', () => {
     for (const row of allKanaRows) {
       for (const entry of row.entries) {
         expect(entry.ime.length).toBeGreaterThanOrEqual(1);
@@ -60,7 +61,7 @@ describe('data integrity: rows', () => {
     }
   });
 
-  it('maintains hiragana/katakana parity for non-extended rows', () => {
+  it('hiragana/katakana parity for non-extended rows', () => {
     for (const row of allKanaRows) {
       if (row.category === 'extended') {
         for (const entry of row.entries) {
@@ -78,7 +79,7 @@ describe('data integrity: rows', () => {
 });
 
 describe('data integrity: content items', () => {
-  it('content IDs are unique and structured', () => {
+  it('content ids unique', () => {
     const allContent = [...wordsData, ...phrasesData];
     const idSet = new Set<string>();
     for (const item of allContent) {
@@ -87,7 +88,7 @@ describe('data integrity: content items', () => {
     }
   });
 
-  it('every content meaning has non-empty en and ru translations', () => {
+  it('every content item has non-empty en and ru', () => {
     const allContent = [...wordsData, ...phrasesData];
     for (const item of allContent) {
       expect(item.meaning.en.trim().length).toBeGreaterThan(0);
@@ -95,7 +96,7 @@ describe('data integrity: content items', () => {
     }
   });
 
-  it('every script x kind pool has >= 3 items', () => {
+  it('content pools per script x kind: every pool has >= 3 items', () => {
     const hiraganaWords = wordsData.filter((w) => w.script === 'hiragana');
     const katakanaWords = wordsData.filter((w) => w.script === 'katakana');
     const hiraganaPhrases = phrasesData.filter((p) => p.script === 'hiragana');
@@ -106,10 +107,28 @@ describe('data integrity: content items', () => {
     expect(hiraganaPhrases.length).toBeGreaterThanOrEqual(3);
     expect(katakanaPhrases.length).toBeGreaterThanOrEqual(3);
   });
+
+  it('all words/phrases compile in both strictness modes', () => {
+    const allContent = [...wordsData, ...phrasesData];
+    for (const item of allContent) {
+      const prompt: PromptItem = {
+        key: item.id,
+        text: item.text,
+        ...(item.readingHints ? { readingHints: item.readingHints } : {}),
+      };
+      const compiledLearner = compile(prompt, 'learner');
+      expect(compiledLearner.tokens.length).toBeGreaterThan(0);
+      expect(canonical(compiledLearner).length).toBeGreaterThan(0);
+
+      const compiledIme = compile(prompt, 'ime');
+      expect(compiledIme.tokens.length).toBeGreaterThan(0);
+      expect(canonical(compiledIme).length).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('data integrity: font glyphs sync', () => {
-  it('glyphs.txt matches exactly the set of characters in data files', () => {
+  it('glyphs.txt in sync with the data', () => {
     const glyphsPath = join(process.cwd(), 'glyphs.txt');
     expect(existsSync(glyphsPath)).toBe(true);
     const committedGlyphs = readFileSync(glyphsPath, 'utf-8');
