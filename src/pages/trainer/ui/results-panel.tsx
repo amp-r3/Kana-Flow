@@ -55,6 +55,11 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 py-6 select-none animate-fadeIn">
+      {/* Polite live region for screen readers (Plan 11.3 & P5 A11y) */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {`Test complete. Speed: ${m.wpm} WPM, accuracy: ${Math.round(m.accuracy * 100)} percent. Completed ${m.promptsCompleted} prompts with ${m.mistakes} mistakes.`}
+      </div>
+
       {/* Header with primary WPM and Accuracy */}
       <div className="flex flex-wrap items-baseline justify-between border-b border-border pb-4 gap-4">
         <div>

@@ -7,7 +7,7 @@ import { defaultClock, defaultScheduler } from '@/shared/lib';
 import type { PromptItem } from '@/entities/kana';
 import * as kanaModule from '@/entities/kana';
 import { contentSetting, setContent } from '@/entities/kana';
-import { resetSession } from '@/entities/session';
+import { resetSession, correctKeystrokes } from '@/entities/session';
 import { t } from '@/shared/i18n';
 
 describe('trainer UI: focus redirection and content loader error fallback', () => {
@@ -31,10 +31,12 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
     const controller = new TypingController(() => prompt, defaultClock, defaultScheduler);
 
     render(<TrainerPage controller={controller} />, container);
-    controller.loadPrompt(prompt, 'learner');
 
-    // Wait for Preact effects to attach event listeners
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Wait for Preact mount effects to complete
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // Load a 2-letter kana prompt so first character does not immediately complete it
+    controller.loadPrompt(prompt, 'learner');
 
     // Find the input and a button (e.g. rows button or restart button)
     const input = container.querySelector('input');
@@ -48,16 +50,15 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
     button.focus();
     expect(document.activeElement).toBe(button);
 
-    const firstChar = controller.canonicalRomaji.value.slice(0, 1) || 'a';
-
-    // Press firstChar on the button
-    const event = new KeyboardEvent('keydown', { key: firstChar, bubbles: true });
+    // Press 'k' on the button
+    const event = new KeyboardEvent('keydown', { key: 'k', bubbles: true });
     button.dispatchEvent(event);
 
     // Focus must move to input
     expect(document.activeElement).toBe(input);
-    // Buffer must have processed firstChar
-    expect(controller.typedBuffer.value).toBe(firstChar);
+    // Buffer must have processed 'k'
+    expect(controller.typedBuffer.value).toBe('k');
+    expect(correctKeystrokes.value).toBe(1);
 
     // Focus button again and press 'Escape'
     button.focus();

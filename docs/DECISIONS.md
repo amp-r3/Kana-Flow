@@ -103,3 +103,23 @@
   4. **Injectable Scheduler in TypingController:** Abstracted `setTimeout`/`setInterval` behind an injectable `Scheduler` interface (`defaultScheduler` in `shared/lib`, `FakeScheduler` in tests). The controller owns the deadline timer, 1 Hz live stats ticker, shake flag clearing (~280 ms), and automatically ends count tests upon the final prompt.
   5. **Decoupled Live Stats Counters:** Live stats display reads cheap atomic signals (`correctKeystrokes`, `mistakeCount`, `sessionStartedAt`, and controller `tickerNow`) rather than executing expensive `computeMetrics` on every keystroke. Full `metrics` is computed once, on session finish.
   6. **Side Effect Separation for Locale:** Removed DOM mutation (`document.documentElement.lang`) from `shared/i18n/locale.ts` and placed reactive effect inside `app/init.ts`, keeping `shared/` pure of UI side effects.
+
+### ADR 015: Merging Widgets Layer into `pages/trainer/ui/`
+- **Context:** `steiger` enforces `fsd/insignificant-slice` requiring slices to have more than one consumer across the codebase. Private components previously placed in `widgets/` were consumed solely by `pages/trainer`.
+- **Decision:** In accordance with the prompt guidance ("If it flags a slice with one consumer, MERGE it into that consumer; do not disable the rule"), the widgets (`top-bar`, `config-bar`, `test-stage`, `results-panel`, `rows-dialog`, `live-stats-strip`, `speed-chart`, `weakest-kana-list`) were merged into `pages/trainer/ui/` as page-internal UI components.
+- **Extraction Seam:** When a second page (such as a separate stats history page, study review page, or custom drill page) is introduced that requires reusing these components, they should be extracted back to `widgets/` or `features/`.
+
+### ADR 016: Unified Reactive Settings Reset Watcher (`setupSettingsResetWatcher`)
+- **Context:** Multiple independent settings controls across `ConfigBar` and `RowsDialog` required resetting an in-progress session back to `idle` with a freshly picked prompt whenever script mode, content type, strictness, selected rows, weak focus, or test config changed.
+- **Decision:** Replaced per-control callback prop drilling (`onSettingChange`, `onRowChange`) with a single reactive Preact `effect()` in `features/type-prompt/model/settings-watcher.ts` (`setupSettingsResetWatcher`). It subscribes to all six configuration signals and atomically triggers session reset and prompt replenishment.
+- **Justification:** Eliminates prop drilling, guarantees complete state synchronization regardless of which UI surface initiates a setting mutation, and enables isolated store-level testing.
+
+### ADR 017: Comprehensive Accessibility Pass
+- **Context:** Ensure keyboard-first ergonomics, screen reader transparency, and respect for operating system motion preferences.
+- **Decision:**
+  - **Native Modal Dialog Focus Restoration:** `Dialog` records `document.activeElement` when opened and automatically restores focus to that exact opener element on close (both via close button and Escape key).
+  - **Polite Live Region:** `ResultsPanel` includes an `aria-live="polite"` element with `aria-atomic="true"` announcing test speed, accuracy, prompts completed, and mistakes to assistive technologies.
+  - **Segmented Radio Group Semantics:** `Segmented` control uses `role="radiogroup"` with individual options bearing `role="radio"` and dynamic `aria-checked` attributes.
+  - **Reduced Motion Support:** `@media (prefers-reduced-motion: reduce)` disables shake animations and transitions across all elements.
+- **Justification:** Conforms to WCAG 2.1 AA keyboard navigation and accessibility standards.
+

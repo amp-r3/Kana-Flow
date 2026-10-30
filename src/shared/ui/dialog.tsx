@@ -18,6 +18,7 @@ export function Dialog({
   className = '',
 }: DialogProps): JSX.Element {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -25,11 +26,18 @@ export function Dialog({
 
     if (open) {
       if (!dialog.open) {
+        if (document.activeElement instanceof HTMLElement) {
+          previouslyFocusedElementRef.current = document.activeElement;
+        }
         dialog.showModal();
       }
     } else {
       if (dialog.open) {
         dialog.close();
+      }
+      if (previouslyFocusedElementRef.current) {
+        previouslyFocusedElementRef.current.focus();
+        previouslyFocusedElementRef.current = null;
       }
     }
   }, [open]);
@@ -39,6 +47,10 @@ export function Dialog({
     if (!dialog) return;
 
     const handleClose = () => {
+      if (previouslyFocusedElementRef.current) {
+        previouslyFocusedElementRef.current.focus();
+        previouslyFocusedElementRef.current = null;
+      }
       onClose();
     };
 
