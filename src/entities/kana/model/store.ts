@@ -1,3 +1,4 @@
+import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import { allKanaRows } from './data';
 import type {
@@ -33,11 +34,17 @@ export const DEFAULT_BASIC_ROWS: readonly RowId[] = [
   'w_n',
 ];
 
-export const scriptSetting = signal<ScriptMode>('both');
-export const contentSetting = signal<ContentKind>('single');
-export const strictnessSetting = signal<Strictness>('learner');
-export const rowIdsSetting = signal<readonly RowId[]>(DEFAULT_BASIC_ROWS);
-export const weakFocusSetting = signal<boolean>(true);
+const _scriptSetting = signal<ScriptMode>('both');
+const _contentSetting = signal<ContentKind>('single');
+const _strictnessSetting = signal<Strictness>('learner');
+const _rowIdsSetting = signal<readonly RowId[]>(DEFAULT_BASIC_ROWS);
+const _weakFocusSetting = signal<boolean>(true);
+
+export const scriptSetting: ReadonlySignal<ScriptMode> = _scriptSetting;
+export const contentSetting: ReadonlySignal<ContentKind> = _contentSetting;
+export const strictnessSetting: ReadonlySignal<Strictness> = _strictnessSetting;
+export const rowIdsSetting: ReadonlySignal<readonly RowId[]> = _rowIdsSetting;
+export const weakFocusSetting: ReadonlySignal<boolean> = _weakFocusSetting;
 
 let boundStore: KeyValueStore | null = null;
 let debouncedSaver: ReturnType<typeof createDebouncedSaver> | null = null;
@@ -46,11 +53,11 @@ function saveCurrentSettings(): void {
   if (!boundStore) return;
   const current = {
     v: 1 as const,
-    script: scriptSetting.value,
-    content: contentSetting.value,
-    strictness: strictnessSetting.value,
-    rowIds: rowIdsSetting.value,
-    weakFocus: weakFocusSetting.value,
+    script: _scriptSetting.value,
+    content: _contentSetting.value,
+    strictness: _strictnessSetting.value,
+    rowIds: _rowIdsSetting.value,
+    weakFocus: _weakFocusSetting.value,
     // Note: session test config is merged when saving full settings
   };
   // Retrieve existing test config if present
@@ -84,15 +91,15 @@ export function initPracticeSettings(store: KeyValueStore): void {
     try {
       const parsed: unknown = JSON.parse(raw);
       if (isSettings(parsed)) {
-        scriptSetting.value = parsed.script;
-        contentSetting.value = parsed.content;
-        strictnessSetting.value = parsed.strictness;
+        _scriptSetting.value = parsed.script;
+        _contentSetting.value = parsed.content;
+        _strictnessSetting.value = parsed.strictness;
         // Verify valid row IDs
         const validRows = parsed.rowIds.filter(isRowId);
         if (validRows.length > 0) {
-          rowIdsSetting.value = validRows;
+          _rowIdsSetting.value = validRows;
         }
-        weakFocusSetting.value = parsed.weakFocus;
+        _weakFocusSetting.value = parsed.weakFocus;
         return;
       }
     } catch {
@@ -101,76 +108,76 @@ export function initPracticeSettings(store: KeyValueStore): void {
   }
 
   // Fallback to defaults
-  scriptSetting.value = 'both';
-  contentSetting.value = 'single';
-  strictnessSetting.value = 'learner';
-  rowIdsSetting.value = DEFAULT_BASIC_ROWS;
-  weakFocusSetting.value = true;
+  _scriptSetting.value = 'both';
+  _contentSetting.value = 'single';
+  _strictnessSetting.value = 'learner';
+  _rowIdsSetting.value = DEFAULT_BASIC_ROWS;
+  _weakFocusSetting.value = true;
 }
 
 export function getPracticeSettings(): PracticeSettings {
   return {
-    script: scriptSetting.value,
-    content: contentSetting.value,
-    strictness: strictnessSetting.value,
-    rowIds: rowIdsSetting.value,
-    weakFocus: weakFocusSetting.value,
+    script: _scriptSetting.value,
+    content: _contentSetting.value,
+    strictness: _strictnessSetting.value,
+    rowIds: _rowIdsSetting.value,
+    weakFocus: _weakFocusSetting.value,
   };
 }
 
 export function setScript(script: ScriptMode): void {
-  scriptSetting.value = script;
+  _scriptSetting.value = script;
   notifyChange();
 }
 
 export function setContent(content: ContentKind): void {
-  contentSetting.value = content;
+  _contentSetting.value = content;
   notifyChange();
 }
 
 export function setStrictness(strictness: Strictness): void {
-  strictnessSetting.value = strictness;
+  _strictnessSetting.value = strictness;
   notifyChange();
 }
 
 export function setWeakFocus(focus: boolean): void {
-  weakFocusSetting.value = focus;
+  _weakFocusSetting.value = focus;
   notifyChange();
 }
 
 export function toggleWeakFocus(): void {
-  weakFocusSetting.value = !weakFocusSetting.value;
+  _weakFocusSetting.value = !_weakFocusSetting.value;
   notifyChange();
 }
 
 // Domain rule: at least one row must stay selected!
 export function toggleRow(rowId: RowId): boolean {
-  const current = rowIdsSetting.value;
+  const current = _rowIdsSetting.value;
   if (current.includes(rowId)) {
     if (current.length <= 1) {
       return false; // Rejected: cannot remove last row
     }
-    rowIdsSetting.value = current.filter((id) => id !== rowId);
+    _rowIdsSetting.value = current.filter((id) => id !== rowId);
     notifyChange();
     return true;
   } else {
-    rowIdsSetting.value = [...current, rowId];
+    _rowIdsSetting.value = [...current, rowId];
     notifyChange();
     return true;
   }
 }
 
 export function selectAllRows(allIds: readonly RowId[]): void {
-  rowIdsSetting.value = [...allIds];
+  _rowIdsSetting.value = [...allIds];
   notifyChange();
 }
 
 export function clearRows(keepFirst: RowId = 'vowels'): void {
-  rowIdsSetting.value = [keepFirst];
+  _rowIdsSetting.value = [keepFirst];
   notifyChange();
 }
 
 export function presetBasic(): void {
-  rowIdsSetting.value = [...DEFAULT_BASIC_ROWS];
+  _rowIdsSetting.value = [...DEFAULT_BASIC_ROWS];
   notifyChange();
 }

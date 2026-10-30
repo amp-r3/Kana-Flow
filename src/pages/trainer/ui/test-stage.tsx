@@ -4,7 +4,7 @@ import { t, locale } from '@/shared/i18n';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
 import { cx } from '@/shared/lib';
 import type { TypingController } from '@/features/type-prompt';
-import { handleKeyDown } from '@/features/type-prompt';
+import { bindKeyboard } from '@/features/type-prompt';
 import { strictnessSetting } from '@/entities/kana';
 import { LiveStatsStrip } from './live-stats-strip';
 
@@ -31,47 +31,18 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
     inputRef.current?.focus();
   }, []);
 
-  // Global keydown: refocus hidden input and process keystroke when controls have focus (Plan 6.2)
+  // Global keyboard binding managing focus redirection and intent handling (Plan 6.2)
   useEffect(() => {
-    const onGlobalKeyDown = (e: KeyboardEvent) => {
-      // Do not intercept if a modal dialog is open
-      if (document.querySelector('dialog[open]')) {
-        return;
-      }
-      // If already focused on input sink, input onKeyDown handles it
-      if (e.target === inputRef.current) {
-        return;
-      }
-      // Esc on a button/control returns focus to input without activating reveal (Plan 6.2)
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        inputRef.current?.focus();
-        return;
-      }
-      const intent = handleKeyDown(e);
-      if (intent.kind === 'char') {
-        e.preventDefault();
-        inputRef.current?.focus();
+    return bindKeyboard({
+      onIntent: (intent) => {
         controller.handleIntent(intent, currentStrictness);
-      }
-    };
-
-    document.addEventListener('keydown', onGlobalKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onGlobalKeyDown);
-    };
+      },
+      getInputElement: () => inputRef.current,
+    });
   }, [controller, currentStrictness]);
 
   const handleArenaClick = () => {
     inputRef.current?.focus();
-  };
-
-  const onInputKeyDown = (e: KeyboardEvent) => {
-    const intent = handleKeyDown(e);
-    if (intent.kind !== 'ignore') {
-      e.preventDefault();
-      controller.handleIntent(intent, currentStrictness);
-    }
   };
 
   return (
@@ -84,7 +55,6 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
         ref={inputRef}
         type="text"
         value=""
-        onKeyDown={onInputKeyDown}
         onCompositionStart={() => {
           controller.handleCompositionStart();
         }}
@@ -118,6 +88,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
 
       {/* Main prompt arena */}
       <div
+        data-canonical={canonicalRomaji}
         className={cx(
           'w-full flex flex-col items-center justify-center gap-4 py-10 px-4 rounded-xl bg-surface border border-border min-h-[220px] transition-transform',
           isShaking && 'animate-shake',

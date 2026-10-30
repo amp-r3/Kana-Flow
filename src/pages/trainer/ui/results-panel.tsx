@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import { useRef, useEffect } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
 import { romajiForKey } from '@/entities/kana';
@@ -12,13 +13,18 @@ export type ResultsPanelProps = {
 };
 
 export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
+  const nextBtnRef = useRef<HTMLButtonElement | null>(null);
   const m = metrics.value;
   const results = promptResults.value;
+
+  useEffect(() => {
+    nextBtnRef.current?.focus();
+  }, []);
 
   if (!m) {
     return (
       <div className="w-full max-w-xl mx-auto py-12 text-center text-text-dim">
-        <Button variant="primary" autoFocus onClick={onNextTest}>
+        <Button variant="primary" buttonRef={nextBtnRef} autoFocus onClick={onNextTest}>
           {t('results.nextTest')}
         </Button>
       </div>
@@ -122,7 +128,7 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
 
       {/* Next test button (autofocused) */}
       <div className="flex items-center justify-center pt-4">
-        <Button variant="primary" size="lg" autoFocus onClick={onNextTest}>
+        <Button variant="primary" size="lg" buttonRef={nextBtnRef} autoFocus onClick={onNextTest}>
           {t('results.nextTest')}
         </Button>
       </div>

@@ -1,4 +1,4 @@
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, JSX, Ref } from 'preact';
 import { cx } from '../lib';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -14,6 +14,7 @@ export type ButtonProps = {
   readonly type?: 'button' | 'submit' | 'reset';
   readonly autoFocus?: boolean;
   readonly ariaLabel?: string;
+  readonly buttonRef?: Ref<HTMLButtonElement>;
 };
 
 export function Button({
@@ -26,6 +27,7 @@ export function Button({
   type = 'button',
   autoFocus = false,
   ariaLabel,
+  buttonRef,
 }: ButtonProps): JSX.Element {
   const base =
     'inline-flex items-center justify-center gap-1.5 rounded font-normal transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 select-none outline-none focus-visible:ring-2';
@@ -45,6 +47,22 @@ export function Button({
         : variant === 'danger'
           ? 'bg-error/15 text-error border border-error/30 hover:bg-error/25 focus-visible:ring-error'
           : 'bg-surface-2 text-text border border-border hover:border-border-strong focus-visible:ring-accent';
+
+  if (buttonRef !== undefined) {
+    return (
+      <button
+        ref={buttonRef}
+        type={type}
+        disabled={disabled}
+        onClick={onClick}
+        autoFocus={autoFocus}
+        aria-label={ariaLabel}
+        className={cx(base, sizeClasses, variantClasses, className)}
+      >
+        {children}
+      </button>
+    );
+  }
 
   return (
     <button

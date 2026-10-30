@@ -1,3 +1,4 @@
+import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import type { KanaStats, ProgressMap, PersistedProgress } from './types';
 import { updateKanaStats } from '../lib/weights';
@@ -8,7 +9,8 @@ import {
   createDebouncedSaver,
 } from '@/shared/lib';
 
-export const progressStats = signal<ProgressMap>(new Map<string, KanaStats>());
+const _progressStats = signal<ProgressMap>(new Map<string, KanaStats>());
+export const progressStats: ReadonlySignal<ProgressMap> = _progressStats;
 
 let boundStore: KeyValueStore | null = null;
 let debouncedSaver: ReturnType<typeof createDebouncedSaver> | null = null;
@@ -16,7 +18,7 @@ let debouncedSaver: ReturnType<typeof createDebouncedSaver> | null = null;
 function saveProgressToStore(): void {
   if (!boundStore) return;
   const statsRecord: Record<string, KanaStats> = {};
-  for (const [key, stats] of progressStats.value.entries()) {
+  for (const [key, stats] of _progressStats.value.entries()) {
     statsRecord[key] = stats;
   }
   const payload: PersistedProgress = {
@@ -39,7 +41,7 @@ export function initProgress(store: KeyValueStore): void {
         for (const [key, val] of Object.entries(parsed.stats)) {
           map.set(key, val);
         }
-        progressStats.value = map;
+        _progressStats.value = map;
       }
     } catch {
       // Fallback silently
@@ -50,7 +52,7 @@ export function initProgress(store: KeyValueStore): void {
 export function recordTokenOutcomes(
   outcomes: readonly { readonly kanaKey: string | null; readonly mistakes: number; readonly ms: number }[],
 ): void {
-  const current = new Map(progressStats.value);
+  const current = new Map(_progressStats.value);
 
   for (const o of outcomes) {
     if (!o.kanaKey) continue;
@@ -59,7 +61,7 @@ export function recordTokenOutcomes(
     current.set(o.kanaKey, updated);
   }
 
-  progressStats.value = current;
+  _progressStats.value = current;
   if (debouncedSaver) {
     debouncedSaver.trigger();
   }
@@ -72,7 +74,7 @@ export function flushProgress(): void {
 }
 
 export function resetProgress(): void {
-  progressStats.value = new Map();
+  _progressStats.value = new Map();
   if (boundStore) {
     boundStore.remove(STORAGE_KEYS.PROGRESS);
   }

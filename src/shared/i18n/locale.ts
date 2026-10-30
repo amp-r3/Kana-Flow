@@ -1,3 +1,4 @@
+import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import type { KeyValueStore } from '@/shared/lib';
 import { STORAGE_KEYS } from '@/shared/lib';
@@ -13,17 +14,18 @@ function detectLocale(): Locale {
   return 'en';
 }
 
-export const locale = signal<Locale>(detectLocale());
+const _locale = signal<Locale>(detectLocale());
+export const locale: ReadonlySignal<Locale> = _locale;
 
 export function initLocale(store: KeyValueStore): void {
   const persisted = store.get(STORAGE_KEYS.LOCALE);
   if (persisted === 'en' || persisted === 'ru') {
-    locale.value = persisted;
+    _locale.value = persisted;
   }
 }
 
 export function setLocale(newLocale: Locale, store?: KeyValueStore): void {
-  locale.value = newLocale;
+  _locale.value = newLocale;
   if (store) {
     store.set(STORAGE_KEYS.LOCALE, newLocale);
   }

@@ -81,6 +81,17 @@ npm run build        # vite production build
 npm run budget       # check-budget.mjs (enforces first-load size caps)
 ```
 
+### End-to-End Testing (Playwright)
+
+End-to-end browser integration tests are powered by Playwright. **Note:** `npm run e2e` runs in real browser environments and is intentionally kept separate—it is **NOT** part of `npm run verify`.
+
+To install the browser binary and run the E2E suite:
+
+```bash
+npx playwright install chromium    # One-time install of Chromium browser
+npm run e2e                        # Run Playwright E2E suite against Vite dev server
+```
+
 ---
 
 ## 📦 Performance Budgets

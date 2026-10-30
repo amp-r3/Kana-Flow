@@ -1,4 +1,4 @@
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import {
   scriptSetting,
   contentSetting,
@@ -27,8 +27,10 @@ export function setupSettingsResetWatcher(onReset: () => void): () => void {
       return;
     }
 
-    resetSession();
-    onReset();
+    untracked(() => {
+      resetSession();
+      onReset();
+    });
   });
 
   return dispose;

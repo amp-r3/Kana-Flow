@@ -143,3 +143,19 @@
   - If the resulting single-kana pool is also empty (which only happens if `rowIds` is empty), `pickPrompt` throws a clear invariant error (`Cannot pick prompt from empty pool`).
 - **Justification:** Conforms directly to Plan 5.5 and prevents app crashing if vocabulary chunks are pending or fail to load.
 
+### ADR 020: ReadonlySignal Export Pattern for Store State
+- **Context:** To guarantee unidirectional data flow and prevent UI components or features from mutating store signals directly via `.value = ...`, all reactive state signals in entity and shared stores (`entities/kana`, `entities/session`, `entities/progress`, `shared/i18n`) must be exposed as strictly read-only to external consumers, with mutations permitted exclusively through exported domain actions.
+- **Decision:** Export store state signals typed explicitly as `ReadonlySignal<T>` wrapping private internal mutable signals (`_signalName = signal<T>(...)`). Type-level tests in `src/app/readonly-store.test.ts` verify at compile time (via TypeScript conditional types `IfEquals` and `IsWritable`) that `.value` is non-writable on all exported signals, failing `tsc --noEmit` if any signal exposes a mutable `.value`.
+- **Justification:** Enforces architectural invariants at the type level without runtime overhead, eliminating rogue mutations and guaranteeing unidirectional data flow.
+
+### ADR 021: Global Keyboard Binding Decoupling (`bindKeyboard`)
+- **Context:** `TestStage` previously contained an inline `document.addEventListener('keydown', ...)` with mixed responsibilities (focus checking, dialog isolation, modifier key checks, and intent dispatch).
+- **Decision:** Extracted global keyboard coordination into `features/type-prompt/lib/keyboard.ts` as `bindKeyboard({ onIntent, getInputElement })`. `bindKeyboard` centralizes:
+  1. Skipping event handling if a `<dialog open>` modal is present.
+  2. Escape key on external controls refocusing the input sink without triggering reveal.
+  3. Character keystroke capture refocusing the input sink and triggering intent dispatch.
+  4. Explicitly calling `preventDefault()` ONLY on handled character and reveal intents, never when `ctrlKey`, `metaKey`, or `altKey` modifiers are pressed.
+  Unit tests in `keyboard.test.ts` verify standard browser shortcuts (`Ctrl+R`, `F5`, `Tab`, `Ctrl+L`) are not intercepted or prevented.
+- **Justification:** Keeps UI components thin, ensures standard browser navigation and hotkeys work cleanly, and isolates keyboard handling into testable feature logic.
+
+
