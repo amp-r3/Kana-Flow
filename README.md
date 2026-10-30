@@ -109,6 +109,55 @@ Kana Flow adheres to strict first-load asset caps. Production bundle metrics:
 
 ---
 
+## ☁️ Deployment
+
+Kana Flow is a fully static SPA (`dist/`, no backend, state in `localStorage`) and ships to **Cloudflare Pages** at the domain root, so `VITE_BASE` stays at its default `/`.
+
+**Production:** <https://kana-flow.pages.dev> · **Previews:** one URL per pull request.
+
+### CI/CD Pipeline
+
+`.github/workflows/deploy.yml` runs on every push to `main` and on every pull request:
+
+1. `npm ci` → `npm run verify` (typecheck + FSD lint + unit tests + build + size budget). A failing size budget blocks the deploy.
+2. `wrangler pages deploy dist` — pushes to `main` go to production, PRs get a preview deployment. Fork PRs verify but never deploy, since they cannot read secrets.
+
+### One-Time Setup
+
+1. Create the Pages project (the workflow also does this automatically on first run):
+   ```bash
+   npx wrangler pages project create kana-flow --production-branch=main
+   ```
+2. Copy **Account ID** from the Cloudflare dashboard → _Workers & Pages_ → _Overview_.
+3. Create an API token with the **Cloudflare Pages — Edit** permission (_My Profile_ → _API Tokens_).
+4. Add repository secrets under _Settings_ → _Secrets and variables_ → _Actions_:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+5. Push to `main` (or run the _Deploy_ workflow manually via `workflow_dispatch`).
+
+A custom domain can be attached later in _Workers & Pages_ → _kana-flow_ → _Custom domains_; no rebuild or code change is required.
+
+### Manual Deploy
+
+```bash
+npm run verify                     # guarantees a passing build + budget
+npx wrangler pages deploy dist --project-name kana-flow --branch=main
+```
+
+### Caching & Headers
+
+`public/_headers` is copied into `dist/` verbatim and served by Cloudflare Pages:
+
+| Path | Policy | Why |
+|---|---|---|
+| `/assets/*` | `max-age=31536000, immutable` | Vite emits content-hashed filenames, so a URL's bytes never change |
+| `/index.html` | `max-age=0, must-revalidate` | New deploys must be picked up immediately |
+| `/*` | `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, restrictive `Permissions-Policy` | Baseline hardening |
+
+No `_redirects` file is needed: the app has no client-side router, so unknown paths should 404 rather than silently return the app shell.
+
+---
+
 ## 🏛️ Architecture & Documentation
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md):** Detailed guide to architectural layers, unidirectional import boundaries, the NFA romaji state machine, two-tier spelling tables, extension recipes, and mobile input adapter seams.
