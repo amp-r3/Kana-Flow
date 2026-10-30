@@ -17,6 +17,8 @@ export const ru = {
   'config.strictness.learner': 'Режим обучения',
   'config.strictness.ime': 'Строгий IME',
   'config.weakFocus': 'Фокус на слабых',
+  'config.test.time': 'Время',
+  'config.test.count': 'Слова',
 
   // Test stage
   'stage.typePlaceholder': 'введите ромадзи...',
@@ -46,6 +48,7 @@ export const ru = {
   'dialog.gojuonOnly': 'Только Годзюон',
   'dialog.atLeastOneRow': 'Хотя бы один ряд должен быть выбран',
   'dialog.contentDisabled': 'Выбор рядов доступен только в режиме одиночных кана',
+  'dialog.extendedDisabled': 'Расширенная катакана недоступна в режиме только хираганы',
   'reset.title': 'Сброс прогресса',
   'reset.confirm': 'Вы уверены, что хотите удалить всю статистику точности и времени?',
   'reset.action': 'Стереть все',

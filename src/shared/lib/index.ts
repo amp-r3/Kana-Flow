@@ -7,6 +7,8 @@ export { defaultClock } from './clock';
 export type { Scheduler, TimeoutHandle } from './scheduler';
 export { defaultScheduler } from './scheduler';
 
+export { cx } from './cx';
+
 export type { KeyValueStore } from './storage';
 export {
   MemoryKeyValueStore,

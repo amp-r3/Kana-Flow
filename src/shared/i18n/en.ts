@@ -15,6 +15,8 @@ export const en = {
   'config.strictness.learner': 'Learner Mode',
   'config.strictness.ime': 'Strict IME',
   'config.weakFocus': 'Focus Weak Kana',
+  'config.test.time': 'Time',
+  'config.test.count': 'Count',
 
   // Test stage
   'stage.typePlaceholder': 'type romaji...',
@@ -44,6 +46,7 @@ export const en = {
   'dialog.gojuonOnly': 'Gojūon Only',
   'dialog.atLeastOneRow': 'At least one row must stay selected',
   'dialog.contentDisabled': 'Row selection is active only in Single Kana mode',
+  'dialog.extendedDisabled': 'Extended katakana is unavailable in Hiragana-only mode',
   'reset.title': 'Reset Progress',
   'reset.confirm': 'Are you sure you want to erase all accuracy and time history?',
   'reset.action': 'Reset Everything',

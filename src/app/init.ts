@@ -4,6 +4,9 @@ import { initLocale, locale } from '@/shared/i18n';
 import { initPracticeSettings } from '@/entities/kana';
 import { initSession } from '@/entities/session';
 import { initProgress } from '@/entities/progress';
+import type { KeyIntent } from '@/features/type-prompt';
+
+export type { KeyIntent };
 
 export function initApp(): void {
   const store = new LocalStorageStore();
