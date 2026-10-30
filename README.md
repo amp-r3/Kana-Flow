@@ -154,7 +154,7 @@ npx wrangler pages deploy dist --project-name kana-flow --branch=main
 | `/index.html` | `max-age=0, must-revalidate` | New deploys must be picked up immediately |
 | `/*` | `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, restrictive `Permissions-Policy` | Baseline hardening |
 
-No `_redirects` file is needed: the app has no client-side router, so unknown paths should 404 rather than silently return the app shell.
+No `_redirects` file is needed, because there is no client-side router. A `404.html` **is** needed though: without it Cloudflare Pages answers every unknown path — including `/assets/typo.js` — with `index.html` and a `200`, which then gets cached as `immutable` under `/assets/*`. `public/404.html` is a self-contained page (no extra requests) that turns misses into real `404`s.
 
 ---
 
