@@ -1,0 +1,13 @@
+[data-theme='matte'] {
+  --bg: #121316;
+  --surface: #181a1f;
+  --surface-2: #20232a;
+  --border: #2e333d;
+  --border-strong: #383e4a;
+  --text: #e4e4e7;
+  --text-dim: #a1a1aa;
+  --accent: #fbbf24;
+  --accent-dim: #ca8a04;
+  --ok: #10b981;
+  --error: #f43f5e;
+}
