@@ -1,7 +1,44 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+dist-ssr/
+*.local
+
+# Caches
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Test artifacts
 coverage/
-.DS_Store
-scripts/font-src/
 test-results/
 playwright-report/
+blob-report/
+playwright/.cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor settings
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local font sources (large binaries, not committed)
+scripts/font-src/
