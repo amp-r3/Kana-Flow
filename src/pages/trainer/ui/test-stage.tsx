@@ -6,14 +6,7 @@ import { cx } from '@/shared/lib';
 import type { TypingController } from '@/features/type-prompt';
 import { handleKeyDown } from '@/features/type-prompt';
 import { strictnessSetting } from '@/entities/kana';
-import {
-  phase,
-  testConfig,
-  promptResults,
-  correctKeystrokes,
-  mistakeCount,
-  sessionStartedAt,
-} from '@/entities/session';
+import { LiveStatsStrip } from './live-stats-strip';
 
 export type TestStageProps = {
   readonly controller: TypingController;
@@ -30,44 +23,50 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
   const isAssisted = controller.isAssisted.value;
   const imeNotice = controller.imeNotice.value;
   const canonicalRomaji = controller.canonicalRomaji.value;
-
-  const currentPhase = phase.value;
-  const currentConfig = testConfig.value;
   const currentStrictness = strictnessSetting.value;
   const activeLocale = locale.value;
 
-  // Live stats calculation from cheap counters
-  const correct = correctKeystrokes.value;
-  const mistakes = mistakeCount.value;
-  const startedAt = sessionStartedAt.value;
-  const now = controller.tickerNow.value || (startedAt ? startedAt : 0);
-
-  const elapsedSec = startedAt > 0 && now > startedAt ? (now - startedAt) / 1000 : 0;
-  const elapsedMin = elapsedSec / 60;
-  const liveWpm = elapsedMin > 0 ? Math.round(correct / 5 / elapsedMin) : 0;
-  const totalKeys = correct + mistakes;
-  const liveAccuracy = totalKeys > 0 ? Math.round((correct / totalKeys) * 100) : 100;
-
-  // Time / prompt counter
-  let progressText = '';
-  if (currentConfig.kind === 'time') {
-    const remaining = Math.max(0, currentConfig.seconds - Math.floor(elapsedSec));
-    progressText = `${remaining}s`;
-  } else {
-    const completed = promptResults.value.length;
-    progressText = `${completed} / ${currentConfig.prompts}`;
-  }
-
-  // Auto-focus the input on mount and on arena click
+  // Auto-focus the input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Global keydown: refocus hidden input and process keystroke when controls have focus (Plan 6.2)
+  useEffect(() => {
+    const onGlobalKeyDown = (e: KeyboardEvent) => {
+      // Do not intercept if a modal dialog is open
+      if (document.querySelector('dialog[open]')) {
+        return;
+      }
+      // If already focused on input sink, input onKeyDown handles it
+      if (e.target === inputRef.current) {
+        return;
+      }
+      // Esc on a button/control returns focus to input without activating reveal (Plan 6.2)
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        return;
+      }
+      const intent = handleKeyDown(e);
+      if (intent.kind === 'char') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        controller.handleIntent(intent, currentStrictness);
+      }
+    };
+
+    document.addEventListener('keydown', onGlobalKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onGlobalKeyDown);
+    };
+  }, [controller, currentStrictness]);
 
   const handleArenaClick = () => {
     inputRef.current?.focus();
   };
 
-  const onKeyDown = (e: KeyboardEvent) => {
+  const onInputKeyDown = (e: KeyboardEvent) => {
     const intent = handleKeyDown(e);
     if (intent.kind !== 'ignore') {
       e.preventDefault();
@@ -85,7 +84,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
         ref={inputRef}
         type="text"
         value=""
-        onKeyDown={onKeyDown}
+        onKeyDown={onInputKeyDown}
         onCompositionStart={() => {
           controller.handleCompositionStart();
         }}
@@ -108,22 +107,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
       />
 
       {/* Live stats strip */}
-      <div className="w-full flex items-center justify-between text-xs text-text-dim px-2 border-b border-border/50 pb-2">
-        <div className="flex items-center gap-4">
-          <span className="font-mono text-accent text-sm font-normal">{progressText}</span>
-          {currentPhase === 'running' && (
-            <>
-              <span className="font-mono font-normal">
-                {liveWpm} <span className="text-[10px] text-text-dim uppercase">wpm</span>
-              </span>
-              <span className="font-mono font-normal">{liveAccuracy}%</span>
-            </>
-          )}
-        </div>
-        <div className="text-[11px] text-text-dim">
-          {currentStrictness === 'ime' ? t('config.strictness.ime') : t('config.strictness.learner')}
-        </div>
-      </div>
+      <LiveStatsStrip controller={controller} strictness={currentStrictness} />
 
       {/* Japanese IME warning notice */}
       {imeNotice && (

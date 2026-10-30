@@ -27,6 +27,8 @@ export const ru = {
   'stage.escHint': 'Esc чтобы показать правильный ответ',
   'stage.tabHint': 'Tab затем Enter для перезапуска',
   'stage.revealed': 'Ответ: {answer}',
+  'stage.contentLoading': 'Загрузка словаря...',
+  'stage.contentLoadError': 'Не удалось загрузить словарь, возврат к одиночным канам',
 
   // Results panel
   'results.title': 'Результаты теста',

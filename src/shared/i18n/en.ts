@@ -25,6 +25,8 @@ export const en = {
   'stage.escHint': 'Esc to reveal canonical romaji',
   'stage.tabHint': 'Tab then Enter to restart',
   'stage.revealed': 'Revealed: {answer}',
+  'stage.contentLoading': 'Loading vocabulary...',
+  'stage.contentLoadError': 'Failed to load content, reverted to Single Kana',
 
   // Results panel
   'results.title': 'Test Results',

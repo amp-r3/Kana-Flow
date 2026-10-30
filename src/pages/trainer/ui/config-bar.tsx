@@ -14,11 +14,7 @@ import {
 import type { ScriptMode, ContentKind, Strictness } from '@/entities/kana';
 import { testConfig, setTestConfig } from '@/entities/session';
 
-export type ConfigBarProps = {
-  readonly onSettingChange: () => void;
-};
-
-export function ConfigBar({ onSettingChange }: ConfigBarProps): JSX.Element {
+export function ConfigBar(): JSX.Element {
   const currentScript = scriptSetting.value;
   const currentContent = contentSetting.value;
   const currentStrictness = strictnessSetting.value;
@@ -27,22 +23,18 @@ export function ConfigBar({ onSettingChange }: ConfigBarProps): JSX.Element {
 
   const handleScriptChange = (val: ScriptMode) => {
     setScript(val);
-    onSettingChange();
   };
 
   const handleContentChange = (val: ContentKind) => {
     setContent(val);
-    onSettingChange();
   };
 
   const handleStrictnessChange = (val: Strictness) => {
     setStrictness(val);
-    onSettingChange();
   };
 
   const handleWeakFocusChange = (val: boolean) => {
     setWeakFocus(val);
-    onSettingChange();
   };
 
   const handleTestKindChange = (kind: 'time' | 'count') => {
@@ -51,17 +43,14 @@ export function ConfigBar({ onSettingChange }: ConfigBarProps): JSX.Element {
     } else {
       setTestConfig({ kind: 'count', prompts: 25 });
     }
-    onSettingChange();
   };
 
   const handleTimeSecondsChange = (seconds: 15 | 30 | 60 | 120) => {
     setTestConfig({ kind: 'time', seconds });
-    onSettingChange();
   };
 
   const handleCountPromptsChange = (prompts: 10 | 25 | 50 | 100) => {
     setTestConfig({ kind: 'count', prompts });
-    onSettingChange();
   };
 
   return (

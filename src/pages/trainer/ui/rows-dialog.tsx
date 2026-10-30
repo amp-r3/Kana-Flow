@@ -17,7 +17,6 @@ import type { RowCategory, RowId } from '@/entities/kana';
 export type RowsDialogProps = {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly onRowChange: () => void;
 };
 
 const CATEGORIES: readonly { readonly id: RowCategory; readonly label: string }[] = [
@@ -27,7 +26,7 @@ const CATEGORIES: readonly { readonly id: RowCategory; readonly label: string }[
   { id: 'extended', label: 'Extended Katakana' },
 ];
 
-export function RowsDialog({ open, onClose, onRowChange }: RowsDialogProps): JSX.Element {
+export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
   const selectedRows = new Set(rowIdsSetting.value);
@@ -42,27 +41,22 @@ export function RowsDialog({ open, onClose, onRowChange }: RowsDialogProps): JSX
     const success = toggleRow(rowId);
     if (!success) {
       setWarningMessage(t('dialog.atLeastOneRow'));
-    } else {
-      onRowChange();
     }
   };
 
   const handleSelectAll = () => {
     setWarningMessage(null);
     selectAllRows(allKanaRows.map((r) => r.id));
-    onRowChange();
   };
 
   const handleGojuonOnly = () => {
     setWarningMessage(null);
     presetBasic();
-    onRowChange();
   };
 
   const handleClear = () => {
     setWarningMessage(null);
     clearRows('vowels');
-    onRowChange();
   };
 
   return (

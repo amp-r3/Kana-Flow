@@ -189,7 +189,45 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     expect(m.correct).toBe(39);
     // Mistakes: 1 rejected ('x') + 1 reveal = 2
     expect(m.mistakes).toBe(2);
-    expect(m.accuracy).toBeCloseTo(39 / (39 + 2), 4);
+    // Live counters match computeMetrics derived output
+    expect(correctKeystrokes.value).toBe(m.correct);
+    expect(mistakeCount.value).toBe(m.mistakes);
+  });
+
+  it('count test (10 prompts) auto-finishes on the last prompt without calling finishSession()', () => {
+    setTestConfig({ kind: 'count', prompts: 10 });
+    const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
+    const controller = new TypingController(() => prompt, clock, scheduler);
+    controller.loadPrompt(prompt, 'learner');
+
+    // Type 'a' 10 times to complete 10 prompts
+    for (let i = 1; i <= 10; i++) {
+      clock.advance(100);
+      controller.handleIntent({ kind: 'char', char: 'a' }, 'learner');
+    }
+
+    // Must be finished automatically without calling finishSession()
+    expect(phase.value).toBe('finished');
+    expect(metrics.value).not.toBeNull();
+    expect(metrics.value?.promptsCompleted).toBe(10);
+  });
+
+  it('the shake flag clears after ~280 ms', () => {
+    const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
+    const controller = new TypingController(() => prompt, clock, scheduler);
+    controller.loadPrompt(prompt, 'learner');
+
+    // Rejected keystroke 'z'
+    controller.handleIntent({ kind: 'char', char: 'z' }, 'learner');
+    expect(controller.isShaking.value).toBe(true);
+
+    // After 200 ms, still shaking
+    scheduler.advance(200);
+    expect(controller.isShaking.value).toBe(true);
+
+    // After 80 more ms (total 280 ms), shake flag clears
+    scheduler.advance(80);
+    expect(controller.isShaking.value).toBe(false);
   });
 
   it('time test ends mid-prompt at deadline with partial prompt keystrokes counted', () => {

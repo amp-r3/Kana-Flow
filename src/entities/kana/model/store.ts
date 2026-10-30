@@ -106,12 +106,6 @@ export function initPracticeSettings(store: KeyValueStore): void {
   strictnessSetting.value = 'learner';
   rowIdsSetting.value = DEFAULT_BASIC_ROWS;
   weakFocusSetting.value = true;
-
-  if (typeof window !== 'undefined') {
-    window.addEventListener('pagehide', () => {
-      debouncedSaver?.flush();
-    });
-  }
 }
 
 export function getPracticeSettings(): PracticeSettings {

@@ -45,17 +45,6 @@ export function initProgress(store: KeyValueStore): void {
       // Fallback silently
     }
   }
-
-  if (typeof window !== 'undefined') {
-    window.addEventListener('pagehide', () => {
-      debouncedSaver?.flush();
-    });
-    window.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        debouncedSaver?.flush();
-      }
-    });
-  }
 }
 
 export function recordTokenOutcomes(
