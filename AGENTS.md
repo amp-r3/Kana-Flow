@@ -46,7 +46,12 @@ Run a single test file with `pnpm exec vitest run path/to/file.test.ts`.
 - One branch per phase or logical change (`p1-engine`, `fix/...`, `docs/...`), merged through a pull request with squash merge. Each PR gets a Cloudflare preview URL.
 - Commit messages follow Conventional Commits: `feat(scope): ...`, `fix(...)`, `chore: ...`, `docs: ...`.
 - No AI attribution in commits or PRs: no `Co-Authored-By` trailer for an assistant, no "Generated with …" line.
-- Do not commit, push, merge or open PRs unless the maintainer asks.
+- When a task is done and `pnpm run verify` passes, commit, push the branch and open a PR
+  without asking. Do not commit to a branch the maintainer did not ask for.
+- The PR description lists: what changed, why, anything touched outside the task's scope,
+  and what to check manually on the preview URL.
+- Never merge on your own: merging deploys to production and is the maintainer's review step.
+  When the maintainer says to merge, squash-merge with `gh pr merge --squash --delete-branch`.
 - Git hooks live in `.githooks/`:
   - `pre-commit`: Prettier on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
   - `pre-push`: `pnpm run verify`, then `pnpm run e2e`.
