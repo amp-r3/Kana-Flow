@@ -7,17 +7,20 @@ Instructions for AI coding agents working in this repository. `CLAUDE.md` is a s
 Kana Flow is a keyboard-first web trainer for typing Japanese kana in romaji, modelled on Monkeytype. Production: <https://kana-flow.pages.dev> (Cloudflare Pages).
 
 - **Current code** is the v1 baseline: a single Preact SPA in `src/`, state in localStorage, no backend.
-- **Target** is the MVP in `docs/MVP_SPEC.md`: pnpm monorepo, stream-based input engine, IndexedDB, Pages Functions + D1, content pipeline, learning mode. It is delivered in phases P0–P7.
-- Where documents disagree, `docs/MVP_SPEC.md` wins over `README.md`, `ARCHITECTURE.md` and `kana-flow-implementation-plan.md`. `README.md` and `ARCHITECTURE.md` are partly outdated until P0 (spec item D21).
+- **Target** is the MVP in `docs/spec/`: pnpm monorepo, stream-based input engine, IndexedDB, Pages Functions + D1, content pipeline, learning mode. It is delivered in phases P0–P7.
+- Where documents disagree, `docs/spec/` wins over everything else. `README.md` and `docs/architecture/baseline-v1.md` are partly outdated until P0 (spec item D21).
 
 ## Documents
 
-| File                | Purpose                                                                 |
-| ------------------- | ----------------------------------------------------------------------- |
-| `docs/MVP_SPEC.md`  | Requirements, data models, API, budgets, phases and acceptance criteria |
-| `docs/DECISIONS.md` | Append-only ADR log; check it before changing an established approach   |
-| `ARCHITECTURE.md`   | Baseline architecture: FSD layers, engine contract, extension recipes   |
-| `README.md`         | Setup, scripts, deployment, budgets                                     |
+Start at `docs/README.md`: it maps each question to the file that answers it. Open only the file you need.
+
+| Path                               | Purpose                                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `docs/spec/`                       | MVP requirements, one file per area (`engine.md`, `metrics.md`, `storage-sync.md`, …); `README.md` lists them |
+| `docs/adr/`                        | Decision records, one file per decision; `README.md` is the index with statuses                               |
+| `docs/architecture/baseline-v1.md` | Architecture of the current v1 code                                                                           |
+| `docs/archive/`                    | Historical documents; not maintained                                                                          |
+| `README.md`                        | Setup, scripts, git hooks, deployment                                                                         |
 
 ## Commands
 
@@ -42,6 +45,7 @@ Run a single test file with `npx vitest run path/to/file.test.ts`.
 - Never commit directly to `main`. Every push to `main` deploys to production.
 - One branch per phase or logical change (`p1-engine`, `fix/...`, `docs/...`), merged through a pull request with squash merge. Each PR gets a Cloudflare preview URL.
 - Commit messages follow Conventional Commits: `feat(scope): ...`, `fix(...)`, `chore: ...`, `docs: ...`.
+- No AI attribution in commits or PRs: no `Co-Authored-By` trailer for an assistant, no "Generated with …" line.
 - Do not commit, push, merge or open PRs unless the maintainer asks.
 - Git hooks live in `.githooks/`:
   - `pre-commit`: Prettier on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
@@ -71,7 +75,7 @@ Run a single test file with `npx vitest run path/to/file.test.ts`.
 
 - The engine (`src/entities/kana/lib/engine.ts` today, `packages/engine` after P0) is pure TypeScript: no DOM, signals, storage or app aliases. It must run in the browser and in a Worker.
 - Two strictness modes: relaxed (`learner`) and strict IME (`ime`). Invariant: relaxed accepts every input strict accepts. It is a property test; do not break it.
-- The accepted-input table in `docs/MVP_SPEC.md` is normative. Every row is a golden test; change the spec and the test together.
+- The accepted-input table in `docs/spec/engine.md` is normative. Every row is a golden test; change the spec and the test together.
 - The kana table format (`ime[]` + `learner[]` spellings per entry) is shared by the engine, the content build and the font subset.
 
 ## Performance
@@ -97,8 +101,9 @@ Run a single test file with `npx vitest run path/to/file.test.ts`.
 
 ## Decisions and docs
 
-- Record a new architectural decision as the next ADR in `docs/DECISIONS.md`. Do not edit old ADRs; add a Status line when one is superseded.
-- When behaviour defined in `docs/MVP_SPEC.md` changes, update the spec in the same PR.
+- Record a new architectural decision as the next file in `docs/adr/` and add it to the index there. Do not rewrite old ADRs; add a Status line when one is superseded.
+- When behaviour defined in `docs/spec/` changes, update the spec in the same PR.
+- Follow the conventions in `docs/README.md` for new documents: one topic per file, kebab-case names, a folder index.
 - Keep this file short. If a rule needs more than a few lines, link to a document instead.
 
 ## Communication
