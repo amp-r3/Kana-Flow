@@ -1,0 +1,21 @@
+# ADR 009: Extended Katakana and Ambiguous Romaji Tier Placement
+
+- **Context:** Standard Japanese IMEs convert specific digraphs to standard kana, while learners expect Hepburn/Kunrei alternatives. Per specification, any ambiguous spelling must be placed in `learner`, never `ime`.
+- **Decisions & Justifications:**
+  - **ウォ:** In standard MS IME, `wo` outputs `を/ヲ`, whereas `who` outputs `ウォ`. Decision: `who` in `ime`, `wo` and `uxo` in `learner`.
+  - **ティ:** In standard MS IME, `ti` outputs `ち`, whereas `thi` outputs `ティ`. Decision: `thi` in `ime`, `ti` and `texi` in `learner`.
+  - **ディ:** In standard MS IME, `di` outputs `ぢ`, whereas `dhi` outputs `ディ`. Decision: `dhi` in `ime`, `di` and `dexi` in `learner`.
+  - **トゥ:** In standard MS IME, `tu` outputs `つ`, whereas `twu` outputs `トゥ`. Decision: `twu` in `ime`, `tu` and `toxu` in `learner`.
+  - **ドゥ:** In standard MS IME, `du` outputs `づ`, whereas `dwu` outputs `ドゥ`. Decision: `dwu` in `ime`, `du` and `doxu` in `learner`.
+  - **テュ:** Decision: `thu` in `ime`, `texyu` in `learner`.
+  - **デュ:** Decision: `dhu` in `ime`, `dexyu` in `learner`.
+  - **シェ:** Decision: `she` in `ime`, `sye` and `sixe` in `learner`.
+  - **ジェ:** Decision: `je` in `ime`, `zye`, `jye`, and `zixe` in `learner`.
+  - **チェ:** Decision: `che` in `ime`, `tye`, `cye`, and `tixe` in `learner`.
+  - **ファ, フィ, フェ, フォ:** Decision: `fa, fi, fe, fo` in `ime`; `fua, fui, fue, fuo` in `learner`.
+  - **ヴァ, ヴィ, ヴ, ヴェ, ヴォ:** Decision: `va, vi, vu, ve, vo` in `ime`; `buxa, buxi, buxe, buxo` in `learner`.
+  - **ぢ:** Decision: `di` in `ime`; `ji`, `zi`, `dzi` in `learner`.
+  - **づ:** Decision: `du` in `ime`; `zu`, `dzu` in `learner`.
+  - **を:** Decision: `wo` in `ime`; `o` in `learner`.
+  - **ちゃ, ちゅ, ちょ:** Decision: `cha, chu, cho` and `tya, tyu, tyo` in `ime`; `cya, cyu, cyo` in `learner`.
+  - **じゃ, じゅ, じょ:** Decision: `ja, ju, jo`, `zya, zyu, zyo`, and `jya, jyu, jyo` in `ime`; `learner: []` (`dya/dyu/dyo` removed as they represent ぢゃ/ぢゅ/ぢょ).

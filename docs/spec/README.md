@@ -1,0 +1,92 @@
+# Kana Flow — MVP Specification
+
+Nov 1, 2026 · @Амир
+
+## Document scope
+
+This document specifies the Kana Flow MVP: required behaviour, data models, interfaces, performance budgets and acceptance criteria. "Baseline" refers to the repository state at commit 0f4927d.
+
+- **Location in the repository:** `docs/spec/`, one file per area (see "Contents").
+- **Precedence:** where this document conflicts with `README.md`, `docs/architecture/baseline-v1.md` or `docs/archive/v1-implementation-plan.md`, this document applies.
+- **Requirement keywords:** MUST, MUST NOT and MAY are used as defined in RFC 2119.
+- **Unresolved items** are listed under [Design decisions and open items](decisions.md). No requirement depends on them unless stated.
+
+## Contents
+
+| File                               | Covers                                                               |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| [README.md](README.md)             | Scope, constraints, changes from the baseline (D1…)                  |
+| [engine.md](engine.md)             | Input engine API, tokens, prompt boundaries, accepted input, errors  |
+| [metrics.md](metrics.md)           | Metrics, test end, data model, results and statistics screens        |
+| [architecture.md](architecture.md) | Monorepo layout, dependency rules, key technical decisions           |
+| [frontend.md](frontend.md)         | Input source, text stream, keyboard, hot path, loading               |
+| [learning.md](learning.md)         | Learning mode: groups, lessons, boxes                                |
+| [content.md](content.md)           | Content pipeline: sources, words, phrases, build checks, attribution |
+| [storage-sync.md](storage-sync.md) | IndexedDB, settings, merge rules, batches, sync triggers             |
+| [backend.md](backend.md)           | Free-tier limits, D1 schema, API, security, environments             |
+| [quality.md](quality.md)           | Budgets, latency measurement, tests, CI                              |
+| [phases.md](phases.md)             | Phases P0–P7 with acceptance criteria                                |
+| [backlog.md](backlog.md)           | Post-MVP backlog                                                     |
+| [decisions.md](decisions.md)       | Design decisions (A1…), resolved and open items                      |
+
+Item prefixes: **D** — change from the baseline (this file); **A** — design decision ([decisions.md](decisions.md)); **O** — open item ([decisions.md](decisions.md)).
+
+## Product scope
+
+Kana Flow is a web trainer for fast and accurate romaji input of Japanese kana text, modelled on Monkeytype. The MVP consists of the speed-typing core, a kana learning mode, accounts with cross-device sync, and dictionary-sourced words and phrases.
+
+**Target users:** people who already read kana and want to type faster. The learning mode covers kana only.
+
+**Constraints:**
+
+- Infrastructure cost is zero: only free tiers are used (Cloudflare Pages with Pages Functions, D1 Free).
+- No monetization in the MVP.
+- Every feature except sign-in and sync works without an account. After the application has loaded, losing the network connection interrupts no feature except sign-in and sync. Reloading the page without a network requires the offline PWA, which is post-MVP.
+- The budgets in [Budgets and quality](quality.md) are enforced in CI.
+- Every word and phrase reading passes the verification rules in [Content pipeline](content.md).
+
+### In scope
+
+| Area          | Included                                                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Speed mode    | Hiragana, katakana, both; content: kana, words, phrases; tests by time (15/30/60/120 s), by count (10/25/50/100 prompts), zen |
+| Learning mode | Kana only: introduction by group, recognition (romaji → choose kana), recall (typing), mixed review, mastery tracking         |
+| Input         | Japanese text stream plus a separate input field with live conversion; two strictness modes; keyboard-layout and IME warnings |
+| Statistics    | Per-kana statistics, test history, personal bests, kana-chart heatmap, charts, started/finished test counters                 |
+| Accounts      | Guest mode; sign-in with Google and GitHub; guest data merged on sign-in; sync of settings, results and progress              |
+| Content       | JLPT N5–N4 words from JMdict, short phrases from Tatoeba; displayed in kana only; English translations                        |
+| Interface     | English and Russian UI, confetti on a personal best, animations, keyboard shortcuts, dark theme                               |
+| Other         | "Report a problem" action for words and phrases; source attribution page                                                      |
+
+### Out of scope
+
+Russian translations of words and phrases, kanji in any form (including furigana), custom word sets, audio, offline PWA, light and additional themes, leaderboards, content admin panel, vocabulary SRS, grammar, Hepburn-only mode. These items are listed in [Post-MVP backlog](backlog.md).
+
+## Changes from the baseline
+
+The NFA approach (`start`/`step`/`isComplete`), the kana table format, the prompt picker, the type guards and the Cloudflare CI pipeline are retained. The token model and start/step are extended with per-spelling constraints between adjacent tokens (see [Input engine rules](engine.md)). Each row below is a point where the baseline differs from the MVP and the required change.
+
+| #   | Baseline                                                                                                         | MVP requirement                                                                                                                                                                                                                                                                                    |
+| --- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Two strictness tiers `learner` / `ime`                                                                           | Retained. UI labels: "Relaxed" (default) and "Strict IME". Strict accepts a subset of standard Japanese IME input and never accepts input that an IME would convert to a different kana                                                                                                            |
+| D2  | Relaxed mode accepts a single `n` for ん everywhere: `kani` = かんい, `honya` = ほんや                           | Before a vowel or `y`, ん MUST require `nn` or `n'` in both modes. Before `n`, relaxed accepts `konna`; strict requires `konnna`                                                                                                                                                                   |
+| D3  | A single `n` at the end of a prompt is handled per prompt, with a 250 ms `shouldAbsorb` window for a surplus key | Prompts are matched as one stream: ん at the end of a prompt takes its context from the next prompt (see "Prompt boundaries"). A single `n` completes ん at the end of the stream and before a skip token in both modes, and at a prompt boundary in relaxed mode (A15). `shouldAbsorb` is removed |
+| D4  | Strict mode rejects `cchi` for っち                                                                              | Strict accepts `cchi`, `tchi` and `tti`; the same applies to っちゃ/っちゅ/っちょ                                                                                                                                                                                                                  |
+| D5  | `ltu`/`xtu`/`xtsu` work only for a standalone っ                                                                 | `xtu`, `ltu`, `xtsu`, `ltsu` are accepted in both modes before any kana: `kiltute`, `kixtsute` for きって                                                                                                                                                                                          |
+| D6  | Decomposed yōon `kilya`/`kixya` is not supported                                                                 | Not in the MVP: yōon is typed as `kya`                                                                                                                                                                                                                                                             |
+| D7  | Standalone small kana (ぁ…ょ, ゎ, ヵ, ヶ) and ゐ/ゑ throw an exception                                           | MUST be supported as standalone tokens with `x`/`l` spellings (`xa`/`la`, `xya`/`lya`, `xwa`/`lwa`, `xka`/`lka`, `xke`/`lke`); ゐ = `wyi`, ゑ = `wye`                                                                                                                                              |
+| D8  | Punctuation and spaces throw an exception                                                                        | Skip tokens (see [Input engine rules](engine.md)). Content with an unknown character is excluded at build time (see [Content pipeline](content.md))                                                                                                                                                |
+| D9  | No Hepburn-only option                                                                                           | Not in the MVP (see [Design decisions and open items](decisions.md))                                                                                                                                                                                                                               |
+| D10 | Errors are attributed to `max(tokenIndex)`                                                                       | Errors are attributed to the minimum `tokenIndex` among active positions                                                                                                                                                                                                                           |
+| D11 | A token only counts wrong keystrokes                                                                             | An `errored` flag is added per token; the keystroke counter is retained                                                                                                                                                                                                                            |
+| D12 | WPM = keystrokes / 5; accuracy by keystrokes                                                                     | Replaced by the metrics in [Metrics and statistics](metrics.md)                                                                                                                                                                                                                                    |
+| D13 | One prompt on screen, latin mirror                                                                               | Text stream plus input field with live conversion                                                                                                                                                                                                                                                  |
+| D14 | Input via `keydown` only                                                                                         | Hybrid input source (see [Frontend](frontend.md))                                                                                                                                                                                                                                                  |
+| D15 | Cyrillic input is mapped silently by `event.code`                                                                | A non-latin character is rejected without counting as an error; a "switch keyboard layout to English" notice is shown                                                                                                                                                                              |
+| D16 | `TestStage` and `LiveStatsStrip` re-render on every keystroke                                                    | Zero component renders per keystroke (see [Frontend](frontend.md))                                                                                                                                                                                                                                 |
+| D17 | Stores are module-level singletons                                                                               | Sessions are created by a `createSession()` factory so speed and learning sessions do not share state                                                                                                                                                                                              |
+| D18 | localStorage with a synchronous `KeyValueStore`                                                                  | IndexedDB with an asynchronous store; migration of `kanaflow:*:v1` keys                                                                                                                                                                                                                            |
+| D19 | 70 words and 30 phrases defined by hand                                                                          | Replaced by the content pipeline; current data is kept as test fixtures                                                                                                                                                                                                                            |
+| D20 | Defects: empty pool throws; `computeItemWeight` is unused; `animate-fadeIn` is undefined                         | Fixed in P0. These are the only behaviour changes in P0                                                                                                                                                                                                                                            |
+| D21 | README and ARCHITECTURE.md contradict the code; Prettier, e2e and coverage are not in CI                         | Fixed in P0                                                                                                                                                                                                                                                                                        |
+| D22 | っ merges when the next spelling does not start with a vowel, `n` or `y`, so っー yields `--`                    | っ merges per spelling of the next token: a spelling starting with a latin consonant other than `n` and `y` is doubled, and the xtu/ltu/xtsu/ltsu prefix is accepted before any spelling (see "Tokens")                                                                                            |

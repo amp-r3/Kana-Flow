@@ -1,0 +1,5 @@
+# ADR 020: ReadonlySignal Export Pattern for Store State
+
+- **Context:** To guarantee unidirectional data flow and prevent UI components or features from mutating store signals directly via `.value = ...`, all reactive state signals in entity and shared stores (`entities/kana`, `entities/session`, `entities/progress`, `shared/i18n`) must be exposed as strictly read-only to external consumers, with mutations permitted exclusively through exported domain actions.
+- **Decision:** Export store state signals typed explicitly as `ReadonlySignal<T>` wrapping private internal mutable signals (`_signalName = signal<T>(...)`). Type-level tests in `src/app/readonly-store.test.ts` verify at compile time (via TypeScript conditional types `IfEquals` and `IsWritable`) that `.value` is non-writable on all exported signals, failing `tsc --noEmit` if any signal exposes a mutable `.value`.
+- **Justification:** Enforces architectural invariants at the type level without runtime overhead, eliminating rogue mutations and guaranteeing unidirectional data flow.
