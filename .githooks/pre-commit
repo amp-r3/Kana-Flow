@@ -6,8 +6,23 @@ set -eu
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 [ -z "$staged" ] && exit 0
 
+# Symlinks (CLAUDE.md -> AGENTS.md) are checked through their target.
+files=$(printf '%s\n' "$staged" | while IFS= read -r f; do [ -L "$f" ] || printf '%s\n' "$f"; done)
+
+# Agent instructions are loaded into every agent session: keep them short.
+max_agent_lines=250
+for f in $(printf '%s\n' "$files" | grep -E '(^|/)(AGENTS|CLAUDE)\.md$' || true); do
+  lines=$(git show ":$f" | wc -l)
+  if [ "$lines" -gt "$max_agent_lines" ]; then
+    echo "pre-commit: $f has $lines lines; the limit is $max_agent_lines. Move details into docs/ and link them." >&2
+    exit 1
+  fi
+done
+
 # Formatting is checked only for staged files, so files nobody touched do not block commits.
-printf '%s\n' "$staged" | tr '\n' '\0' | xargs -0 npx prettier --check --ignore-unknown
+if [ -n "$files" ]; then
+  printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 npx prettier --check --ignore-unknown
+fi
 
 # Code checks are skipped when only Markdown files are staged.
 if printf '%s\n' "$staged" | grep -qv '\.md$'; then

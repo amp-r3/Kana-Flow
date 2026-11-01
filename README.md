@@ -97,10 +97,10 @@ npm run e2e                        # Run Playwright E2E suite against Vite dev s
 
 `npm ci` runs the `prepare` script, which points Git at the versioned hooks in `.githooks/`. No extra dependencies are involved.
 
-| Hook         | Runs                                                                 | Notes                                                                                        |
-| ------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `pre-commit` | `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                  |
-| `pre-push`   | `npm run verify`, then `npm run e2e`                                 | Reuses a running `npm run dev` if there is one; needs `npx playwright install chromium` once |
+| Hook         | Runs                                                                                                               | Notes                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                  |
+| `pre-push`   | `npm run verify`, then `npm run e2e`                                                                               | Reuses a running `npm run dev` if there is one; needs `npx playwright install chromium` once |
 
 CI still runs `verify` on every push and pull request; the hooks catch the same failures earlier. In an emergency, `git commit --no-verify` / `git push --no-verify` skips them.
 

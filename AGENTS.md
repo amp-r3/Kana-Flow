@@ -1,0 +1,108 @@
+# AGENTS.md
+
+Instructions for AI coding agents working in this repository. `CLAUDE.md` is a symlink to this file. Keep it under 250 lines: the pre-commit hook rejects longer versions. Put details in the documents linked below, not here.
+
+## Project
+
+Kana Flow is a keyboard-first web trainer for typing Japanese kana in romaji, modelled on Monkeytype. Production: <https://kana-flow.pages.dev> (Cloudflare Pages).
+
+- **Current code** is the v1 baseline: a single Preact SPA in `src/`, state in localStorage, no backend.
+- **Target** is the MVP in `docs/MVP_SPEC.md`: pnpm monorepo, stream-based input engine, IndexedDB, Pages Functions + D1, content pipeline, learning mode. It is delivered in phases P0–P7.
+- Where documents disagree, `docs/MVP_SPEC.md` wins over `README.md`, `ARCHITECTURE.md` and `kana-flow-implementation-plan.md`. `README.md` and `ARCHITECTURE.md` are partly outdated until P0 (spec item D21).
+
+## Documents
+
+| File                | Purpose                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `docs/MVP_SPEC.md`  | Requirements, data models, API, budgets, phases and acceptance criteria |
+| `docs/DECISIONS.md` | Append-only ADR log; check it before changing an established approach   |
+| `ARCHITECTURE.md`   | Baseline architecture: FSD layers, engine contract, extension recipes   |
+| `README.md`         | Setup, scripts, deployment, budgets                                     |
+
+## Commands
+
+The baseline uses npm (Node ≥ 24, npm ≥ 11). P0 switches to pnpm workspaces; update this section then.
+
+```bash
+npm ci               # install; also enables the git hooks (prepare script)
+npm run dev          # Vite dev server on http://localhost:5173
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint . && steiger ./src
+npm test             # vitest run
+npm run build        # production build into dist/
+npm run budget       # size budgets on dist/
+npm run verify       # typecheck + lint + test + build + budget (what CI runs)
+npm run e2e          # Playwright; one-time: npx playwright install chromium
+```
+
+Run a single test file with `npx vitest run path/to/file.test.ts`.
+
+## Git workflow
+
+- Never commit directly to `main`. Every push to `main` deploys to production.
+- One branch per phase or logical change (`p1-engine`, `fix/...`, `docs/...`), merged through a pull request with squash merge. Each PR gets a Cloudflare preview URL.
+- Commit messages follow Conventional Commits: `feat(scope): ...`, `fix(...)`, `chore: ...`, `docs: ...`.
+- Do not commit, push, merge or open PRs unless the maintainer asks.
+- Git hooks live in `.githooks/`:
+  - `pre-commit`: Prettier on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
+  - `pre-push`: `npm run verify`, then `npm run e2e`.
+- Never bypass hooks with `--no-verify` unless the maintainer explicitly asks. If a hook fails, fix the cause.
+- CI (`.github/workflows/deploy.yml`) runs `verify` on every push and PR and deploys with wrangler.
+
+## Architecture rules (baseline, kept in the MVP)
+
+- Feature-Sliced Design: `app → pages → (widgets) → features → entities → shared`. A layer imports only from layers below it.
+- Slices on the same layer never import each other. Cross-slice imports go through the slice's `index.ts` only.
+- Enforced by `eslint-plugin-boundaries` and `steiger`. A slice with a single consumer is merged into that consumer instead of disabling the rule (ADR 015).
+- Store state is exported as `ReadonlySignal`; mutations go through exported actions (ADR 020).
+- Time, timers and randomness are injected (`Clock`, `Scheduler`, `Rng`) so tests are deterministic.
+
+## Code rules
+
+- TypeScript is maximally strict (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, …).
+- Forbidden by lint: `any`, type assertions (`as T`), non-null assertions (`!`), `@ts-ignore` (and `@ts-expect-error` without a description), inline `eslint-disable`, `export default` (except config files), `export *`.
+- Narrow `unknown` with type guards (`shared/lib/guards.ts`); never cast.
+- Prettier: single quotes, trailing commas, 100 columns. Many baseline files are not yet formatted; format a file when you touch it, but do not reformat unrelated files in the same commit.
+- Match the surrounding code: naming, comment density and idioms.
+- All user-visible strings, including `aria-label` values, come from `shared/i18n` (`en` and `ru` must keep key parity; a test checks it).
+- No new runtime dependency without a clear need: it counts against the JS budget.
+
+## Input engine
+
+- The engine (`src/entities/kana/lib/engine.ts` today, `packages/engine` after P0) is pure TypeScript: no DOM, signals, storage or app aliases. It must run in the browser and in a Worker.
+- Two strictness modes: relaxed (`learner`) and strict IME (`ime`). Invariant: relaxed accepts every input strict accepts. It is a property test; do not break it.
+- The accepted-input table in `docs/MVP_SPEC.md` is normative. Every row is a golden test; change the spec and the test together.
+- The kana table format (`ime[]` + `learner[]` spellings per entry) is shared by the engine, the content build and the font subset.
+
+## Performance
+
+- Hot path: a keystroke MUST NOT trigger a component render (0 renders; at most 1 on prompt completion). Update the DOM through signals as text nodes, `useSignalEffect` and refs. A render-isolation test enforces it.
+- No IndexedDB writes during a test.
+- Budgets: HTML ≤ 5 KB; initial JS ≤ 35 KB gzip; CSS ≤ 10 KB gzip; each font ≤ 45 KB; first load ≤ 160 KB. `npm run budget` fails the build when exceeded.
+
+## Testing
+
+- Unit tests: Vitest, colocated as `*.test.ts(x)`; DOM tests use `// @vitest-environment happy-dom`.
+- E2E: Playwright in `e2e/`.
+- Fix the code, not the test, unless the test encodes behaviour the spec has changed. In that case cite the spec item in the commit message.
+- Report test results as they are; never claim a check passed without running it.
+
+## Data and deployment constraints
+
+- The origin `kana-flow.pages.dev` must not change: localStorage data of existing users is bound to it (A6).
+- Storage keys `kanaflow:settings:v1`, `kanaflow:progress:v1`, `kanaflow:locale` are user data. Change their format only together with a migration (D18).
+- The raw keystroke log must never be persisted.
+- Content (words, phrases) is generated by the content pipeline, not edited by hand (D19). Tatoeba phrases must keep per-sentence author credit (A19).
+- Free tiers only (Cloudflare Pages Functions, D1). Check the limits in the spec before adding server work.
+
+## Decisions and docs
+
+- Record a new architectural decision as the next ADR in `docs/DECISIONS.md`. Do not edit old ADRs; add a Status line when one is superseded.
+- When behaviour defined in `docs/MVP_SPEC.md` changes, update the spec in the same PR.
+- Keep this file short. If a rule needs more than a few lines, link to a document instead.
+
+## Communication
+
+- The maintainer writes in Russian; reply in Russian.
+- Code, comments, documentation and commit messages are in English.
+- If a requirement is ambiguous or contradicts the spec, ask before implementing.
