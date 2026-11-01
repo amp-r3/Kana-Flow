@@ -1,8 +1,8 @@
 > **Scope.** Describes the v1 baseline code in `src/`. Where it disagrees with the [MVP specification](../spec/README.md), the specification applies; this document is rewritten as the MVP phases land (spec item D21).
 
-# Kana Flow Architecture Documentation
+# Nekotype Architecture Documentation
 
-Kana Flow is a high-performance, keyboard-first Japanese kana speed trainer engineered around a Non-deterministic Finite Automaton (NFA) romaji engine, fine-grained Preact signals, and strict Feature-Sliced Design (FSD) architecture.
+Nekotype is a high-performance, keyboard-first Japanese kana speed trainer engineered around a Non-deterministic Finite Automaton (NFA) romaji engine, fine-grained Preact signals, and strict Feature-Sliced Design (FSD) architecture.
 
 ---
 
@@ -37,7 +37,7 @@ Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks.
 
 ## 2. Two-Tier Romaji Spelling Model
 
-Typing Japanese romaji involves substantial ambiguity between formal IME keystrokes and intuitive learner romanizations. Kana Flow solves this with a deterministic two-tier model:
+Typing Japanese romaji involves substantial ambiguity between formal IME keystrokes and intuitive learner romanizations. Nekotype solves this with a deterministic two-tier model:
 
 | Level      | Name             | Description                                                                                                                                                         |
 | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -180,7 +180,7 @@ export function romajiForKey(kanaKey: string): string | null;
 
 ## 5. Mobile & On-Screen Input Seam
 
-Kana Flow is currently optimized for desktop physical keyboards. However, the input layer was deliberately decoupled to enable future mobile or touch adapters:
+Nekotype is currently optimized for desktop physical keyboards. However, the input layer was deliberately decoupled to enable future mobile or touch adapters:
 
 ```
 [ Physical Keyboard Event ] ──┐

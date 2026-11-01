@@ -1,10 +1,10 @@
-# Kana Flow — MVP Specification
+# Nekotype — MVP Specification
 
 Nov 1, 2026 · @Амир
 
 ## Document scope
 
-This document specifies the Kana Flow MVP: required behaviour, data models, interfaces, performance budgets and acceptance criteria. "Baseline" refers to the repository state at commit 0f4927d.
+This document specifies the Nekotype MVP: required behaviour, data models, interfaces, performance budgets and acceptance criteria. "Baseline" refers to the repository state at commit 0f4927d.
 
 - **Location in the repository:** `docs/spec/`, one file per area (see "Contents").
 - **Precedence:** where this document conflicts with `README.md`, `docs/architecture/baseline-v1.md` or `docs/archive/v1-implementation-plan.md`, this document applies.
@@ -33,7 +33,7 @@ Item prefixes: **D** — change from the baseline (this file); **A** — design 
 
 ## Product scope
 
-Kana Flow is a web trainer for fast and accurate romaji input of Japanese kana text, modelled on Monkeytype. The MVP consists of the speed-typing core, a kana learning mode, accounts with cross-device sync, and dictionary-sourced words and phrases.
+Nekotype is a web trainer for fast and accurate romaji input of Japanese kana text, modelled on Monkeytype. The MVP consists of the speed-typing core, a kana learning mode, accounts with cross-device sync, and dictionary-sourced words and phrases.
 
 **Target users:** people who already read kana and want to type faster. The learning mode covers kana only.
 

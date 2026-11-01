@@ -1,6 +1,6 @@
 export const en = {
   // Top bar
-  'app.title': 'Kana Flow',
+  'app.title': 'Nekotype',
   'app.tagline': 'Hiragana & Katakana Speed Trainer',
   'app.rows': 'Kana Matrix',
   'app.reset': 'Reset Progress',

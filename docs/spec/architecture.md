@@ -3,16 +3,16 @@
 The repository is a pnpm monorepo with two applications and three packages. The frontend keeps Feature-Sliced Design with the baseline boundary linters.
 
 ```
-kana-flow/
+nekotype/
 ├── apps/
 │   ├── web/        Preact + Vite + Tailwind v4, FSD: app → pages → features → entities → shared
 │   └── api/        Hono app (OAuth, sync, reports), mounted by Pages Functions
 ├── functions/
 │   └── api/[[route]].ts   Pages Functions entry point; imports apps/api
 ├── packages/
-│   ├── engine/     input engine, kana tables, visually-similar kana table; zero dependencies
-│   ├── content/    dictionary build scripts → JSON chunks; not part of the runtime
-│   └── shared/     entry points: /types, /runtime (decay, constants), /schemas (valibot, server only)
+│   ├── engine/     @nekotype/engine: input engine, kana tables, visually-similar kana table; zero dependencies
+│   ├── content/    @nekotype/content: dictionary build scripts → JSON chunks; not part of the runtime
+│   └── shared/     @nekotype/shared; entry points: /types, /runtime (decay, constants), /schemas (valibot, server only)
 ├── docs/           spec/, adr/, architecture/, archive/ (index: docs/README.md)
 ├── pnpm-workspace.yaml
 └── .github/workflows/
@@ -40,7 +40,7 @@ The prompt picker and weight functions are not part of the engine: they live in 
 
 ## Key technical decisions
 
-- **Deployment stays on the existing Cloudflare Pages project and the `kana-flow.pages.dev` origin.** localStorage is bound to the origin, so keeping it is what allows the D18 migration to find baseline user data. The API runs as Pages Functions: `functions/api/[[route]].ts` mounts the Hono app with a D1 binding. Single origin: no CORS; session cookie `HttpOnly; Secure; SameSite=Lax`.
+- **Deployment goes to the Cloudflare Pages project `nekotype`, origin `nekotype.pages.dev`.** The origin changed from `kana-flow.pages.dev` before launch (ADR 025): there were no users, so no data is carried over. The API runs as Pages Functions: `functions/api/[[route]].ts` mounts the Hono app with a D1 binding. Single origin: no CORS; session cookie `HttpOnly; Secure; SameSite=Lax`.
 - **Routing of requests.** `_routes.json` includes only `/api/*`, so static requests never invoke Functions. `_redirects` rewrites each known SPA route (`/learn`, `/stats`, `/settings`, `/about`) to `/index.html` with status 200. Any other unknown path, including a missing `/assets/*` file, returns the baseline `404.html` with status 404.
 - **Router:** a dependency-free client router on the History API. All routes except `/` are lazy-loaded.
 - **Training sessions:** `createSession(deps)` factory instead of global stores (D17). `Clock`, `Scheduler`, `Rng` and storage are injected, keeping tests deterministic.

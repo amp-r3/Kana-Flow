@@ -2,7 +2,7 @@
 
 The engine remains an NFA simulation over tokens, now applied to a stream of prompts rather than a single prompt. It receives the kana table as a parameter, supports small kana and skip tokens, and exposes the state needed for live conversion and for the learning mode. The accepted-input table is normative: every row MUST be covered by a golden test.
 
-## `@kana-flow/engine` API
+## `@nekotype/engine` API
 
 ```ts
 export function createEngine(table: KanaTable): Engine;

@@ -26,11 +26,11 @@ describe('i18n: translations and locale handling', () => {
 
   it('translates strings for active locale with parameter interpolation', () => {
     setLocale('en');
-    expect(t('app.title')).toBe('Kana Flow');
+    expect(t('app.title')).toBe('Nekotype');
     expect(t('stage.revealed', { answer: 'ka' })).toBe('Revealed: ka');
 
     setLocale('ru');
-    expect(t('app.title')).toBe('Kana Flow');
+    expect(t('app.title')).toBe('Nekotype');
     expect(t('config.script.hiragana')).toBe('Хирагана');
     expect(t('stage.revealed', { answer: 'ka' })).toBe('Ответ: ka');
 
@@ -41,11 +41,11 @@ describe('i18n: translations and locale handling', () => {
   it('setLocale persists locale to store and updates locale signal', () => {
     const store = new MemoryKeyValueStore();
     setLocale('ru', store);
-    expect(store.get('kanaflow:locale')).toBe('ru');
+    expect(store.get('nekotype:locale')).toBe('ru');
     expect(locale.value).toBe('ru');
 
     setLocale('en', store);
-    expect(store.get('kanaflow:locale')).toBe('en');
+    expect(store.get('nekotype:locale')).toBe('en');
     expect(locale.value).toBe('en');
   });
 });
