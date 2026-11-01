@@ -42,3 +42,8 @@ Thumbs.db
 
 # Local font sources (large binaries, not committed)
 scripts/font-src/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
