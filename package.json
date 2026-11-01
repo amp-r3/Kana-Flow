@@ -14,7 +14,8 @@
     "fonts": "tsx scripts/subset-fonts.mjs",
     "budget": "node scripts/check-budget.mjs",
     "e2e": "playwright test",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run budget"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run budget",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@preact/signals": "^2.11.4",

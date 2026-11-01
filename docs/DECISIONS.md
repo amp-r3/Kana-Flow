@@ -200,3 +200,15 @@ Append-only log of architectural decisions. Entries are never deleted or rewritt
   2. `Space`, `Enter`, and `Backspace` yield `{ kind: 'ignore' }`. They are filtered out by `bindKeyboard`, emit no intent, do not alter `typedBuffer`, count zero mistakes, and induce zero state changes.
   3. Standard browser hotkeys and navigation (`Ctrl+R`, `F5`, `Tab`, `Ctrl+L`) are preserved with `defaultPrevented === false`.
 - **Justification:** Conforms directly to Plan 6.2, preventing accidental reveal activations or false-positive mistakes from stray Space/Enter keystrokes.
+
+### ADR 023: Local Git Hooks Complement CI
+
+- **Context:** Checks ran only in GitHub Actions, so failures surfaced a minute after a push. Removing CI to save Actions minutes was considered, but standard GitHub-hosted runners are free for public repositories, and CI is the only guarantee that production receives a verified build.
+- **Decision:** Versioned hooks in `.githooks/`, enabled by the `prepare` script (`git config core.hooksPath .githooks`), with no new dependencies. `pre-commit` runs Prettier on staged files, then typecheck, lint and unit tests (code checks are skipped for Markdown-only commits). `pre-push` runs `npm run verify` and `npm run e2e`. CI keeps running `verify` and deploying. Playwright reuses a running dev server locally (`reuseExistingServer: !process.env.CI`).
+- **Justification:** Failures are caught before they leave the machine, while CI still protects `main` and production. Prettier checks only staged files because most baseline files are not yet formatted.
+
+### ADR 024: AGENTS.md as the Single Agent Instruction File
+
+- **Context:** Different AI coding agents read different instruction files, and every line of such a file is loaded into each agent session.
+- **Decision:** `AGENTS.md` is the source; `CLAUDE.md` is a symlink to it. The pre-commit hook rejects any staged `AGENTS.md` or `CLAUDE.md` over 250 lines; details belong in `docs/` and are linked from `AGENTS.md`.
+- **Justification:** One file avoids drift between agents, and the line limit keeps the instructions short enough not to crowd the context.
