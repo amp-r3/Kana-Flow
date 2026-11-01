@@ -47,3 +47,4 @@ scripts/font-src/
 .wrangler
 .dev.vars*
 !.dev.vars.example
+.pnpm-store/

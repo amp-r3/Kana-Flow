@@ -137,7 +137,7 @@ export function romajiForKey(kanaKey: string): string | null;
    export const customRows: readonly KanaRow[] = [ ... ];
    ```
 3. Re-export in `src/entities/kana/model/data/index.ts` and include in `allKanaRows`.
-4. Run `npm test` to verify automatic inclusion in property tests across all strictness modes.
+4. Run `pnpm test` to verify automatic inclusion in property tests across all strictness modes.
 
 ### Recipe B: Adding Vocabulary Words or Phrases
 
@@ -207,13 +207,13 @@ Nekotype is currently optimized for desktop physical keyboards. However, the inp
 
 ## 6. Verification Gates & Quality Guarantees
 
-Every commit and pull request must satisfy `npm run verify`, which runs the following automated pipeline:
+Every commit and pull request must satisfy `pnpm run verify`, which runs the following automated pipeline:
 
-1. **`npm run typecheck` (`tsc --noEmit`)**: Maximum strictness TypeScript checks. Zero `any`, zero `as T`, zero `!`.
-2. **`npm run lint` (`eslint . && steiger ./src`)**: ESLint AST inspection plus Steiger FSD architectural boundaries.
-3. **`npm run test` (`vitest run`)**: Full unit, integration, property, and render-isolation test suite.
-4. **`npm run build` (`vite build`)**: Production client bundle build.
-5. **`npm run budget` (`node scripts/check-budget.mjs`)**: Enforces hard budget limits:
+1. **`pnpm run typecheck` (`tsc --noEmit`)**: Maximum strictness TypeScript checks. Zero `any`, zero `as T`, zero `!`.
+2. **`pnpm run lint` (`eslint . && steiger ./src`)**: ESLint AST inspection plus Steiger FSD architectural boundaries.
+3. **`pnpm run test` (`vitest run`)**: Full unit, integration, property, and render-isolation test suite.
+4. **`pnpm run build` (`vite build`)**: Production client bundle build.
+5. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Enforces hard budget limits:
    - Initial HTML gzip: ≤ 5 KB (Actual: 0.27 KB)
    - Initial JS gzip: ≤ 35 KB (Actual: 24.42 KB via Vite / 23.69 KB via gzip)
    - Initial CSS gzip: ≤ 10 KB (Actual: 4.96 KB)
@@ -242,5 +242,5 @@ Every commit and pull request must satisfy `npm run verify`, which runs the foll
 
 ### End-to-End Browser Certification (`e2e/`)
 
-- `@playwright/test` is installed as a pure `devDependency` and invoked via `npm run e2e`.
-- It executes outside `npm run verify` to test browser-native focus restoration, click coordinate physics, and cross-reload local storage synchronization.
+- `@playwright/test` is installed as a pure `devDependency` and invoked via `pnpm run e2e`.
+- It executes outside `pnpm run verify` to test browser-native focus restoration, click coordinate physics, and cross-reload local storage synchronization.
