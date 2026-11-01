@@ -1,46 +1,62 @@
 # Architecture Decisions Record (DECISIONS.md)
 
+Append-only log of architectural decisions. Entries are never deleted or rewritten: a decision that no longer holds gets a **Status** line naming what superseded or amended it. An entry without a Status line is in force.
+
+- `docs/MVP_SPEC.md` defines the MVP requirements; its "Design decisions" table (A1…) holds the decisions made while writing the spec.
+- Decisions made during implementation are added here as new entries, continuing from ADR 023.
+
 ### ADR 001: Preact and @preact/signals
+
 - **Context:** Need Monkeytype-level instant keystroke response while keeping JS bundle ≤ 35 KB gzip.
 - **Decision:** Use Preact with `@preact/signals`.
 - **Justification:** Preact weighs ~4 KB gzip, and signals allow bypass of component tree re-renders for ultra-low latency keystroke updates.
 
 ### ADR 002: Tailwind CSS v4 CSS-First Configuration
+
 - **Context:** Fast styling, small CSS bundle (≤ 10 KB limit), dynamic semantic tokens.
 - **Decision:** Use `@tailwindcss/vite` with `@theme inline` mapping CSS variables from `shared/styles/tokens.css`.
 - **Justification:** Eliminates `tailwind.config.ts`, leverages CSS variables for instant theme switching without runtime CSS-in-JS.
 
 ### ADR 003: Steiger for FSD Architecture Enforcement
+
 - **Context:** Enforce strict Feature-Sliced Design layer hierarchy, public API boundaries, and prevent same-layer slice imports.
 - **Decision:** Integrate `steiger` directly into `npm run lint` (`eslint . && steiger ./src`).
 - **Justification:** Steiger is the official FSD linter, catching layer violations and unexported segment sidesteps reliably without complex AST resolver configurations.
 
 ### ADR 004: Node-based Font Subsetting (`subset-font`)
+
 - **Context:** Self-hosted kana and UI fonts must meet ≤ 45 KB per woff2 limit without requiring a Python environment.
 - **Decision:** Use `subset-font` in `scripts/subset-fonts.mjs` as a devDependency.
 - **Justification:** Keeps all build/tooling within the Node/npm toolchain.
 
 ### ADR 005: Extended Katakana Row Prefix (`ext_`)
+
 - **Context:** Avoid ID collisions between Gojūon rows and extended Katakana rows.
 - **Decision:** Prefix all 5 extended katakana rows with `ext_` (`ext_fa`, `ext_va`, `ext_wi`, `ext_ti`, `ext_che`).
 - **Justification:** Guarantees uniqueness across persistent row sets and clear identification.
 
 ### ADR 006: Sokuon Doubling and Standalone Fallback
+
+- **Status:** Superseded by `docs/MVP_SPEC.md` D5 and D22 (per-spelling doubling; `xtu`/`ltu`/`xtsu`/`ltsu` prefix before any kana).
 - **Context:** Support both gemination (consonant doubling) and standalone `っ/ッ`.
 - **Decision:** In `compile`, `っ/ッ` merges with the following consonant token, doubling its consonant (with `ch` -> `tch` in IME, `cch` in learner). If standalone, followed by vowels, `n`, `y`, or prompt end, it generates `['xtu', 'ltu', 'xtsu']`.
 - **Justification:** Matches Japanese IME behavior and prevents uncompletable states.
 
 ### ADR 007: Chōonpu (ー) Dual-Tier Matching
+
 - **Context:** Handling long vowel marks across strictness levels.
 - **Decision:** In IME mode, only `-` is accepted. In learner mode, both `-` and the preceding token's final vowel repeated (e.g. `ko-hi-` and `koohii`) are accepted.
 - **Justification:** Respects Japanese IME keyboard output while accommodating learner phonetic typing habits.
 
 ### ADR 008: ん/ン Contextual Lookahead
+
+- **Status:** Superseded by `docs/MVP_SPEC.md` D2, D3 and A15 (`nn` before a vowel or `y` in both modes; stream matching across prompts).
 - **Context:** Distinct rules for `n` vs `nn` / `n'`.
 - **Decision:** In IME mode, `nn` and `n'` are always accepted, and bare `n` is accepted only when all spellings of the next token start with a consonant other than `n` or `y`. At the end of a prompt, only `nn` / `n'` are valid in IME mode. In learner mode, `n` is accepted everywhere.
 - **Justification:** Accurately replicates MS IME / Google Japanese Input romaji conversion tables.
 
 ### ADR 009: Extended Katakana and Ambiguous Romaji Tier Placement
+
 - **Context:** Standard Japanese IMEs convert specific digraphs to standard kana, while learners expect Hepburn/Kunrei alternatives. Per specification, any ambiguous spelling must be placed in `learner`, never `ime`.
 - **Decisions & Justifications:**
   - **ウォ:** In standard MS IME, `wo` outputs `を/ヲ`, whereas `who` outputs `ウォ`. Decision: `who` in `ime`, `wo` and `uxo` in `learner`.
@@ -62,6 +78,7 @@
   - **じゃ, じゅ, じょ:** Decision: `ja, ju, jo`, `zya, zyu, zyo`, and `jya, jyu, jyo` in `ime`; `learner: []` (`dya/dyu/dyo` removed as they represent ぢゃ/ぢゅ/ぢょ).
 
 ### ADR 010: Font Subsets and Included Weights
+
 - **Context:** Meet strict size budgets (≤ 45 KB per font file) for both Japanese glyphs and UI typography.
 - **Decision:**
   - **Noto Sans JP**: Single **Bold (700)** weight (`NotoSansJP-subset.woff2`, 16.45 KB), subsetted to the 157 kana, digraphs, and punctuation characters in `glyphs.txt`. Bold weight is chosen for maximum legibility on dark surfaces.
@@ -69,6 +86,8 @@
 - **Justification:** Avoids loading unused weights, keeping total font weight at 31.4 KB, well within the 160 KB total first-load budget.
 
 ### ADR 011: State Division and Storage Isolation (entities/kana vs entities/session)
+
+- **Status:** Superseded by `docs/MVP_SPEC.md` D17 and D18 (`createSession()` factory; IndexedDB instead of localStorage).
 - **Context:** Practice settings must persist across sessions, whereas active session keystrokes, phase, and running metrics must reset cleanly without cross-contamination.
 - **Decision:**
   - Place `PracticeSettings` signal store in `entities/kana/model/store.ts` (manages row selection, script mode, content kind, strictness, weakFocus, with local storage debounce and pagehide flush).
@@ -77,6 +96,8 @@
 - **Justification:** Follows FSD boundaries; practice configuration belongs to the kana domain entity, while test execution state belongs to session lifecycle.
 
 ### ADR 012: Pure Weight Decay and Mistake-Based Kana Mastery Model (entities/progress)
+
+- **Status:** Superseded by `docs/MVP_SPEC.md` "Metrics and statistics" and A8 (`erroredAttempts`-based weakness; decay after 200 attempts; mean reaction time from sum and count).
 - **Context:** User kana accuracy must inform weighted random selection during `weakFocus` practice mode, decaying historical attempts over time.
 - **Decision:**
   - Implement pure functions in `entities/progress/lib/weights.ts`: `computeWeakness`, `computeWeight`, `computeWeights`, `computeItemWeight`, `decayStats`, and `updateKanaStats`.
@@ -87,6 +108,8 @@
 - **Justification:** Exact adherence to Plan v1.1 section 8 specifications; deterministic and lightweight.
 
 ### ADR 013: Trailing Extension Absorption and Desktop Input Normalization (features/type-prompt)
+
+- **Status:** Superseded by `docs/MVP_SPEC.md` D3, A11 (absorption removed) and D14, D15, A1 (hybrid input; non-latin input rejected with a notice).
 - **Context:** Fast typists transitioning from a word ending in single `n` (e.g. `パン`) to a word beginning with `n` (e.g. `ねこ`) or double-tapping `n` within 250ms must not suffer false-positive rejections.
 - **Decision:**
   - Implement pure `shouldAbsorb(extensions, completedAt, now, key, windowMs = 250)`.
@@ -95,6 +118,8 @@
 - **Justification:** Provides Monkeytype-grade input feel and eliminates input layout friction for international users.
 
 ### ADR 014: Deviation Audit and Alignment with Plan v1.1
+
+- **Status:** Partially superseded by `docs/MVP_SPEC.md`: items 1 (`compile` signature), 3 (weight formula) and 5 (live stats) are replaced by the engine API, "Metrics and statistics" and D16. Items 2, 4 and 6–10 remain in force.
 - **Context:** Review and resolve all differences between intermediate prototype implementations and the authoritative `kana-flow-implementation-plan.md` (v1.1).
 - **Audit & Decisions:**
   1. **`compile` Signature & Reading Hints:** Restored `compile(prompt: PromptItem, strictness: Strictness)`. Digraph and kana tables define base pronunciation; `readingHints` on `PromptItem` are applied strictly in `learner` mode at the designated `tokenIndex`. `は` accepts only `ha` across both modes by default; `こんにちは` accepts `wa` strictly via its attached readingHint (`はな` rejects `wana`).
@@ -109,16 +134,19 @@
   10. **`finishTest` Return and `metrics` Signal Type:** `finishTest(endTimeMs?: number): SessionMetrics` sets `phase.value = 'finished'`, updates `metrics.value = computed`, and returns the metrics directly. The `metrics` signal is typed as `Signal<SessionMetrics | null>` (initialized to `null` while `idle` / `running`).
 
 ### ADR 015: Merging Widgets Layer into `pages/trainer/ui/`
+
 - **Context:** `steiger` enforces `fsd/insignificant-slice` requiring slices to have more than one consumer across the codebase. Private components previously placed in `widgets/` were consumed solely by `pages/trainer`.
 - **Decision:** In accordance with the prompt guidance ("If it flags a slice with one consumer, MERGE it into that consumer; do not disable the rule"), the widgets (`top-bar`, `config-bar`, `test-stage`, `results-panel`, `rows-dialog`, `live-stats-strip`, `speed-chart`, `weakest-kana-list`) were merged into `pages/trainer/ui/` as page-internal UI components.
 - **Extraction Seam:** When a second page (such as a separate stats history page, study review page, or custom drill page) is introduced that requires reusing these components, they should be extracted back to `widgets/` or `features/`.
 
 ### ADR 016: Unified Reactive Settings Reset Watcher (`setupSettingsResetWatcher`)
+
 - **Context:** Multiple independent settings controls across `ConfigBar` and `RowsDialog` required resetting an in-progress session back to `idle` with a freshly picked prompt whenever script mode, content type, strictness, selected rows, weak focus, or test config changed.
 - **Decision:** Replaced per-control callback prop drilling (`onSettingChange`, `onRowChange`) with a single reactive Preact `effect()` in `features/type-prompt/model/settings-watcher.ts` (`setupSettingsResetWatcher`). It subscribes to all six configuration signals and atomically triggers session reset and prompt replenishment.
 - **Justification:** Eliminates prop drilling, guarantees complete state synchronization regardless of which UI surface initiates a setting mutation, and enables isolated store-level testing.
 
 ### ADR 017: Comprehensive Accessibility Pass
+
 - **Context:** Ensure keyboard-first ergonomics, screen reader transparency, and respect for operating system motion preferences.
 - **Decision:**
   - **Native Modal Dialog Focus Restoration:** `Dialog` records `document.activeElement` when opened and automatically restores focus to that exact opener element on close (both via close button and Escape key).
@@ -128,6 +156,8 @@
 - **Justification:** Conforms to WCAG 2.1 AA keyboard navigation and accessibility standards.
 
 ### ADR 018: Playwright E2E Test Suite for Real Browser Focus Redirection and Layout Physics Verification
+
+- **Status:** Amended by `docs/MVP_SPEC.md` D21: e2e becomes part of `verify` and CI.
 - **Context:** Happy-dom simulates DOM trees in Node.js but does not emulate genuine browser window focus, native button activation, mouse drag/click coordinate mechanics, or Cumulative Layout Shift (CLS) during focus changes.
 - **Decision:**
   - Add Playwright as a `devDependency` (`@playwright/test`) with test specs isolated under `e2e/`.
@@ -137,6 +167,7 @@
 - **Justification:** Real browser testing pins keyboard-first autofocus, focus stealing recovery, dialog focus restoration, and cross-reload persistence under real Chromium layout and event-dispatch physics.
 
 ### ADR 019: Runtime Fallback for Vocabulary Pools in `buildPool`
+
 - **Context:** Plan 5.5 requires: "If a pool is empty at runtime anyway, fall back to the single-kana pool."
 - **Decision:**
   - In `buildPool(settings, content?)`, when `content === 'words' || content === 'phrases'`, if `content` is empty (`length === 0`) or if script filtering yields zero items (e.g. asking for Katakana phrases when none match), the function automatically falls back to building the single-kana pool according to `settings.rowIds` and `settings.script`.
@@ -144,27 +175,28 @@
 - **Justification:** Conforms directly to Plan 5.5 and prevents app crashing if vocabulary chunks are pending or fail to load.
 
 ### ADR 020: ReadonlySignal Export Pattern for Store State
+
 - **Context:** To guarantee unidirectional data flow and prevent UI components or features from mutating store signals directly via `.value = ...`, all reactive state signals in entity and shared stores (`entities/kana`, `entities/session`, `entities/progress`, `shared/i18n`) must be exposed as strictly read-only to external consumers, with mutations permitted exclusively through exported domain actions.
 - **Decision:** Export store state signals typed explicitly as `ReadonlySignal<T>` wrapping private internal mutable signals (`_signalName = signal<T>(...)`). Type-level tests in `src/app/readonly-store.test.ts` verify at compile time (via TypeScript conditional types `IfEquals` and `IsWritable`) that `.value` is non-writable on all exported signals, failing `tsc --noEmit` if any signal exposes a mutable `.value`.
 - **Justification:** Enforces architectural invariants at the type level without runtime overhead, eliminating rogue mutations and guaranteeing unidirectional data flow.
 
 ### ADR 021: Global Keyboard Binding Decoupling (`bindKeyboard`)
+
+- **Status:** Amended by `docs/MVP_SPEC.md` D14: input moves to a hidden input with `beforeinput`; the `document` keydown listener stays only for keys pressed while focus is outside the hidden input (MVP_SPEC "Input source", step 2).
 - **Context:** `TestStage` previously contained an inline `document.addEventListener('keydown', ...)` with mixed responsibilities (focus checking, dialog isolation, modifier key checks, and intent dispatch).
 - **Decision:** Extracted global keyboard coordination into `features/type-prompt/lib/keyboard.ts` as `bindKeyboard({ onIntent, getInputElement })`. `bindKeyboard` centralizes:
   1. Skipping event handling if a `<dialog open>` modal is present.
   2. Escape key on external controls refocusing the input sink without triggering reveal.
   3. Character keystroke capture refocusing the input sink and triggering intent dispatch.
   4. Explicitly calling `preventDefault()` ONLY on handled character and reveal intents, never when `ctrlKey`, `metaKey`, or `altKey` modifiers are pressed.
-  Unit tests in `keyboard.test.ts` verify standard browser shortcuts (`Ctrl+R`, `F5`, `Tab`, `Ctrl+L`) are not intercepted or prevented.
+     Unit tests in `keyboard.test.ts` verify standard browser shortcuts (`Ctrl+R`, `F5`, `Tab`, `Ctrl+L`) are not intercepted or prevented.
 - **Justification:** Keeps UI components thin, ensures standard browser navigation and hotkeys work cleanly, and isolates keyboard handling into testable feature logic.
 
 ### ADR 022: Key Intent Semantics: Reveal Strictly via Escape
+
 - **Context:** Clarify behavior of non-character keys (`Escape`, `Space`, `Enter`, `Backspace`) during prompt typing.
 - **Decision:** Strictly adhere to Plan Section 6.2:
   1. Only `Escape` pressed while focused on the active input sink triggers answer reveal (`kind: 'reveal'`), displaying canonical romaji, marking the prompt as assisted (`isAssisted = true`), and penalizing with 1 mistake.
   2. `Space`, `Enter`, and `Backspace` yield `{ kind: 'ignore' }`. They are filtered out by `bindKeyboard`, emit no intent, do not alter `typedBuffer`, count zero mistakes, and induce zero state changes.
   3. Standard browser hotkeys and navigation (`Ctrl+R`, `F5`, `Tab`, `Ctrl+L`) are preserved with `defaultPrevented === false`.
 - **Justification:** Conforms directly to Plan 6.2, preventing accidental reveal activations or false-positive mistakes from stray Space/Enter keystrokes.
-
-
-
