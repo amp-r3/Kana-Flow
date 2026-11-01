@@ -21,12 +21,12 @@ done
 
 # Formatting is checked only for staged files, so files nobody touched do not block commits.
 if [ -n "$files" ]; then
-  printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 npx prettier --check --ignore-unknown
+  printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 pnpm exec prettier --check --ignore-unknown
 fi
 
 # Code checks are skipped when only Markdown files are staged.
 if printf '%s\n' "$staged" | grep -qv '\.md$'; then
-  npm run --silent typecheck
-  npm run --silent lint
-  npm run --silent test
+  pnpm run --silent typecheck
+  pnpm run --silent lint
+  pnpm run --silent test
 fi

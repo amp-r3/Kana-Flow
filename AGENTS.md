@@ -24,21 +24,21 @@ Start at `docs/README.md`: it maps each question to the file that answers it. Op
 
 ## Commands
 
-The baseline uses npm (Node ≥ 24, npm ≥ 11). P0 switches to pnpm workspaces; update this section then.
+The baseline uses pnpm (Node ≥ 24, pnpm ≥ 10; ADR 026). P0 adds pnpm workspaces; update this section then.
 
 ```bash
-npm ci               # install; also enables the git hooks (prepare script)
-npm run dev          # Vite dev server on http://localhost:5173
-npm run typecheck    # tsc --noEmit
-npm run lint         # eslint . && steiger ./src
-npm test             # vitest run
-npm run build        # production build into dist/
-npm run budget       # size budgets on dist/
-npm run verify       # typecheck + lint + test + build + budget (what CI runs)
-npm run e2e          # Playwright; one-time: npx playwright install chromium
+pnpm install        # install; also enables the git hooks (prepare script)
+pnpm run dev          # Vite dev server on http://localhost:5173
+pnpm run typecheck    # tsc --noEmit
+pnpm run lint         # eslint . && steiger ./src
+pnpm test             # vitest run
+pnpm run build        # production build into dist/
+pnpm run budget       # size budgets on dist/
+pnpm run verify       # typecheck + lint + test + build + budget (what CI runs)
+pnpm run e2e          # Playwright; one-time: pnpm exec playwright install chromium
 ```
 
-Run a single test file with `npx vitest run path/to/file.test.ts`.
+Run a single test file with `pnpm exec vitest run path/to/file.test.ts`.
 
 ## Git workflow
 
@@ -49,7 +49,7 @@ Run a single test file with `npx vitest run path/to/file.test.ts`.
 - Do not commit, push, merge or open PRs unless the maintainer asks.
 - Git hooks live in `.githooks/`:
   - `pre-commit`: Prettier on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
-  - `pre-push`: `npm run verify`, then `npm run e2e`.
+  - `pre-push`: `pnpm run verify`, then `pnpm run e2e`.
 - Never bypass hooks with `--no-verify` unless the maintainer explicitly asks. If a hook fails, fix the cause.
 - CI (`.github/workflows/deploy.yml`) runs `verify` on every push and PR and deploys with wrangler.
 
@@ -82,7 +82,7 @@ Run a single test file with `npx vitest run path/to/file.test.ts`.
 
 - Hot path: a keystroke MUST NOT trigger a component render (0 renders; at most 1 on prompt completion). Update the DOM through signals as text nodes, `useSignalEffect` and refs. A render-isolation test enforces it.
 - No IndexedDB writes during a test.
-- Budgets: HTML ≤ 5 KB; initial JS ≤ 35 KB gzip; CSS ≤ 10 KB gzip; each font ≤ 45 KB; first load ≤ 160 KB. `npm run budget` fails the build when exceeded.
+- Budgets: HTML ≤ 5 KB; initial JS ≤ 35 KB gzip; CSS ≤ 10 KB gzip; each font ≤ 45 KB; first load ≤ 160 KB. `pnpm run budget` fails the build when exceeded.
 
 ## Testing
 

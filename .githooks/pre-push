@@ -3,5 +3,5 @@
 # Bypass in an emergency with `git push --no-verify`.
 set -eu
 
-npm run --silent verify
-npm run --silent e2e
+pnpm run --silent verify
+pnpm run --silent e2e
