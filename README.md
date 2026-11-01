@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Max%20Strict-blue.svg)](https://www.typescriptlang.org/)
 [![FSD: Verified](https://img.shields.io/badge/Architecture-Feature--Sliced%20Design-orange.svg)](https://feature-sliced.design/)
-[![Bundle Budget](https://img.shields.io/badge/First%20Load-61.7%20KB%20%2F%20160%20KB-success.svg)](#performance-budgets)
+[![Bundle Budget](https://img.shields.io/badge/First%20Load-61.7%20KB%20%2F%20160%20KB-success.svg)](#-performance-budgets)
 
 ---
 
