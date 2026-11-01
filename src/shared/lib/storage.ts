@@ -62,7 +62,7 @@ export class LocalStorageStore implements KeyValueStore {
 export const STORAGE_KEYS = {
   SETTINGS: 'kanaflow:settings:v1',
   PROGRESS: 'kanaflow:progress:v1',
-  LOCALE: 'kanaflow:locale',
+  LOCALE: 'nekotype:locale',
 } as const;
 
 export function createDebouncedSaver(saveFn: () => void, delayMs = 300) {

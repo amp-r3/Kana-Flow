@@ -1,4 +1,4 @@
-# Kana Flow (かなフロー)
+# Nekotype (ねこタイプ)
 
 > A lightweight, keyboard-first Japanese kana speed trainer inspired by Monkeytype. Master Hiragana and Katakana with instantaneous typing feedback, dual-tier romaji matching, adaptive weak-kana weighting, and zero latency.
 
@@ -49,8 +49,8 @@
 ### Installation
 
 ```bash
-git clone https://github.com/amp-r3/Kana-Flow.git
-cd Kana-Flow
+git clone https://github.com/amp-r3/nekotype.git
+cd nekotype
 npm ci
 ```
 
@@ -108,7 +108,7 @@ CI still runs `verify` on every push and pull request; the hooks catch the same 
 
 ## 📦 Performance Budgets
 
-Kana Flow adheres to strict first-load asset caps. Production bundle metrics:
+Nekotype adheres to strict first-load asset caps. Production bundle metrics:
 
 | Asset                      | Budget Limit | Actual (gzip / woff2) | Status                    |
 | -------------------------- | ------------ | --------------------- | ------------------------- |
@@ -123,9 +123,9 @@ Kana Flow adheres to strict first-load asset caps. Production bundle metrics:
 
 ## ☁️ Deployment
 
-Kana Flow is a fully static SPA (`dist/`, no backend, state in `localStorage`) and ships to **Cloudflare Pages** at the domain root, so `VITE_BASE` stays at its default `/`.
+Nekotype is a fully static SPA (`dist/`, no backend, state in `localStorage`) and ships to **Cloudflare Pages** at the domain root, so `VITE_BASE` stays at its default `/`.
 
-**Production:** <https://kana-flow.pages.dev> · **Previews:** one URL per pull request.
+**Production:** <https://nekotype.pages.dev> · **Previews:** one URL per pull request.
 
 ### CI/CD Pipeline
 
@@ -138,8 +138,9 @@ Kana Flow is a fully static SPA (`dist/`, no backend, state in `localStorage`) a
 
 1. Create the Pages project (the workflow also does this automatically on first run):
    ```bash
-   npx wrangler pages project create kana-flow --production-branch=main
+   npx wrangler pages project create nekotype --production-branch=main
    ```
+   Check that the project got exactly `nekotype.pages.dev` (no random suffix): `npx wrangler pages project list`.
 2. Copy **Account ID** from the Cloudflare dashboard → _Workers & Pages_ → _Overview_.
 3. Create an API token with the **Cloudflare Pages — Edit** permission (_My Profile_ → _API Tokens_).
 4. Add repository secrets under _Settings_ → _Secrets and variables_ → _Actions_:
@@ -147,13 +148,13 @@ Kana Flow is a fully static SPA (`dist/`, no backend, state in `localStorage`) a
    - `CLOUDFLARE_ACCOUNT_ID`
 5. Push to `main` (or run the _Deploy_ workflow manually via `workflow_dispatch`).
 
-A custom domain can be attached later in _Workers & Pages_ → _kana-flow_ → _Custom domains_; no rebuild or code change is required.
+A custom domain can be attached later in _Workers & Pages_ → _nekotype_ → _Custom domains_; no rebuild or code change is required.
 
 ### Manual Deploy
 
 ```bash
 npm run verify                     # guarantees a passing build + budget
-npx wrangler pages deploy dist --project-name kana-flow --branch=main
+npx wrangler pages deploy dist --project-name nekotype --branch=main
 ```
 
 ### Caching & Headers

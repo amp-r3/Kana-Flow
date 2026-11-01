@@ -49,3 +49,4 @@ Append-only log of architectural decisions, one file per decision.
 | [022](022-key-intent-semantics-reveal-strictly-via-escape.md)                        | Key Intent Semantics: Reveal Strictly via Escape                                             | In force             |
 | [023](023-local-git-hooks-complement-ci.md)                                          | Local Git Hooks Complement CI                                                                | In force             |
 | [024](024-agents-md-as-the-single-agent-instruction-file.md)                         | AGENTS.md as the Single Agent Instruction File                                               | In force             |
+| [025](025-rename-to-nekotype-and-new-pages-origin.md)                                | Rename to Nekotype and New Pages Origin                                                      | In force             |

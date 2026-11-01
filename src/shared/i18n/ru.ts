@@ -2,7 +2,7 @@ import type { en } from './en';
 
 export const ru = {
   // Top bar
-  'app.title': 'Kana Flow',
+  'app.title': 'Nekotype',
   'app.tagline': 'Тренажер скорости Хираганы и Катаканы',
   'app.rows': 'Таблица кана',
   'app.reset': 'Сбросить прогресс',

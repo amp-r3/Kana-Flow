@@ -1,6 +1,6 @@
 # Backend
 
-The backend is a Hono application running as Cloudflare Pages Functions on the existing Pages project, with a D1 database; sign-in is Google and GitHub only, via the Arctic library. One finished test costs 4–5 written D1 rows.
+The backend is a Hono application running as Cloudflare Pages Functions on the `nekotype` Pages project, with a D1 database; sign-in is Google and GitHub only, via the Arctic library. One finished test costs 4–5 written D1 rows.
 
 ## Free-tier limits that constrain the design
 
@@ -69,7 +69,7 @@ CREATE TABLE content_reports (
 
 ## Authentication and security
 
-- **Session:** a random 32-byte token in cookie `kf_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`); D1 stores only its SHA-256 hash. Lifetime 30 days, renewed when less than 15 days remain.
+- **Session:** a random 32-byte token in cookie `nt_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`); D1 stores only its SHA-256 hash. Lifetime 30 days, renewed when less than 15 days remain.
 - **CSRF:** `SameSite=Lax` plus an `Origin` header check on every POST and DELETE.
 - **Accounts from different providers** are linked by verified email (Google `email_verified`, GitHub primary verified address). Without a verified email a separate account is created.
 - **Sync request limits:** body at most 256 KB, at most 200 results per batch, at most one request per 5 s per user (checked against `last_sync_at`, no extra writes). Input is validated with valibot schemas from `shared`.
@@ -79,6 +79,6 @@ CREATE TABLE content_reports (
 - **Local development:** `wrangler pages dev` with a local D1; Vite proxies `/api` to it.
 
 * **Environments:** production binds the production D1. Pages preview deployments bind a separate preview D1 and hide sign-in. OAuth clients:
-  - Google: one OAuth client with two registered redirect URIs, for `kana-flow.pages.dev` and for `localhost`. Google does not accept wildcard redirect URIs, so preview subdomains cannot sign in.
-  - GitHub: two OAuth Apps, because an OAuth App has one callback URL: one for `kana-flow.pages.dev` (production secrets) and one for `localhost` (development secrets in `.dev.vars`).
+  - Google: one OAuth client with two registered redirect URIs, for `nekotype.pages.dev` and for `localhost`. Google does not accept wildcard redirect URIs, so preview subdomains cannot sign in.
+  - GitHub: two OAuth Apps, because an OAuth App has one callback URL: one for `nekotype.pages.dev` (production secrets) and one for `localhost` (development secrets in `.dev.vars`).
   - Turnstile uses separate site keys per environment.

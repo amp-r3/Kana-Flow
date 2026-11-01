@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CLOUDFLARE_PROJECT_NAME: kana-flow
+  CLOUDFLARE_PROJECT_NAME: nekotype
 
 jobs:
   deploy:

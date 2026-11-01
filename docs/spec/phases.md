@@ -1,11 +1,11 @@
 # Implementation phases
 
-The MVP is delivered in eight sequential phases. At the end of every phase `verify` passes and production on `kana-flow.pages.dev` is deployable.
+The MVP is delivered in eight sequential phases. At the end of every phase `verify` passes and production on `nekotype.pages.dev` is deployable.
 
 1. **P0 — Monorepo and hygiene.**
    - pnpm workspaces; the baseline `src/` moves to `apps/web`; the engine and kana tables move to `packages/engine` with the table passed via `createEngine`; guards and the `Clock`/`Scheduler`/`Rng` types move to `packages/shared`.
    - Fix the D20 defects, bring documentation and CI in line with D21, update the budget script.
-   - **Acceptance:** all baseline tests pass (106 unit, 8 e2e); behaviour is unchanged except for the D20 fixes, each covered by a new test; `packages/engine` has no imports; deployment to Pages succeeds.
+   - **Acceptance:** all baseline tests pass (106 unit, 8 e2e); behaviour is unchanged except for the D20 fixes, each covered by a new test; `packages/engine` has no imports; deployment to the Pages project `nekotype` succeeds and production is served at `nekotype.pages.dev`.
 2. **P1 — Engine.**
    - Stream matching with prompt boundaries, `extend()`, rules D2–D8 and D22, attribution D10, flag D11, `view()` with the display-position rule, `errorTarget()`, `committedPrompts()`, `spellingsFor()`, `canonicalFor()`, recording of "expected kana → typed character" pairs, removal of `shouldAbsorb`.
    - **Acceptance:** every row of the accepted-input table is a golden test; boundary tests cover ん → n, ん → vowel, ん → skip token, っ at a boundary; `packages/engine` coverage ≥ 95%; property tests pass, including the invariant that relaxed accepts every input strict accepts; compact() keeps indices valid over a 1,000-prompt zen stream; all baseline words and phrases compile.
