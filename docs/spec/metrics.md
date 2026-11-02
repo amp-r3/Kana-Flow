@@ -10,7 +10,7 @@ The primary metric is kana per minute (KPM); accuracy is measured per kana. The 
 | Test time              | From the first keystroke to the end of the test                                                                                                                                                                                                                              | Results                      |
 | KPM                    | Committed tokens / minutes. A token is committed when it is completed in every active NFA position. Committed tokens of an unfinished prompt are included                                                                                                                    | Live strip, results, history |
 | IPM (items per minute) | Completed prompts / minutes. Words and phrases only                                                                                                                                                                                                                          | Results, history             |
-| Kana accuracy          | Tokens without errors / completed tokens                                                                                                                                                                                                                                     | Live strip, results, history |
+| Kana accuracy          | Committed tokens without errors / committed tokens                                                                                                                                                                                                                           | Live strip, results, history |
 | Keystroke accuracy     | Accepted / all keystrokes. Secondary                                                                                                                                                                                                                                         | Results                      |
 | Best streak            | Longest run of prompts with no errors and no hints                                                                                                                                                                                                                           | Results                      |
 | Kana reaction time     | From the last accepted keystroke before firstKey to lastKey of the token on the surviving NFA path (committedTimings). A ん resolved by the next prompt's first key is therefore not inflated. The first token of a test has no preceding accepted keystroke and is excluded | Kana statistics              |
@@ -18,12 +18,28 @@ The primary metric is kana per minute (KPM); accuracy is measured per kana. The 
 
 ## Test end
 
-| Config | Ends when                                 | Saved to history                    | Counts as finished                  | Personal best |
-| ------ | ----------------------------------------- | ----------------------------------- | ----------------------------------- | ------------- |
-| Time   | The timer expires                         | Yes                                 | Yes                                 | Yes           |
-| Count  | The last prompt is committed              | Yes                                 | Yes                                 | Yes           |
-| Zen    | "Finish" button or Ctrl/Cmd+Enter         | If at least one prompt is completed | If at least one prompt is completed | No            |
-| Any    | Restart or navigation away before the end | No                                  | No                                  | No            |
+| Config        | Ends when                                    | `endReason` | Saved and counted as finished | Personal best |
+| ------------- | -------------------------------------------- | ----------- | ----------------------------- | ------------- |
+| Time          | The timer expires                            | `complete`  | Yes                           | Yes           |
+| Count         | The last prompt is committed                 | `complete`  | Yes                           | Yes           |
+| Zen           | "Finish" button or Ctrl/Cmd+Enter            | `manual`    | Under the conditions below    | No            |
+| Time or count | 5 seconds without input                      | `idle`      | Under the conditions below    | No            |
+| Any           | The tab becomes hidden during a running test | `hidden`    | Under the conditions below    | No            |
+| Any           | Restart (Tab, Enter) or in-app navigation    | —           | No                            | No            |
+
+**Conditions.** A test ended by `manual`, `idle` or `hidden` is saved only if at least one prompt is completed and `durationMs` is greater than 0. Otherwise it is discarded like a restart, and the application returns to a new test without a results screen.
+
+**Idle end (D24).**
+
+- The idle time is the code constant `IDLE_END_MS` = 5000. Zen is exempt. The check starts at the first keystroke, so a test that has not started never ends.
+- Any key handled by the input source resets it, including rejected and ignored keys and Esc. A modifier pressed alone does not.
+- `endedAt` is the time of the last keystroke, so the idle wait does not lower KPM. The same applies to `hidden`.
+- The results screen states that the test ended because of no input.
+- A keystroke only stores `lastKeyAt`. A single `Scheduler` timer re-arms itself for the remaining time when it fires, so the hot path creates no timers and triggers no renders.
+
+**Hidden tab.** A hidden tab cannot receive input and the browser may discard the page, so the test ends at once and is written immediately. Closing the tab follows the same path on a best-effort basis.
+
+**What a test writes (D23).** During a test all statistics stay in session memory. When the test is saved, its result and its statistics are written in one IndexedDB transaction: every committed token, including those of an unfinished prompt, with its errors, reaction times and confusions. When it is discarded, all of this is dropped and only the `started` counter is written. `weakFocus` therefore uses the statistics as they stood when the test began.
 
 ## Data model
 
@@ -31,7 +47,7 @@ The primary metric is kana per minute (KPM); accuracy is measured per kana. The 
 type Mode = 'speed' | 'learn';
 
 type KanaStat = {
-  attempts: number; // completed tokens of this kana (speed mode)
+  attempts: number; // committed tokens of this kana in saved tests (speed mode)
   erroredAttempts: number; // of which errored = true
   wrongKeys: number; // wrong keystrokes
   timeSumMs: number; // sum and count for mean reaction time
@@ -47,6 +63,8 @@ type TestResult = {
   script: 'hiragana' | 'katakana' | 'both';
   strictness: 'learner' | 'ime'; // code identifier kept; UI label "Relaxed"
   config: { kind: 'time'; seconds: number } | { kind: 'count'; prompts: number } | { kind: 'zen' };
+  rowIds: string[] | null; // selected rows for content 'kana'; null for words and phrases
+  endReason: 'complete' | 'manual' | 'idle' | 'hidden';
   startedAt: number;
   endedAt: number;
   durationMs: number;
@@ -70,19 +88,22 @@ type TestResult = {
 type Counters = { started: Record<Mode, number>; finished: Record<Mode, number> };
 
 type PersonalBests = Record<
-  string /* content|script|strictness|config */,
+  string /* personalBestKey(), see below */,
   { kpm: number; resultId: string }
 >;
 ```
 
-- **Decay:** when a kana's `attempts` exceeds 200, all its counters are halved. The same function runs on the client and on the server (see [Storage and sync](storage-sync.md)).
+- **Decay:** when a kana's `attempts` exceeds 200, all its counters, including every entry of `confusions` and `mixups`, are halved and rounded down; map entries that reach 0 are removed. The same function runs on the client and on the server (see [Storage and sync](storage-sync.md)).
+- **Statistic keys:** a merged っX is recorded under the `KanaKey` of the following kana, as in the baseline. A standalone っ and ー have no `KanaKey`: they count in `tokens` and `erroredTokens` but not in `KanaStat`.
 - **Weakness:** `weakness = (erroredAttempts + 1) / (attempts + 2)`; weight `1 + 4 × weakness`, bounded to 1–5.
 - **Word or phrase weight** — mean of its kana weights via `computeItemWeight` (D20).
-- **Personal best** — maximum KPM per combination of content, script, strictness and test config, for a finished test with kana accuracy ≥ 80%. `PersonalBests` is authoritative: computed locally for a guest, recomputed by the server for a signed-in user. `celebratedPersonalBest` only records what was shown at completion.
+- **Personal best** — maximum KPM per `personalBestKey`, for a test with `endReason` = `complete` and kana accuracy ≥ 80%. The eligibility rule and the key function live in `shared/runtime`, so the client and the server apply the same rule.
+- **`personalBestKey`** — `content|script|strictness|config|rows`. `config` is `time:60` or `count:25`. `rows` applies to content `kana` only: the selected row ids that yield at least one kana for the script, sorted alphabetically and joined by commas; it is `-` for words and phrases. Example: `kana|hiragana|learner|time:60|k,s,vowels`. `weakFocus` is not part of the key: it only makes a test harder.
+- **Personal best storage** is described in [Storage and sync](storage-sync.md). `celebratedPersonalBest` only records what was shown at completion.
 - **Learning mode** updates `LearnState`, `KanaStat.mixups` and the `learn` counters only; it does not change attempts, errors or reaction times.
 - The raw keystroke log MUST NOT be persisted.
 
 ## Screens
 
-- **Results:** KPM (large), kana accuracy, IPM for words and phrases, per-second chart, keystroke accuracy, mistakes, best streak, time, the five weakest kana of the test with mean reaction time and spellings from `spellingsFor`. On a personal best: badge and confetti.
-- **Statistics (`/stats`):** paginated test history; KPM-per-test chart; heatmap over the hiragana and katakana charts with an "errors / reaction time" toggle; top 10 confusions; started and finished counters per mode; personal bests from `PersonalBests`.
+- **Results:** KPM (large), kana accuracy, IPM for words and phrases, per-second chart, keystroke accuracy, mistakes, best streak, time, the five weakest kana of the test with mean reaction time and spellings from `spellingsFor`. Mistakes are `rejectedKeystrokes` + `assisted`. On a personal best: badge and confetti.
+- **Statistics (`/stats`):** paginated test history (see "History" in [Storage and sync](storage-sync.md)); KPM-per-test chart; heatmap over the hiragana and katakana charts with an "errors / reaction time" toggle; top 10 confusions; started and finished counters per mode; personal bests from `PersonalBests`.

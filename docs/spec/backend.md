@@ -37,7 +37,8 @@ CREATE TABLE user_settings (
 CREATE TABLE user_stats (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   kana_stats TEXT NOT NULL, counters TEXT NOT NULL, learn TEXT NOT NULL,
-  personal_bests TEXT NOT NULL, device_seq TEXT NOT NULL, last_sync_at INTEGER NOT NULL
+  personal_bests TEXT NOT NULL, device_seq TEXT NOT NULL, last_sync_at INTEGER NOT NULL,
+  version INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE results (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -47,11 +48,11 @@ CREATE TABLE results (
 CREATE INDEX results_user_time ON results(user_id, ended_at DESC);
 CREATE TABLE content_reports (
   id TEXT PRIMARY KEY, user_id TEXT, item_id TEXT NOT NULL, content_version TEXT NOT NULL,
-  reason TEXT, created_at INTEGER NOT NULL
+  reason TEXT NOT NULL, comment TEXT, created_at INTEGER NOT NULL
 );
 ```
 
-`user_stats.device_seq` maps `deviceId` → last applied `seq` (see [Batches](storage-sync.md#batches)).
+`user_stats.device_seq` maps `deviceId` → last applied `seq` (see [Batches](storage-sync.md#batches)). The `user_stats` row is created with the user in the OAuth callback, so a sync always finds it.
 
 ## API
 
@@ -64,8 +65,80 @@ CREATE TABLE content_reports (
 | `DELETE /api/me`                   | Delete the account and all its data; set `content_reports.user_id` to NULL for its reports                                                                 |
 | `POST /api/sync`                   | Body: `deviceId`, `seq`, batch. Response: snapshot of settings, statistics, counters, learning, personal bests, and the last applied seq for this deviceId |
 | `GET /api/sync`                    | Snapshot and the last applied seq for the deviceId query parameter, used after a `409`                                                                     |
-| `GET /api/results?before=&limit=`  | Paginated test history (at most 50 per request)                                                                                                            |
+| `GET /api/results?before=&limit=`  | Paginated test history (at most 50 per request), newest first; `before` is the cursor `<endedAt>:<id>`                                                     |
 | `POST /api/reports`                | Content reports from guests and signed-in users; requires a valid Cloudflare Turnstile token; one report and at most 8 KB per request                      |
+
+### Request and response bodies
+
+`Settings`, `TestResult`, `KanaStat`, `Counters`, `LearnEntry`, `LearnState` and `PersonalBests` are defined in [Metrics](metrics.md), [Learning](learning.md) and [Storage and sync](storage-sync.md). These types live in `shared/types`; the matching valibot schemas live in `shared/schemas`.
+
+```ts
+type SyncDelta = {
+  kanaStats: Record<KanaKey, KanaStat>; // increments
+  counters: Counters; // increments
+  learnEntries: Record<KanaKey, LearnEntry>; // changed entries
+  unlockedGroups: Record<Script, string[]>;
+  settings: Settings | null; // null when unchanged
+};
+type SyncRequest = {
+  v: 1; // batch format version
+  deviceId: string;
+  seq: number;
+  delta: SyncDelta;
+  results: TestResult[];
+};
+type Snapshot = {
+  settings: Settings | null;
+  kanaStats: Record<KanaKey, KanaStat>;
+  counters: Counters;
+  learn: LearnState;
+  personalBests: PersonalBests;
+};
+type SyncResponse = { lastSeq: number; snapshot: Snapshot }; // POST and GET /api/sync
+type ResultsResponse = { results: TestResult[]; next: string | null }; // next: cursor for `before`
+type MeResponse = {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+type ReportRequest = {
+  itemId: string;
+  contentVersion: string;
+  reason: 'wrong_reading' | 'wrong_translation' | 'other';
+  comment?: string; // at most 500 characters
+  turnstileToken: string;
+};
+```
+
+`POST /api/reports` and `DELETE /api/me` return `204`.
+
+### Errors
+
+Every error body is `{ "error": { "code": string, "lastSeq"?: number } }`.
+
+| Status | `code`             | When                                                    |
+| ------ | ------------------ | ------------------------------------------------------- |
+| 400    | `invalid_body`     | The body fails schema validation                        |
+| 401    | `unauthenticated`  | No valid session                                        |
+| 403    | `bad_origin`       | The `Origin` check failed                               |
+| 403    | `turnstile_failed` | The Turnstile token was rejected                        |
+| 409    | `seq_gap`          | `seq` > last + 1; the body carries `lastSeq`            |
+| 413    | `too_large`        | The body exceeds the limit                              |
+| 429    | `rate_limited`     | Sync interval not elapsed; carries `Retry-After`        |
+| 503    | `conflict`         | A concurrent update won twice; carries `Retry-After: 5` |
+| 503    | `unavailable`      | D1 failed or is over its limit                          |
+
+### Applying a batch
+
+Two devices of one user can sync at the same moment, and the update of `user_stats` is a read-modify-write of one JSON row. [`batch()`](https://developers.cloudflare.com/d1/worker-api/d1-database/) makes the write atomic but does not protect the earlier read, so writes use optimistic concurrency on `user_stats.version`:
+
+1. Read `user_stats`, including `version`, and apply the `seq` rules.
+2. Compute the merged statistics, counters, learning state, personal bests and `device_seq`.
+3. Run `batch()` with `UPDATE user_stats SET … , version = version + 1 WHERE user_id = ? AND version = ?`, `INSERT OR IGNORE` for each result, and the `user_settings` upsert if settings changed.
+4. If the `UPDATE` reports `meta.changes` = 0, another request won: repeat from step 1 once. If it loses again, return `503 conflict`; the client keeps its batch and resends it.
+
+A batch that lost still inserts its results, because `batch()` runs every statement. This is harmless: inserts are idempotent by `id`, and personal bests are computed from every result of the batch, not only newly inserted ones. A lost attempt spends extra rows, so the row budget above applies to the uncontended case.
 
 ## Authentication and security
 

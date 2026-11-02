@@ -14,7 +14,7 @@ The original XML is used instead of the [jmdict-simplified](https://github.com/s
 
 JLPT has not published official vocabulary lists since 2010; Waller's lists are the community standard (used by Jisho.org) and are treated as an approximation of each level. The mapping repository is pinned by commit in `sources.json`, like the other sources.
 
-JMdict has fewer Russian glosses than English. The pipeline stores `ru` where present and outputs a coverage report for the selected set; that report, not an external figure, is the basis for O3. The MVP displays English only.
+JMdict has fewer Russian glosses than English. The pipeline reads `ru` where present and outputs a coverage report for the selected set; that report, not an external figure, is the basis for O3. The MVP displays English only in both locales, so `ru` is not written to runtime chunks and costs no download.
 
 ## Words
 
@@ -28,11 +28,47 @@ JMdict has fewer Russian glosses than English. The pipeline stores `ru` where pr
 
 1. Take Japanese sentences that have an English translation. Each phrase item stores the Tatoeba sentence id and author username of the Japanese sentence, of the English translation and of the transcription used; a sentence without an author username is excluded.
 2. Readings: transcriptions added by contributors take priority — in the export they carry a username; Tatoeba [marks machine-generated transcriptions as unreliable](https://tatoeba.org/fin/wall/messages_of_user/tommy_san).
-3. A machine-generated transcription is accepted only if it matches the reading produced by kuromoji.js with the IPADIC dictionary; otherwise the sentence is excluded. The comparison uses the token `reading` field (reading form, は = ハ), never `pronunciation` (は = ワ).
-4. は/へ tagged by kuromoji as particles (助詞) receive `readingHints` `wa`/`e`.
-5. Maximum length: 15 kana after conversion to reading. Sentences with a negative rating are excluded when ratings are available in the export.
-6. Script: hiragana-only, katakana-only, or `mixed`. Mixed phrases are offered only when the script setting is "both".
-7. Target size: 300–500 verified phrases.
+3. **Transcription format.** Tatoeba's export page lists the columns (sentence id, lang, script, username, transcription) but not the Japanese markup, which community posts describe as `[kanji|reading]` furigana. The first task of P4 is to write the parser against the pinned export and record the observed format in `packages/content`. A transcription the parser cannot read excludes the sentence and is counted in the build report. The kana of the prompt keep the script used in the transcription.
+4. A machine-generated transcription, that is one without a username, is accepted only if it matches the reading produced by kuromoji.js with the IPADIC dictionary; otherwise the sentence is excluded. The comparison uses the token `reading` field (reading form, は = ハ), never `pronunciation` (は = ワ). **Normalisation:** both readings are converted to hiragana and skip tokens are removed before comparing.
+5. は/へ tagged by kuromoji as particles (助詞) receive `readingHints` `wa`/`e`. A hint is placed by aligning kana offsets in the normalised reading and converting the offset to an engine token index. Alignment requires the two readings to match, so a contributor's sentence that contains は or へ and differs from the kuromoji reading is excluded: without hints it would reject the natural `wa` in relaxed mode. A contributor's sentence with neither kana needs no match.
+6. Maximum length: 15 kana after conversion to reading. Sentences with a negative rating are excluded when ratings are available in the export.
+7. Script: hiragana-only, katakana-only, or `mixed`. Mixed phrases are offered only when the script setting is "both".
+8. Target size: 300–500 verified phrases.
+
+## Output
+
+Generated files are committed to `apps/web/src/entities/prompt/content/` and loaded with dynamic `import()`, so Vite hashes them and the idle prefetch and the budget script treat them as chunks named `content-*`. `apps/web` does not import `packages/content`; it only reads these files.
+
+| Chunk                                                   | Contents                        |
+| ------------------------------------------------------- | ------------------------------- |
+| `words-hiragana`, `words-katakana`                      | `ContentItem[]`                 |
+| `phrases-hiragana`, `phrases-katakana`, `phrases-mixed` | `ContentItem[]`                 |
+| `credits`                                               | `PhraseCredit[]`, `/about` only |
+
+The script setting selects chunks: `hiragana` or `katakana` loads that script's chunk, and `both` loads all chunks of the content type.
+
+```ts
+type ContentItem = {
+  id: string; // `w:<script>:<reading>` for a word, `p:<tatoeba sentence id>` for a phrase
+  text: string;
+  script: 'hiragana' | 'katakana' | 'mixed'; // mixed: phrases only
+  meaning: { en: string };
+  readingHints?: ReadingHint[];
+  tatoebaId?: number; // phrases: target of the "Source" link
+};
+type PhraseCredit = {
+  id: string;
+  sentence: { id: number; author: string };
+  translation: { id: number; author: string };
+  transcriptionAuthor: string | null; // null: machine-generated, verified by kuromoji
+};
+type ContentManifest = {
+  contentVersion: string; // first 12 hex digits of SHA-256 over sources.json and all chunks
+  counts: Record<string, number>; // items per chunk
+};
+```
+
+`contentVersion` contains no date, so the build stays reproducible. The manifest is small enough to ship in the initial bundle and is the source of `TestResult.contentVersion`.
 
 ## Build checks
 
