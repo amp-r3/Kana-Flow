@@ -54,7 +54,7 @@ export {
   romajiForKey,
 } from './lib/engine';
 
-export { shouldAbsorb } from './lib/absorption';
+export { shouldAbsorb } from '@nekotype/engine';
 
 export { buildPool, pickPrompt } from './lib/picker';
 

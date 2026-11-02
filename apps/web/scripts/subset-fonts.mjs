@@ -2,7 +2,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import subsetFont from 'subset-font';
 
-import { allKanaRows } from '../src/entities/kana/model/data/index.ts';
+import { allKanaRows } from '@nekotype/engine';
 import { wordsData } from '../src/entities/kana/model/data/words.ts';
 import { phrasesData } from '../src/entities/kana/model/data/phrases.ts';
 

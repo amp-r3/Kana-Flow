@@ -16,6 +16,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@nekotype/engine": "workspace:*",
     "@nekotype/shared": "workspace:*",
     "@preact/signals": "^2.11.4",
     "preact": "^11.1.0"
