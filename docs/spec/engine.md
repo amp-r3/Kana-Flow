@@ -10,7 +10,7 @@ export function createEngine(table: KanaTable): Engine;
 interface Engine {
   compile(prompts: readonly PromptItem[], strictness: Strictness): Matcher; // window of the stream
   extend(m: Matcher, prompts: readonly PromptItem[]): Matcher; // append prompts; existing state stays valid
-  compact(m: Matcher, s: MatchState): { m: Matcher; s: MatchState }; // drop committed prompts, rebase indices
+  compact(m: Matcher, s: MatchState): { m: Matcher; s: MatchState; droppedTokens: number }; // drop committed prompts, rebase token indices
   start(m: Matcher): MatchState;
   step(m: Matcher, s: MatchState, ch: string): MatchState | null; // null = key rejected
   isComplete(m: Matcher, s: MatchState): boolean; // end of the stream reached
@@ -25,7 +25,7 @@ interface Engine {
 }
 
 interface EngineView {
-  committedTokens: number; // tokens completed by the display position
+  displayedTokens: number; // tokens completed by the display position; may exceed the committed tokens
   pendingLatin: string; // typed latin beyond those tokens
   activeToken: number; // token highlighted in the stream
 }
@@ -40,9 +40,10 @@ interface TokenTiming {
 **Spelling constraints.** A spelling of a token MAY carry the set of next-token spellings it may precede: a single `n` for ん only before qualifying spellings, a doubled consonant for っ only before the spelling it doubles. `step()` spawns positions into the next token only for permitted spellings. This replaces the baseline token model `{ spellings[] }` and changes the baseline `start`/`step`.
 
 - **Display position.** `view()` uses the active position with the shortest `pendingLatin`; on a tie, the position whose spellings come first in table order. Example, relaxed こんな: `kon` → こん; `konn` → こん; `konna` → こんな.
-- **Window.** The stream is compiled with at least one full prompt beyond the active prompt. `extend()` MUST be called before the active token enters the last prompt of the window, so that the context of every non-final ん is known before it is typed. compact() is called after every 20 committed prompts, so a zen session does not grow the matcher without bound. It reports the number of dropped tokens; the stream UI rebases its token references, errored flags and activeToken by that offset within the render of the prompt completion that triggered it, so the ≤ 1 render budget holds.
+- **Window.** The stream is compiled with at least one full prompt beyond the active prompt. `extend()` MUST be called before the active token enters the last prompt of the window, so that the context of every non-final ん is known before it is typed. compact() is called after every 20 committed prompts, so a zen session does not grow the matcher without bound. It returns `droppedTokens`; the stream UI rebases its token references, errored flags and activeToken by that offset within the render of the prompt completion that triggered it, so the ≤ 1 render budget holds. `committedTimings()` covers only tokens still in the matcher, so the session reads it before calling compact(). `firstKey` and `lastKey` are session-wide keystroke indices and are never rebased.
 - **Imports.** The package MUST NOT import DOM APIs, signals, storage or application aliases. The kana table and the visually-similar kana table ship in the same package as data.
 - **Case.** Upper-case letters are lowercased before `step`; Caps Lock has no effect on matching.
+- **Types not defined here** (`KanaTable`, `PromptItem`, `ReadingHint`, `KanaKey`, `Strictness`) are retained from the baseline. `ReadingHint.tokenIndex` counts the prompt's tokens from 0; a merged っX and a skip token each count as one token.
 
 ## Tokens
 
@@ -50,7 +51,7 @@ interface TokenTiming {
 - **っ followed by a kana** — spellings are built per spelling of the next kana (D22): every next spelling that starts with a latin consonant other than `n` and `y` is accepted with its first letter doubled (for ch-spellings: `cch`, `tch`, `tt` as in the table below); in addition, `xtu`, `ltu`, `xtsu` or `ltsu` followed by any next spelling is accepted. If no next spelling qualifies for doubling, only the prefixed forms remain.
 - **っ elsewhere** — at the end of a prompt, before ー or before a skip token: `xtu`, `ltu`, `xtsu`, `ltsu`.
 - **ん** — `nn` and `n'` are always accepted. A single `n` is accepted, per spelling of the next token, when that spelling starts with a latin consonant other than `n` and `y`, and at the end of the stream or before a skip token. Relaxed mode also accepts a single `n` before a spelling that starts with `n`, and at a prompt boundary before any spelling of the next prompt (A15).
-- **ー** — rules in the table below.
+- **ー** — `-` in both modes. Relaxed mode also accepts the final vowel of each spelling of the previous kana token (ADR 007). At the start of a prompt, after a skip token, after ん and after a standalone っ there is no such vowel, so only `-` is accepted.
 - **Small kana** — ぁぃぅぇぉゃゅょゎヵヶ as standalone tokens (D7).
 - **Skip token** — 、。，．！？・「」『』（）…〜 and half-width and full-width spaces. Rendered in the stream, requires no input; the cursor passes over it automatically; excluded from metrics.
 
@@ -65,6 +66,8 @@ interface TokenTiming {
 
 ## Accepted input
 
+Every input listed in a row MUST be accepted. The rows are representative, not exhaustive: the complete set follows from the rules under "Tokens" and the kana table. Golden tests cover every listed input and every input under "Rejected input".
+
 | Case                                | Example     | Relaxed                                     | Strict IME                               |
 | ----------------------------------- | ----------- | ------------------------------------------- | ---------------------------------------- |
 | し ち つ ふ じ                      | —           | shi/si, chi/ti, tsu/tu, fu/hu, ji/zi        | same                                     |
@@ -75,8 +78,8 @@ interface TokenTiming {
 | ん before n                         | こんな      | konna, konnna, kon'na                       | konnna, kon'na                           |
 | ん before a vowel                   | かんい      | kanni, kan'i                                | same                                     |
 | ん before y                         | ほんや      | honnya, hon'ya                              | same                                     |
-| ん across a boundary                | ほん → ねこ | honneko, honnneko                           | honnneko                                 |
-| ん before a skip token              | ほん。      | hon, honn                                   | same                                     |
+| ん across a boundary                | ほん → ねこ | honneko, honnneko, hon'neko                 | honnneko, hon'neko                       |
+| ん before a skip token              | ほん。      | hon, honn, hon'                             | same                                     |
 | Merged っ                           | きって      | kitte, kixtute, kiltute, kixtsute, kiltsute | same                                     |
 | っ before ch                        | まっちゃ    | maccha, matcha, mattya, maxtucha            | same                                     |
 | Standalone っ                       | あっ        | axtu, altu, axtsu, altsu                    | same                                     |
@@ -84,6 +87,8 @@ interface TokenTiming {
 | Yōon                                | きゃ, しゃ  | kya; sha, sya                               | same                                     |
 | ちゃ / じゃ                         | —           | cha, tya, cya / ja, zya, jya                | cha, tya / ja, zya, jya                  |
 | Small kana                          | ぁ, ゃ      | xa, la; xya, lya                            | same                                     |
+| ゎ / ヵ / ヶ                        | —           | xwa, lwa / xka, lka / xke, lke              | same                                     |
+| ゐ / ゑ                             | —           | wyi / wye                                   | same                                     |
 | Extended katakana                   | ファ, ティ  | both columns of "Extended katakana"         | Strict IME column of "Extended katakana" |
 | ー                                  | コーヒー    | ko-hi-, koohii                              | ko-hi-                                   |
 | ー at the start of a prompt         | —           | -                                           | -                                        |
@@ -92,7 +97,30 @@ interface TokenTiming {
 | ん before を                        | ほんを      | honwo, honnwo, hon'wo, honno, hon'o         | honwo, honnwo, hon'wo                    |
 | ん before a vowel across a boundary | ほん → あめ | honame, honname, hon'ame (A15)              | honname, hon'ame                         |
 
-Particle readings come from `readingHints` produced by the content pipeline and apply in relaxed mode only, as in the baseline. Every kana not listed above has exactly one spelling, identical in both modes: its Hepburn spelling (か ka, が ga, ぱ pa, きゃ kya, ぎょ gyo).
+Particle readings come from `readingHints` produced by the content pipeline and apply in relaxed mode only, as in the baseline.
+
+The spellings of each kana are defined by the kana table in `packages/engine`: strict mode uses `ime[]`, relaxed mode uses `ime[]` and `learner[]`. A row names one member of a family and the whole family behaves alike: しゅ is `shu`, `syu`; ちゅ is `chu`, `tyu`, and `cyu` in relaxed mode; じゅ is `ju`, `zyu`, `jyu`. Every other kana has exactly one spelling, identical in both modes: its Hepburn spelling (か ka, が ga, ぱ pa, きゃ kya, ぎょ gyo).
+
+## Rejected input
+
+Each of these MUST be rejected at the key that makes it invalid.
+
+| Mode        | Example     | Rejected input                 |
+| ----------- | ----------- | ------------------------------ |
+| Both        | かんい      | kani                           |
+| Both        | ほんや      | honya                          |
+| Both        | きゃ        | kilya, kixya (D6)              |
+| Both        | あっ → たま | attama: no merge at a boundary |
+| Strict only | こんな      | konna                          |
+| Strict only | ほん → ねこ | honneko                        |
+| Strict only | ほん → あめ | honame                         |
+| Strict only | ほんを      | honno, hon'o                   |
+| Strict only | を          | o                              |
+| Strict only | ぢ          | ji                             |
+| Strict only | ちゃ        | cya                            |
+| Strict only | コーヒー    | koohii                         |
+| Strict only | こんにちは  | konnnichiwa                    |
+| Strict only | ファ        | fua                            |
 
 ## Extended katakana
 
@@ -110,6 +138,6 @@ Other extended combinations (ツァ, クァ, イェ, スィ, フュ and similar)
 
 - A rejected key does not enter the buffer, the state is unchanged, and a 280 ms shake is played.
 - The error is recorded on token `errorTarget()` (D10): `mistakes += 1`, `errored = true`, and the pair "expected kana → typed character" is stored for the confusion matrix.
-- Non-latin characters, Space, Enter and Backspace are `ignore`, not errors (D15).
+- Any character other than a latin letter, `-` or `'`, as well as Space, Enter and Backspace, is `ignore`, not an error (D15). Only a non-latin letter shows the layout notice.
 - Esc (hint) keeps the baseline behaviour: shows `canonical` for the active prompt, counts one error, and the prompt must still be typed in full.
 - `shouldAbsorb` is removed; surplus `n` keys are resolved by stream matching (D3).

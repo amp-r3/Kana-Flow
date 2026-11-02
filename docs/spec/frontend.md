@@ -17,7 +17,7 @@ The training screen consists of a Japanese text stream and a separate input fiel
 
 - **Stream:** 2–3 lines of prompts; the current line is in focus and completed lines scroll up. Prompts are separated by a gap. The engine window is extended as described in [Input engine rules](engine.md).
 - **Token states:** completed (dimmed), current (accent underline), errored (red tint), upcoming (default). Skip tokens are rendered; the cursor passes over them.
-- **Input field** below the stream renders the current prompt from `engine.view()`: committed tokens as kana, the remainder as latin, then the caret. Example: `k` → "k", `ki` → "き", `kit` → "きt".
+- **Input field** below the stream renders the current prompt from `engine.view()`: displayed tokens as kana, the remainder as latin, then the caret. Example: `k` → "k", `ki` → "き", `kit` → "きt".
 - **Translation** of the current word or phrase is shown on one line below the stream; controlled by `showTranslation` in settings, on by default.
 
 ## Keyboard
@@ -42,6 +42,37 @@ The training screen consists of a Japanese text stream and a separate input fiel
 ## Loading
 
 After the first render, on `requestIdleCallback`, the client prefetches all lazy route chunks and the content chunks matching the current settings. This keeps the application usable when the network drops after load.
+
+## UI architecture
+
+The MVP interface is deliberately basic and will be redesigned in full later (A31). The MVP MUST NOT build visual polish beyond what these requirements state; it MUST make the redesign possible without touching behaviour.
+
+- **Logic stays out of components.** Components in `ui/` read `ReadonlySignal` state and call exported actions. They MUST NOT call the engine, `Clock`, `Scheduler`, storage or `fetch`, and hold only local presentation state such as an open dialog. Everything else lives in `model/` and `lib/`.
+- **One exception for the hot path:** DOM writes through refs and `useSignalEffect` stay in hooks in the slice's `lib/`, with a small interface the view binds to, so a new view reuses them and keeps the render budget.
+- **Tests target behaviour.** Logic is tested at the `model/` and `lib/` level without rendering. e2e and DOM tests select by role, label or `data-testid`, never by class name or DOM structure. Replacing a view MUST NOT require changing a model test.
+- **Styling** uses only the CSS-variable tokens and `shared/ui` primitives; a page defines no colours or one-off components of its own.
+
+**Slices** (a starting point; ADR 015 still merges a slice with a single consumer into it):
+
+| Layer      | Slices                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------ |
+| `pages`    | `trainer`, `learn`, `stats`, `settings`, `about`                                                       |
+| `features` | `training` (`createSession`, input source), `learn-session`, `sync`, `report-content`                  |
+| `entities` | `prompt` (picker, weights, content), `stats` (local view, results, bests), `learn`, `user`, `settings` |
+
+Slices on one layer do not import each other, so a flow crossing features, such as sign-out running a sync first, is composed in the page or in `app`.
+
+**Screens in the MVP:**
+
+| Route       | Basic content                                                                                                                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`         | Baseline config bar, stream, input field, live strip, results                                                                                                                                                                   |
+| `/learn`    | See [Learning mode](learning.md)                                                                                                                                                                                                |
+| `/stats`    | See [Metrics and statistics](metrics.md)                                                                                                                                                                                        |
+| `/settings` | `showTranslation`, learning strictness. Account section: sign-in buttons (hidden on previews), profile, sync status (synced, pending, offline, session expired, blocked), sign-out, account deletion with a confirmation dialog |
+| `/about`    | See [Content pipeline](content.md) and P7                                                                                                                                                                                       |
+
+Speed-test options stay in the config bar on `/`. The report dialog has a `reason` select, an optional comment and the Turnstile widget.
 
 ## Interface
 

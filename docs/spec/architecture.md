@@ -12,13 +12,11 @@ nekotype/
 ├── packages/
 │   ├── engine/     @nekotype/engine: input engine, kana tables, visually-similar kana table; zero dependencies
 │   ├── content/    @nekotype/content: dictionary build scripts → JSON chunks; not part of the runtime
-│   └── shared/     @nekotype/shared; entry points: /types, /runtime (decay, constants), /schemas (valibot, server only)
+│   └── shared/     @nekotype/shared; entry points: /types, /runtime (decay, personal-best rule and key, constants), /schemas (valibot, server only)
 ├── docs/           spec/, adr/, architecture/, archive/ (index: docs/README.md)
 ├── pnpm-workspace.yaml
 └── .github/workflows/
 ```
-
-&#91;embedded content: MVP architecture · browser and Cloudflare\]
 
 The engine and all user data live in the browser. Pages Functions handle sign-in, sync and content reports only; content is built ahead of time and served as static assets.
 

@@ -35,8 +35,8 @@ The Playwright test enables 4× CPU throttling via the Chrome DevTools Protocol 
 ## Tests
 
 - **`packages/engine`:** line and branch coverage ≥ 95% (`@vitest/coverage-v8`); the golden table from [Input engine rules](engine.md); the baseline property tests; stream tests for prompt boundaries.
-- **`apps/web`:** unit tests for logic; render-isolation tests for the hot path; Playwright e2e for: full time, count and zen tests; live conversion; layout and IME notices; a learning lesson; results and personal best; the statistics page; guest → sign-in (mocked OAuth); offline → sync; two tabs syncing concurrently.
-- **`apps/api`:** tests on a local D1: OAuth callback (mocked), `seq` handling (≤ last, = last + 1, > last + 1), merge rules, request limits, anonymous reports.
+- **`apps/web`:** unit tests for logic; render-isolation tests for the hot path; Playwright e2e for: full time, count and zen tests; idle end and a hidden tab; a restart leaving statistics unchanged; live conversion; layout and IME notices; a learning lesson; results and personal best; the statistics page; guest → sign-in (mocked OAuth); offline → sync; two tabs syncing concurrently.
+- **`apps/api`:** tests on a local D1: OAuth callback (mocked), `seq` handling (≤ last, = last + 1, > last + 1), merge rules, a lost `version` update retried without double counting, the error table, request limits, anonymous reports.
 - **Device matrix:** Android Chrome with Gboard and iOS Safari, manual pass required for P2 and P7.
 
 ## CI
