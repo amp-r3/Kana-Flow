@@ -54,3 +54,4 @@ Append-only log of architectural decisions, one file per decision.
 | [027](027-pnpm-workspace-layout-for-the-monorepo.md)                                 | pnpm Workspace Layout for the Monorepo                                                       | In force             |
 | [028](028-empty-pool-falls-back-to-basic-rows.md)                                    | Empty Kana Pool Falls Back to the Basic Rows                                                 | In force             |
 | [029](029-stream-engine-with-spelling-constraints.md)                                | Stream Engine with Spelling Constraints                                                      | In force             |
+| [030](030-observers-and-compaction-of-the-stream-matcher.md)                         | Observers and Compaction of the Stream Matcher                                               | In force             |

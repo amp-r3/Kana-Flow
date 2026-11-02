@@ -168,6 +168,14 @@ describe('accepted input (docs/spec/engine.md)', () => {
     }
   }
 
+  it('accepts the particle へ read e, in relaxed mode only', () => {
+    const items = [{ key: 'h', text: 'へや', readingHints: [{ tokenIndex: 0, learner: ['e'] }] }];
+    expect(acceptsItems(items, 'learner', 'eya')).toBe(true);
+    expect(acceptsItems(items, 'learner', 'heya')).toBe(true);
+    expect(acceptsItems(items, 'ime', 'heya')).toBe(true);
+    expect(acceptsItems(items, 'ime', 'eya')).toBe(false);
+  });
+
   it('accepts the particle readings from readingHints in relaxed mode only', () => {
     const items = [
       { key: 'k', text: 'こんにちは', readingHints: [{ tokenIndex: 4, learner: ['wa'] }] },
@@ -176,6 +184,55 @@ describe('accepted input (docs/spec/engine.md)', () => {
     expect(acceptsItems(items, 'learner', 'konnichiha')).toBe(true);
     expect(acceptsItems(items, 'ime', 'konnnichiha')).toBe(true);
     expect(acceptsItems(items, 'ime', 'konnnichiwa')).toBe(false);
+  });
+});
+
+// The "Extended katakana" table of docs/spec/engine.md, kana by kana: the strict IME column and
+// what relaxed mode accepts in addition.
+const EXTENDED: readonly (readonly [
+  kana: string,
+  strict: string,
+  relaxedAlso: readonly string[],
+])[] = [
+  ['ファ', 'fa', ['fua', 'huxa']],
+  ['フィ', 'fi', ['fui', 'huxi']],
+  ['フェ', 'fe', ['fue', 'huxe']],
+  ['フォ', 'fo', ['fuo', 'huxo']],
+  ['ヴァ', 'va', ['buxa']],
+  ['ヴィ', 'vi', ['buxi']],
+  ['ヴ', 'vu', []],
+  ['ヴェ', 've', ['buxe']],
+  ['ヴォ', 'vo', ['buxo']],
+  ['ウィ', 'wi', ['whi', 'uxi']],
+  ['ウェ', 'we', ['whe', 'uxe']],
+  ['ウォ', 'who', ['wo', 'uxo']],
+  ['ティ', 'thi', ['ti', 'texi']],
+  ['トゥ', 'twu', ['tu', 'toxu']],
+  ['ディ', 'dhi', ['di', 'dexi']],
+  ['ドゥ', 'dwu', ['du', 'doxu']],
+  ['テュ', 'thu', ['texyu']],
+  ['デュ', 'dhu', ['dexyu']],
+  ['シェ', 'she', ['sye', 'sixe']],
+  ['ジェ', 'je', ['zye', 'jye', 'zixe']],
+  ['チェ', 'che', ['tye', 'cye', 'tixe']],
+];
+
+describe('extended katakana (docs/spec/engine.md)', () => {
+  for (const [kana, strict, relaxedAlso] of EXTENDED) {
+    it(`${kana}: strict ${strict}, relaxed also ${relaxedAlso.join('/') || 'nothing'}`, () => {
+      expect(accepts([kana], 'ime', strict)).toBe(true);
+      for (const input of [strict, ...relaxedAlso]) {
+        expect(accepts([kana], 'learner', input), input).toBe(true);
+      }
+      for (const input of relaxedAlso) {
+        expect(accepts([kana], 'ime', input), `strict must reject ${input}`).toBe(false);
+      }
+    });
+  }
+
+  it('is typed after っ with a doubled consonant: ッファ → ffa', () => {
+    expect(accepts(['ッファ'], 'ime', 'ffa')).toBe(true);
+    expect(accepts(['ッティ'], 'ime', 'tthi')).toBe(true);
   });
 });
 

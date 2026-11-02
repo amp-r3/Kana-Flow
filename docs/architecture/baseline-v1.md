@@ -228,7 +228,7 @@ Nekotype is currently optimized for desktop physical keyboards. However, the inp
 1. Create a touch keyboard component in `apps/web/src/features/type-prompt/ui/touch-keyboard.tsx`.
 2. When the user taps a virtual key button (e.g. `'k'`, `'a'`, or `Esc`), dispatch the intent directly:
    ```ts
-   controller.handleIntent({ kind: 'char', char: 'k' }, strictness);
+   controller.handleIntent({ kind: 'char', char: 'k' });
    ```
 3. No DOM `<input>` refocusing, composition hooks, or Cyrillic code translations are needed for virtual keys; the controller processes the intent directly.
 
@@ -241,7 +241,7 @@ Every commit and pull request must satisfy `pnpm run verify`, which CI also runs
 1. **`pnpm run typecheck` (`tsc --noEmit`)**: Maximum strictness TypeScript checks. Zero `any`, zero `as T`, zero `!`.
 2. **`pnpm run lint`**: ESLint AST inspection in every package; in `apps/web` also Steiger FSD architectural boundaries and the import restrictions of section 1.
 3. **`pnpm run format:check` (`prettier --check .`)**: Formatting of the whole repository.
-4. **`pnpm run test` (`vitest run`)**: Unit, integration, property and render-isolation tests. `packages/engine` runs with a v8 coverage threshold: the P0 level for the package, and 95% for `src/matcher/` (the spec target for the whole package is reached in P1).
+4. **`pnpm run test` (`vitest run`)**: Unit, integration, property and render-isolation tests. `packages/engine` runs with a v8 coverage threshold of 95% for statements, branches, functions and lines (the spec target; the package measures 100%).
 5. **`pnpm run build` (`vite build`)**: Production client bundle into `apps/web/dist`, with the Vite manifest.
 6. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Reads the manifest and enforces hard budget limits (gzip unless stated; brotli is reported next to it). Figures from the P0 build:
    - Initial HTML: ≤ 5 KB (actual 0.27 KB)
