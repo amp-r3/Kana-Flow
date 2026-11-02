@@ -6,9 +6,9 @@ Instructions for AI coding agents working in this repository. `CLAUDE.md` is a s
 
 Nekotype is a keyboard-first web trainer for typing Japanese kana in romaji, modelled on Monkeytype. Production: <https://nekotype.pages.dev> (Cloudflare Pages).
 
-- **Current code** is the v1 baseline in a pnpm monorepo (ADR 027, phase P0 done): a Preact SPA in `apps/web/`, the engine and kana tables in `packages/engine`, shared types and guards in `packages/shared`. State is in localStorage, there is no backend.
+- **Current code** is the v1 baseline in a pnpm monorepo (ADR 027; phases P0 and P1 done): a Preact SPA in `apps/web/`, the stream input engine and kana tables in `packages/engine`, shared types and guards in `packages/shared`. State is in localStorage, there is no backend.
 - **Target** is the MVP in `docs/spec/`: pnpm monorepo, stream-based input engine, IndexedDB, Pages Functions + D1, content pipeline, learning mode. It is delivered in phases P0–P7.
-- Where documents disagree, `docs/spec/` wins over everything else. `README.md` and `docs/architecture/baseline-v1.md` describe the code after P0; when a phase changes the code, update them in the same PR.
+- Where documents disagree, `docs/spec/` wins over everything else. `README.md` and `docs/architecture/baseline-v1.md` describe the code after the latest finished phase; when a phase changes the code, update them in the same PR.
 
 ## Documents
 
