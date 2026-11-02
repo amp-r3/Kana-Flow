@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPool, pickPrompt } from './picker';
+import { buildPool, pickPrompt, rowsYieldKana } from './picker';
 import type { PracticeSettings, PromptItem, ContentItem } from '../model/types';
 import type { Rng } from '@/shared/lib';
 
@@ -188,5 +188,35 @@ describe('picker: prompt selection', () => {
 
     expect(counts3.w10).toBeGreaterThan(counts3.w1);
     expect(counts3.w10).toBeGreaterThan(counts3.w2);
+  });
+
+  describe('D20: rows that give no kana for the script', () => {
+    const base: PracticeSettings = {
+      script: 'hiragana',
+      content: 'single',
+      strictness: 'learner',
+      rowIds: ['ext_fa'],
+      weakFocus: false,
+    };
+
+    it('buildPool falls back to the basic rows instead of returning an empty pool', () => {
+      const pool = buildPool(base);
+      expect(pool.length).toBe(46);
+      expect(pool.every((item) => item.script === 'hiragana')).toBe(true);
+      // The fallback pool is usable: pickPrompt must not throw on it.
+      expect(() => pickPrompt(pool, new Map(), new SeededRng(1), null)).not.toThrow();
+    });
+
+    it('rowsYieldKana tells apart rows with and without kana for the script', () => {
+      expect(rowsYieldKana(base)).toBe(false);
+      expect(rowsYieldKana({ ...base, script: 'katakana' })).toBe(true);
+      expect(rowsYieldKana({ ...base, script: 'both' })).toBe(true);
+      expect(rowsYieldKana({ ...base, rowIds: ['ext_fa', 'k'] })).toBe(true);
+    });
+
+    it('a selection that does yield kana is used as is', () => {
+      const pool = buildPool({ ...base, rowIds: ['vowels'] });
+      expect(pool.map((item) => item.text)).toEqual(['あ', 'い', 'う', 'え', 'お']);
+    });
   });
 });

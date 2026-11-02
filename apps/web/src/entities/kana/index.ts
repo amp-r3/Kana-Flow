@@ -56,6 +56,6 @@ export {
 
 export { shouldAbsorb } from '@nekotype/engine';
 
-export { buildPool, pickPrompt } from './lib/picker';
+export { buildPool, pickPrompt, rowsYieldKana } from './lib/picker';
 
 export { loadContent } from './api/content-loader';

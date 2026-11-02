@@ -27,6 +27,8 @@ export const en = {
   'stage.revealed': 'Revealed: {answer}',
   'stage.contentLoading': 'Loading vocabulary...',
   'stage.contentLoadError': 'Failed to load content, reverted to Single Kana',
+  'stage.noKanaForRows':
+    'The selected rows have no kana for this script. Practising the basic rows instead.',
 
   // Results panel
   'results.title': 'Test Results',

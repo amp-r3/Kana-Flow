@@ -29,6 +29,8 @@ export const ru = {
   'stage.revealed': 'Ответ: {answer}',
   'stage.contentLoading': 'Загрузка словаря...',
   'stage.contentLoadError': 'Не удалось загрузить словарь, возврат к одиночным канам',
+  'stage.noKanaForRows':
+    'В выбранных рядах нет кан для этого письма. Пока тренируются основные ряды.',
 
   // Results panel
   'results.title': 'Результаты теста',
