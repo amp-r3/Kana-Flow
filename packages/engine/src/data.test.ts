@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { allKanaRows } from './data';
+import { allKanaRows, engineTable, standaloneRows, SKIP_CHARACTERS, SOKUON_PREFIXES } from './data';
 import type { RowId } from './types';
 
 describe('data integrity: rows', () => {
@@ -70,5 +70,45 @@ describe('data integrity: rows', () => {
         }
       }
     }
+  });
+});
+
+describe('data integrity: standalone kana (D7)', () => {
+  const entries = standaloneRows.flatMap((r) => r.entries);
+
+  it('has the spellings of the spec, x-form first, identical in both modes', () => {
+    const spellings = new Map(entries.map((e) => [e.katakana, e.ime]));
+    expect(spellings.get('ァ')).toEqual(['xa', 'la']);
+    expect(spellings.get('ャ')).toEqual(['xya', 'lya']);
+    expect(spellings.get('ヮ')).toEqual(['xwa', 'lwa']);
+    expect(spellings.get('ヵ')).toEqual(['xka', 'lka']);
+    expect(spellings.get('ヶ')).toEqual(['xke', 'lke']);
+    expect(spellings.get('ヰ')).toEqual(['wyi']);
+    expect(spellings.get('ヱ')).toEqual(['wye']);
+    for (const e of entries) expect(e.learner).toEqual([]);
+  });
+
+  it('ヵ and ヶ are katakana only; ゕ and ゖ are absent', () => {
+    const glyphs = entries.flatMap((e) => [e.hiragana ?? '', e.katakana]).join('');
+    expect(entries.find((e) => e.katakana === 'ヵ')?.hiragana).toBeUndefined();
+    expect(entries.find((e) => e.katakana === 'ヶ')?.hiragana).toBeUndefined();
+    expect(glyphs).not.toMatch(/[ゕゖ]/);
+  });
+
+  it('shares no glyph with the selectable rows, so row selection is unchanged', () => {
+    const selectable = new Set(
+      allKanaRows.flatMap((r) => r.entries.flatMap((e) => [e.hiragana ?? '', e.katakana])),
+    );
+    for (const e of entries) {
+      expect(selectable.has(e.katakana)).toBe(false);
+      if (e.hiragana) expect(selectable.has(e.hiragana)).toBe(false);
+    }
+    expect(engineTable.length).toBe(allKanaRows.length + standaloneRows.length);
+  });
+
+  it('skip characters and sokuon prefixes follow the spec', () => {
+    for (const ch of '、。，．！？・「」『』（）…〜 　') expect(SKIP_CHARACTERS.has(ch)).toBe(true);
+    expect(SKIP_CHARACTERS.has('あ')).toBe(false);
+    expect(SOKUON_PREFIXES).toEqual(['xtu', 'ltu', 'xtsu', 'ltsu']);
   });
 });

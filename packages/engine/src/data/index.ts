@@ -1,13 +1,16 @@
-import type { KanaRow } from '../types';
+import type { EngineTable, KanaRow } from '../types';
 import { basicRows } from './basic';
 import { dakutenRows } from './dakuten';
 import { yoonRows } from './yoon';
 import { extendedRows } from './extended';
+import { standaloneRows } from './standalone';
 
 export { basicRows } from './basic';
 export { dakutenRows } from './dakuten';
 export { yoonRows } from './yoon';
 export { extendedRows } from './extended';
+export { standaloneRows } from './standalone';
+export { SKIP_CHARACTERS, SOKUON_PREFIXES } from './tokens';
 
 export const allKanaRows: readonly KanaRow[] = [
   ...basicRows,
@@ -15,3 +18,6 @@ export const allKanaRows: readonly KanaRow[] = [
   ...yoonRows,
   ...extendedRows,
 ];
+
+// The table the engine is created with: selectable rows plus the standalone kana.
+export const engineTable: EngineTable = [...allKanaRows, ...standaloneRows];

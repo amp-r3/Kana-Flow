@@ -29,6 +29,17 @@ export type KanaRow = {
 
 export type KanaTable = readonly KanaRow[];
 
+// Kana typed as standalone tokens (small kana, ゐ, ゑ). Not selectable rows: `RowId` is unchanged.
+export type StandaloneRowId = 'small' | 'archaic';
+
+export type StandaloneRow = {
+  readonly id: StandaloneRowId;
+  readonly entries: readonly KanaEntry[];
+};
+
+// What the engine reads from a table: entries only. Both `KanaRow` and `StandaloneRow` fit.
+export type EngineTable = readonly { readonly entries: readonly KanaEntry[] }[];
+
 export type ReadingHint = {
   readonly tokenIndex: number;
   readonly learner: readonly string[];
