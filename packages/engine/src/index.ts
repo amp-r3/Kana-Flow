@@ -34,3 +34,14 @@ export {
   SKIP_CHARACTERS,
   SOKUON_PREFIXES,
 } from './data';
+
+export { createStreamEngine } from './matcher/engine';
+export type { StreamEngine } from './matcher/engine';
+export type {
+  Spelling,
+  StreamMatcher,
+  StreamPosition,
+  StreamState,
+  StreamToken,
+  TokenKind,
+} from './matcher/types';
