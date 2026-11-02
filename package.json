@@ -15,11 +15,12 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && steiger ./src",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "fonts": "tsx scripts/subset-fonts.mjs",
     "budget": "node scripts/check-budget.mjs",
     "e2e": "playwright test",
-    "verify": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build && pnpm run budget",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build && pnpm run budget",
     "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
