@@ -10,6 +10,9 @@ export type {
   KanaEntry,
   KanaRow,
   KanaTable,
+  EngineTable,
+  StandaloneRow,
+  StandaloneRowId,
   ReadingHint,
   PromptItem,
   Strictness,
@@ -20,4 +23,14 @@ export { createEngine } from './engine';
 
 export { shouldAbsorb } from './absorption';
 
-export { basicRows, dakutenRows, yoonRows, extendedRows, allKanaRows } from './data';
+export {
+  basicRows,
+  dakutenRows,
+  yoonRows,
+  extendedRows,
+  standaloneRows,
+  allKanaRows,
+  engineTable,
+  SKIP_CHARACTERS,
+  SOKUON_PREFIXES,
+} from './data';

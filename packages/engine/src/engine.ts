@@ -1,4 +1,4 @@
-import type { KanaKey, KanaTable, PromptItem, Script, Strictness } from './types';
+import type { EngineTable, KanaKey, PromptItem, Script, Strictness } from './types';
 
 export type Token = {
   readonly glyph: string;
@@ -35,7 +35,7 @@ type TableIndex = {
   readonly sortedGlyphs: readonly string[];
 };
 
-function buildIndex(table: KanaTable): TableIndex {
+function buildIndex(table: EngineTable): TableIndex {
   const glyphTable = new Map<string, TableEntryInfo>();
   const keyToCanonicalIme = new Map<string, string>();
 
@@ -456,7 +456,7 @@ export type Engine = {
 
 // The kana table is a parameter, so the engine has no module-level state and
 // can be created with any table (a test table, a subset).
-export function createEngine(table: KanaTable): Engine {
+export function createEngine(table: EngineTable): Engine {
   const index = buildIndex(table);
   return {
     compile: (prompt, strictness) => compileWith(index, prompt, strictness),
