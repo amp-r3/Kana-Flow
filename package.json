@@ -9,42 +9,26 @@
     "pnpm": ">=10"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint . && steiger ./src",
+    "dev": "pnpm --filter @nekotype/web run dev",
+    "build": "pnpm -r --if-present run build",
+    "preview": "pnpm --filter @nekotype/web run preview",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
-    "fonts": "tsx scripts/subset-fonts.mjs",
-    "budget": "node scripts/check-budget.mjs",
-    "e2e": "playwright test",
+    "test": "pnpm -r --if-present run test",
+    "fonts": "pnpm --filter @nekotype/web run fonts",
+    "budget": "pnpm -r --if-present run budget",
+    "e2e": "pnpm -r --if-present run e2e",
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build && pnpm run budget",
     "prepare": "git config core.hooksPath .githooks"
   },
-  "dependencies": {
-    "@preact/signals": "^2.11.4",
-    "preact": "^11.1.0"
-  },
   "devDependencies": {
-    "@feature-sliced/steiger-plugin": "^0.8.1",
-    "@playwright/test": "^1.64.1",
-    "@preact/preset-vite": "^2.10.6",
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^22.13.10",
     "eslint": "^10.13.0",
-    "eslint-plugin-boundaries": "^7.4.0",
-    "happy-dom": "^21.0.4",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "steiger": "^0.8.1",
-    "subset-font": "^2.9.0",
-    "tailwindcss": "^4.3.3",
-    "tsx": "^4.19.3",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.1",
-    "vite": "^8.3.5",
-    "vitest": "^5.0.5"
-  }
+    "typescript-eslint": "^8.72.1"
+  },
+  "private": true
 }

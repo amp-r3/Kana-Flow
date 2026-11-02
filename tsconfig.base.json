@@ -17,10 +17,6 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "allowJs": false,
-    "skipLibCheck": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["src", "scripts", "vite.config.ts", "vitest.config.ts", "eslint.config.js"]
+    "skipLibCheck": true
+  }
 }

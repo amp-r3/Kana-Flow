@@ -41,7 +41,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # Local font sources (large binaries, not committed)
-scripts/font-src/
+apps/web/scripts/font-src/
 
 # wrangler files
 .wrangler
