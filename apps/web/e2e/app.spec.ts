@@ -173,8 +173,14 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await page.getByRole('radio', { name: 'Count' }).click();
     await page.getByRole('radio', { name: '10', exact: true }).click();
     const words = page.getByRole('radio', { name: 'Words' });
+    // The words load lazily and the trainer restarts the test when they arrive: wait for that,
+    // or the restart lands in the middle of typing and the count starts over.
+    const loaded = page.waitForResponse((r) => /words/.test(r.url()));
     await words.click();
     await expect(words).toHaveAttribute('aria-checked', 'true');
+    await loaded;
+    await expect(page.getByText('Loading vocabulary...')).toHaveCount(0);
+    await expect(page.locator('main .font-kana')).toHaveText(/^.{2,}$/);
 
     for (let i = 0; i < 10; i++) {
       const arena = page.locator('[data-canonical]');
