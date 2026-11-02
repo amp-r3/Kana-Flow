@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Max%20Strict-blue.svg)](https://www.typescriptlang.org/)
 [![FSD: Verified](https://img.shields.io/badge/Architecture-Feature--Sliced%20Design-orange.svg)](https://feature-sliced.design/)
-[![Bundle Budget](https://img.shields.io/badge/First%20Load-61.7%20KB%20%2F%20160%20KB-success.svg)](#-performance-budgets)
+[![Bundle Budget](https://img.shields.io/badge/First%20Load-61.1%20KB%20%2F%20160%20KB-success.svg)](#-performance-budgets)
 
 ---
 
@@ -20,7 +20,7 @@
   - Single Kana, Common Words, and Everyday Phrases modes.
 - **🧠 Adaptive Weak-Kana Weighting:**
   - Bayesian-inspired weakness formula: $\text{weakness} = \frac{m + 1}{a + 2}$.
-  - Dynamically weights prompts during practice so your most frequent mistakes surface more often.
+  - Dynamically weights prompts during practice so your most frequent mistakes surface more often. For words and phrases the weight is the mean of the weights of their kana.
 - **📊 Detailed Results & Speed Charts:**
   - WPM, raw WPM, accuracy, kana/min, elapsed time, and best streak.
   - SVG speed-over-time trend line.
@@ -36,6 +36,20 @@
   - Polite live regions (`aria-live="polite"`) announcing test results to screen readers.
   - Radio group semantics on segmented selectors.
   - Respects `prefers-reduced-motion` operating system settings.
+
+---
+
+## 🗂️ Repository Layout
+
+A pnpm workspace ([ADR 027](docs/adr/027-pnpm-workspace-layout-for-the-monorepo.md)); packages are consumed as TypeScript source, with no build step.
+
+| Path               | Package            | Contents                                                                                   |
+| ------------------ | ------------------ | ------------------------------------------------------------------------------------------ |
+| `apps/web/`        | `@nekotype/web`    | The Preact single-page app (Feature-Sliced Design), its tests, e2e tests, scripts, assets  |
+| `packages/engine/` | `@nekotype/engine` | The NFA romaji engine and the kana tables; imports nothing, runs in a browser or a Worker  |
+| `packages/shared/` | `@nekotype/shared` | Types (`Clock`, `Rng`, `Scheduler`, …) and runtime type guards shared with a future server |
+
+Root scripts run the package scripts with `pnpm -r`; run one package directly with `pnpm --filter @nekotype/web run <script>`.
 
 ---
 
@@ -76,10 +90,12 @@ To run individual verification gates:
 
 ```bash
 pnpm run typecheck    # tsc --noEmit (zero any, zero as T, zero !)
-pnpm run lint         # eslint . && steiger ./src
-pnpm test             # vitest run (96 tests across 18 test suites)
-pnpm run build        # vite production build
-pnpm run budget       # check-budget.mjs (enforces first-load size caps)
+pnpm run lint         # eslint in every package, plus steiger ./src in apps/web
+pnpm run format:check # prettier --check .
+pnpm test             # vitest run in every package (engine with a coverage threshold)
+pnpm run build        # vite production build into apps/web/dist
+pnpm run budget       # check-budget.mjs (size budgets from the Vite manifest)
+pnpm run e2e          # Playwright (Chromium)
 ```
 
 ### End-to-End Testing (Playwright)
@@ -108,16 +124,18 @@ CI still runs `verify` on every push and pull request; the hooks catch the same 
 
 ## 📦 Performance Budgets
 
-Nekotype adheres to strict first-load asset caps. Production bundle metrics:
+Nekotype adheres to strict first-load asset caps, checked by `pnpm run budget` (part of `verify`) from the Vite manifest. Figures of the current build:
 
 | Asset                      | Budget Limit | Actual (gzip / woff2) | Status                    |
 | -------------------------- | ------------ | --------------------- | ------------------------- |
-| **Initial HTML**           | $\le 5$ KB   | **0.28 KB**           | ✅ Passed                 |
-| **Initial JavaScript**     | $\le 35$ KB  | **23.51 KB**          | ✅ Passed                 |
-| **Initial CSS**            | $\le 10$ KB  | **6.52 KB**           | ✅ Passed                 |
+| **Initial HTML**           | $\le 5$ KB   | **0.27 KB**           | ✅ Passed                 |
+| **Initial JavaScript**     | $\le 35$ KB  | **24.49 KB**          | ✅ Passed                 |
+| **Initial CSS**            | $\le 10$ KB  | **4.94 KB**           | ✅ Passed                 |
 | **Noto Sans JP Bold**      | $\le 45$ KB  | **16.45 KB** (woff2)  | ✅ Passed                 |
 | **JetBrains Mono Regular** | $\le 45$ KB  | **14.95 KB** (woff2)  | ✅ Passed                 |
-| **Total First Load**       | $\le 160$ KB | **61.71 KB**          | ✅ Passed (38% of budget) |
+| **Total First Load**       | $\le 160$ KB | **61.10 KB**          | ✅ Passed (38% of budget) |
+| **Lazy content chunk**     | $\le 40$ KB  | **2.05 KB** (largest) | ✅ Passed                 |
+| **Lazy route chunk**       | $\le 25$ KB  | none yet              | —                         |
 
 ---
 
@@ -167,7 +185,7 @@ pnpm dlx wrangler pages deploy apps/web/dist --project-name nekotype --branch=ma
 | `/index.html` | `max-age=0, must-revalidate`                                                                            | New deploys must be picked up immediately                          |
 | `/*`          | `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, restrictive `Permissions-Policy` | Baseline hardening                                                 |
 
-No `_redirects` file is needed, because there is no client-side router. A `404.html` **is** needed though: without it Cloudflare Pages answers every unknown path — including `/assets/typo.js` — with `index.html` and a `200`, which then gets cached as `immutable` under `/assets/*`. `public/404.html` is a self-contained page (no extra requests) that turns misses into real `404`s.
+No `_redirects` file is needed, because there is no client-side router. A `404.html` **is** needed though: without it Cloudflare Pages answers every unknown path — including `/assets/typo.js` — with `index.html` and a `200`, which then gets cached as `immutable` under `/assets/*`. `apps/web/public/404.html` is a self-contained page (no extra requests) that turns misses into real `404`s.
 
 ---
 

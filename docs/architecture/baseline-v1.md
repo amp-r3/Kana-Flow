@@ -1,4 +1,4 @@
-> **Scope.** Describes the v1 baseline code in `src/`. Where it disagrees with the [MVP specification](../spec/README.md), the specification applies; this document is rewritten as the MVP phases land (spec item D21).
+> **Scope.** Describes the v1 baseline code as it stands after P0: the application in `apps/web/src/` and the two packages it uses, `packages/engine` and `packages/shared`. Where it disagrees with the [MVP specification](../spec/README.md), the specification applies; this document is rewritten as the MVP phases land (spec item D21).
 
 # Nekotype Architecture Documentation
 
@@ -6,12 +6,27 @@ Nekotype is a high-performance, keyboard-first Japanese kana speed trainer engin
 
 ---
 
-## 1. Architectural Layers & Import Boundaries (FSD)
+## 1. Repository Layout, Layers & Import Boundaries
 
-The codebase strictly adheres to **Feature-Sliced Design (v2.1)** conventions and is continuously validated by `steiger` alongside TypeScript compiler checks:
+### Workspace (ADR 027)
 
 ```
-src/
+apps/web/          @nekotype/web: the Preact SPA, Feature-Sliced Design (below)
+packages/engine/   @nekotype/engine: NFA romaji engine and kana tables; imports nothing
+packages/shared/   @nekotype/shared: /types (Clock, Rng, Scheduler, Valid* types), /runtime (type guards)
+```
+
+Packages are consumed as TypeScript source (no build step). Each package has its own `tsconfig.json`, ESLint config, scripts and tests; the root holds Prettier, `tsconfig.base.json`, `eslint.base.js` (`createBaseConfig`) and scripts that run `pnpm -r`. Enforced by lint:
+
+- `packages/engine/src` may use only relative imports and no browser globals (`window`, `document`, `localStorage`, …), so it runs in the browser and in a Worker.
+- `apps/web` must not import `@nekotype/shared/schemas`, `@nekotype/content` or `@nekotype/api`; `shared/runtime` must not import schemas or valibot. These targets do not exist yet; the rules are in place for P3 onwards.
+
+### Application layers (FSD)
+
+`apps/web` strictly adheres to **Feature-Sliced Design (v2.1)** conventions and is continuously validated by `steiger` alongside TypeScript compiler checks:
+
+```
+apps/web/src/
 ├── app/                  # Application root, initialization, global styles, providers
 ├── pages/                # Composed full-page views (TrainerPage)
 ├── features/             # User interaction workflows (type-prompt)
@@ -23,15 +38,15 @@ src/
 
 1. **Unidirectional Dependency Flow:** Slices in higher layers may import slices from lower layers only (`app` → `pages` → `features` → `entities` → `shared`). Lower layers NEVER import from higher layers.
 2. **No Same-Layer Cross-Slice Imports:** Slices within the same layer (e.g. `entities/kana` and `entities/session`) must never import from each other. They interact through compositional coordination in higher layers (`features/type-prompt` or `pages/trainer`).
-3. **Public API Facades:** All inter-slice imports must resolve through the target slice's root `index.ts` public re-export file. Deep internal imports (e.g. `@/entities/kana/model/data/basic`) are forbidden and rejected by lint checks.
+3. **Public API Facades:** All inter-slice imports must resolve through the target slice's root `index.ts` public re-export file. Deep internal imports (e.g. `@/entities/kana/lib/picker`) are forbidden and rejected by lint checks.
 4. **Zero-Assertion TypeScript:** The entire codebase operates under maximum strictness: zero `any`, zero `as T` type assertions, zero non-null assertions (`!`), and zero `@ts-ignore` or `eslint-disable` directives.
 
 ### Widgets Layer Consolidation
 
-Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks. The FSD linter (`steiger`) enforces `fsd/insignificant-slice`, requiring slices to have more than one consumer across the application. Because `pages/trainer` is currently the sole full-page route, all trainer-specific widgets (`TopBar`, `ConfigBar`, `TestStage`, `ResultsPanel`, `RowsDialog`, `LiveStatsStrip`, `SpeedChart`, `WeakestKanaList`) were consolidated into `src/pages/trainer/ui/` as page-internal UI components.
+Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks. The FSD linter (`steiger`) enforces `fsd/insignificant-slice`, requiring slices to have more than one consumer across the application. Because `pages/trainer` is currently the sole full-page route, all trainer-specific widgets (`TopBar`, `ConfigBar`, `TestStage`, `ResultsPanel`, `RowsDialog`, `LiveStatsStrip`, `SpeedChart`, `WeakestKanaList`) were consolidated into `apps/web/src/pages/trainer/ui/` as page-internal UI components.
 
 > [!NOTE]
-> **When to Extract Widgets:** If a second full-page view is introduced (such as a historical stats dashboard, custom word list editor, or flashcard review page) that reuses these UI blocks, extract them back into `src/widgets/<widget-name>/` with their own public APIs.
+> **When to Extract Widgets:** If a second full-page view is introduced (such as a historical stats dashboard, custom word list editor, or flashcard review page) that reuses these UI blocks, extract them back into `apps/web/src/widgets/<widget-name>/` with their own public APIs.
 
 ---
 
@@ -90,7 +105,7 @@ In vocabulary words, certain particles and irregular kanji readings deviate from
 
 ## 3. NFA Romaji Engine Contract
 
-The romaji engine (`src/entities/kana/lib/engine.ts`) is a pure, immutable Non-deterministic Finite Automaton (NFA) evaluator. It does not touch the DOM, timers, or storage.
+The romaji engine (`packages/engine/src/engine.ts`) is a pure, immutable Non-deterministic Finite Automaton (NFA) evaluator. It does not touch the DOM, timers, or storage, and holds no module-level state: it is created from a kana table. `apps/web/src/entities/kana/lib/engine.ts` binds it to the app's table (`createEngine(allKanaRows)`) and re-exports the functions, so the rest of the app imports them from `@/entities/kana`.
 
 ```
        [Start]
@@ -107,19 +122,25 @@ The romaji engine (`src/entities/kana/lib/engine.ts`) is a pure, immutable Non-d
 ### Public Engine API
 
 ```ts
-export function compile(prompt: PromptItem, strictness: Strictness): Matcher;
-export function start(matcher: Matcher): MatchState;
-export function step(matcher: Matcher, state: MatchState, char: string): MatchState | null;
-export function isComplete(matcher: Matcher, state: MatchState): boolean;
-export function activeTokenIndex(state: MatchState): number;
-export function extensions(matcher: Matcher, state: MatchState): ReadonlySet<string>;
-export function canonical(matcher: Matcher): string;
-export function romajiForKey(kanaKey: string): string | null;
+export function createEngine(table: KanaTable): Engine;
+
+type Engine = {
+  compile(prompt: PromptItem, strictness: Strictness): Matcher;
+  start(matcher: Matcher): MatchState;
+  step(matcher: Matcher, state: MatchState, char: string): MatchState | null;
+  isComplete(matcher: Matcher, state: MatchState): boolean;
+  activeTokenIndex(state: MatchState): number;
+  extensions(matcher: Matcher, state: MatchState): ReadonlySet<string>;
+  canonical(matcher: Matcher): string;
+  romajiForKey(kanaKey: string): string | null;
+};
 ```
+
+`Engine` members are function-typed properties, so they can be destructured. This per-prompt API is replaced by the stream API of [Input engine rules](../spec/engine.md) in P1.
 
 - **`step(matcher, state, char)`**: Returns a new `MatchState` if `char` advances at least one active path in the NFA. If rejected, returns `null` without modifying the existing state.
 - **`extensions(matcher, state)`**: When a prompt is completed, returns characters that could have continued the state (e.g. the second `n` in `pan` completed with single `n`).
-- **`shouldAbsorb(extensions, completedAt, now, key, windowMs = 250)`**: A pure helper exported from `src/entities/kana/lib/absorption.ts`. If a prompt completed with trailing extensions (e.g. `パン` completed as `pan`), any matching key arriving within 250 ms is absorbed silently, preventing false-positive mistakes when transitioning to words like `ねこ` or double-tapping `n`.
+- **`shouldAbsorb(extensions, completedAt, now, key, windowMs = 250)`**: A pure helper exported from `packages/engine/src/absorption.ts`. If a prompt completed with trailing extensions (e.g. `パン` completed as `pan`), any matching key arriving within 250 ms is absorbed silently, preventing false-positive mistakes when transitioning to words like `ねこ` or double-tapping `n`. P1 removes it: surplus `n` keys are resolved by stream matching (spec D3).
 
 ---
 
@@ -127,54 +148,56 @@ export function romajiForKey(kanaKey: string): string | null;
 
 ### Recipe A: Adding a New Kana Row / Table
 
-1. Define the row identifier in `src/entities/kana/model/types.ts`:
+1. Define the row identifier in `packages/engine/src/types.ts`:
    ```ts
    export type CustomRowId = 'my_custom_row';
    export type RowId = BasicRowId | ... | CustomRowId;
    ```
-2. Add the data table in `src/entities/kana/model/data/`:
+2. Add the data table in `packages/engine/src/data/`:
    ```ts
    export const customRows: readonly KanaRow[] = [ ... ];
    ```
-3. Re-export in `src/entities/kana/model/data/index.ts` and include in `allKanaRows`.
-4. Run `pnpm test` to verify automatic inclusion in property tests across all strictness modes.
+3. Re-export it in `packages/engine/src/data/index.ts`, include it in `allKanaRows`, and export a new group from `packages/engine/src/index.ts` and `apps/web/src/entities/kana/model/data/index.ts` if the app needs it.
+4. Run `pnpm --filter @nekotype/web run fonts` so `glyphs.txt` and the font subset include the new glyphs (a test fails while `glyphs.txt` is out of sync).
+5. Run `pnpm test`: the row-count and `RowId` tests in `packages/engine/src/data.test.ts` need updating, and the property tests cover the new entries in both strictness modes.
 
 ### Recipe B: Adding Vocabulary Words or Phrases
 
-1. Open `src/entities/kana/model/data/words.ts` or `phrases.ts`.
+> These files are test fixtures from P4 on: content is generated by the content pipeline, not edited by hand (spec D19).
+
+1. Open `apps/web/src/entities/kana/model/data/words.ts` or `phrases.ts`.
 2. Append a new `ContentItem`:
    ```ts
    {
-     key: 'word:arigatou',
+     id: 'word:arigatou',
      text: 'ありがとう',
      script: 'hiragana',
      meaning: { en: 'thank you', ru: 'спасибо' },
-     // Optional: readingHints: [{ tokenIndex: 0, learnerOnly: ['...'] }]
+     // Optional: readingHints: [{ tokenIndex: 0, learner: ['...'] }]
    }
    ```
-3. The content loader (`loadContent`) dynamically chunks words and phrases on demand, preserving the initial JS budget.
+3. Run `pnpm --filter @nekotype/web run fonts` to refresh `glyphs.txt` (a test checks it is in sync).
+4. The content loader (`loadContent`) dynamically chunks words and phrases on demand, preserving the initial JS budget; `check-budget.mjs` limits a content chunk to 40 KB gzip.
 
 ### Recipe C: Adding a New Language Locale
 
-1. In `src/shared/i18n/`, create `es.ts` matching `TranslationKey`:
-   ```ts
-   import type { TranslationKey } from './en';
-   export const es = { ... } as const satisfies Record<TranslationKey, string>;
-   ```
-2. Add the locale code to `Locale` in `src/shared/i18n/locale.ts`.
-3. Add the language toggle option in `src/pages/trainer/ui/top-bar.tsx`.
+1. In `apps/web/src/shared/i18n/`, create `es.ts` with the same keys as `en.ts` (`ru.ts` shows the form; a test checks key parity).
+2. Add the locale code to `Locale` and to the checks in `initLocale` in `apps/web/src/shared/i18n/locale.ts`.
+3. Pick the dictionary for it in `apps/web/src/shared/i18n/translate.ts` (today `t()` chooses between `ru` and `en`).
+4. Add the language toggle option in `apps/web/src/pages/trainer/ui/top-bar.tsx`.
 
 ### Recipe D: Adding a Test Mode (e.g. Zen Mode, Sudden Death)
 
-1. Expand `TestConfig` in `src/entities/session/model/types.ts`:
+1. Expand `TestConfig` in `apps/web/src/entities/session/model/types.ts`:
    ```ts
    export type TestConfig =
      | { readonly kind: 'time'; readonly seconds: number }
      | { readonly kind: 'count'; readonly prompts: number }
      | { readonly kind: 'zen' };
    ```
-2. Update `TypingController` in `src/features/type-prompt/model/controller.ts` to skip deadline timers when `kind === 'zen'`.
-3. Add UI segmented selector in `src/pages/trainer/ui/config-bar.tsx`.
+2. Update `ValidTestConfig` in `packages/shared/src/types.ts` and `isTestConfig` in `packages/shared/src/runtime.ts`; stored settings are validated with them, so an unlisted mode is discarded on load.
+3. Update `TypingController` in `apps/web/src/features/type-prompt/model/controller.ts` to skip deadline timers when `kind === 'zen'`.
+4. Add UI segmented selector in `apps/web/src/pages/trainer/ui/config-bar.tsx`.
 
 ---
 
@@ -196,7 +219,7 @@ Nekotype is currently optimized for desktop physical keyboards. However, the inp
 
 ### Implementing a Mobile / On-Screen Touch Keyboard
 
-1. Create a touch keyboard component in `src/features/type-prompt/ui/touch-keyboard.tsx`.
+1. Create a touch keyboard component in `apps/web/src/features/type-prompt/ui/touch-keyboard.tsx`.
 2. When the user taps a virtual key button (e.g. `'k'`, `'a'`, or `Esc`), dispatch the intent directly:
    ```ts
    controller.handleIntent({ kind: 'char', char: 'k' }, strictness);
@@ -207,18 +230,23 @@ Nekotype is currently optimized for desktop physical keyboards. However, the inp
 
 ## 6. Verification Gates & Quality Guarantees
 
-Every commit and pull request must satisfy `pnpm run verify`, which runs the following automated pipeline:
+Every commit and pull request must satisfy `pnpm run verify`, which CI also runs. The root script runs each step in every package that defines it (`pnpm -r --if-present`):
 
 1. **`pnpm run typecheck` (`tsc --noEmit`)**: Maximum strictness TypeScript checks. Zero `any`, zero `as T`, zero `!`.
-2. **`pnpm run lint` (`eslint . && steiger ./src`)**: ESLint AST inspection plus Steiger FSD architectural boundaries.
-3. **`pnpm run test` (`vitest run`)**: Full unit, integration, property, and render-isolation test suite.
-4. **`pnpm run build` (`vite build`)**: Production client bundle build.
-5. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Enforces hard budget limits:
-   - Initial HTML gzip: ≤ 5 KB (Actual: 0.27 KB)
-   - Initial JS gzip: ≤ 35 KB (Actual: 24.42 KB via Vite / 23.69 KB via gzip)
-   - Initial CSS gzip: ≤ 10 KB (Actual: 4.96 KB)
-   - Preloaded Fonts (woff2): ≤ 45 KB per file (Actual: 14.95 KB JetBrains Mono, 16.45 KB Noto Sans JP)
-   - Total First Load: ≤ 160 KB (Actual: 60.32 KB)
+2. **`pnpm run lint`**: ESLint AST inspection in every package; in `apps/web` also Steiger FSD architectural boundaries and the import restrictions of section 1.
+3. **`pnpm run format:check` (`prettier --check .`)**: Formatting of the whole repository.
+4. **`pnpm run test` (`vitest run`)**: Unit, integration, property and render-isolation tests. `packages/engine` runs with a v8 coverage threshold (set to the P0 level; the spec target is 95%, reached in P1).
+5. **`pnpm run build` (`vite build`)**: Production client bundle into `apps/web/dist`, with the Vite manifest.
+6. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Reads the manifest and enforces hard budget limits (gzip unless stated; brotli is reported next to it). Figures from the P0 build:
+   - Initial HTML: ≤ 5 KB (actual 0.27 KB)
+   - Initial JS, the entry and its static imports: ≤ 35 KB (actual 24.49 KB)
+   - Initial CSS: ≤ 10 KB (actual 4.94 KB)
+   - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 14.95 KB JetBrains Mono, 16.45 KB Noto Sans JP)
+   - Total first load: ≤ 160 KB (actual 61.10 KB)
+   - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; there are no route chunks yet)
+7. **`pnpm run e2e` (`playwright test`)**: Chromium against the Vite dev server (section 7).
+
+Git hooks run the same checks earlier (`pre-commit`: staged formatting, typecheck, lint, unit tests; `pre-push`: `verify`).
 
 ---
 
@@ -228,7 +256,7 @@ Every commit and pull request must satisfy `pnpm run verify`, which runs the fol
 
 - `updateKanaStats(prev: KanaStats | undefined, mistakes: number, ms: number): KanaStats`: Completely pure function; calculates new attempt count `a`, mistake count `m`, EMA response latency `t` ($\alpha = 0.3$), and applies `decayStats` (halving `a` and `m` when $a > 50$). Returns a fresh `KanaStats` object without mutating `prev`.
 - `ProgressMap`: Defined as `ReadonlyMap<string, KanaStats>`, guaranteeing immutable consumption by weights calculators.
-- `computeItemWeight(tokenKeys: readonly string[], weights: ReadonlyMap<string, number>): number`: Evaluates prompt weight for words/phrases by computing the arithmetic mean over all constituent token kana keys (unseen keys defaulting to weight 3.0 per Plan Section 8).
+- `computeItemWeight(tokenKeys: readonly string[], weights: ReadonlyMap<string, number>): number`: Evaluates prompt weight for words/phrases by computing the arithmetic mean over all constituent token kana keys (unseen keys defaulting to weight 3.0, per section 8 of the [archived v1 plan](../archive/v1-implementation-plan.md)). Since D20 it is used: `createPromptWeights()` in `features/type-prompt` maps each word or phrase to the `KanaKey`s of its tokens and weighs it by their mean; a single kana weighs what it did before.
 
 ### `entities/session`
 
@@ -237,10 +265,11 @@ Every commit and pull request must satisfy `pnpm run verify`, which runs the fol
 
 ### `entities/kana`
 
-- `buildPool(settings: PracticeSettings, content?: readonly ContentItem[]): readonly PromptItem[]`: Builds the prompt pool. In `words` and `phrases` content modes, if `content` is empty or no vocabulary items match the active script mode, it automatically falls back to constructing the single-kana pool matching `settings.rowIds` and `settings.script` (Plan 5.5).
-- `pickPrompt(pool: readonly PromptItem[], weights: ReadonlyMap<string, number>, rng: Rng, previousKey: string | null): PromptItem`: Selects the next prompt using weighted distribution. Rejects empty pool with an invariant Error.
+- `buildPool(settings: PracticeSettings, content?: readonly ContentItem[]): readonly PromptItem[]`: Builds the prompt pool. In `words` and `phrases` content modes, if `content` is empty or no vocabulary items match the active script mode, it falls back to constructing the single-kana pool matching `settings.rowIds` and `settings.script` (ADR 019). If the selected rows give no kana for the script (extended rows with hiragana), it falls back to the basic rows (D20, ADR 028).
+- `rowsYieldKana(settings): boolean`: Whether the selected rows give at least one kana for the script; the trainer shows a notice when it is false.
+- `pickPrompt(pool: readonly PromptItem[], weights: ReadonlyMap<string, number>, rng: Rng, previousKey: string | null): PromptItem`: Selects the next prompt using weighted distribution. Throws an invariant Error on an empty pool, which `buildPool` no longer produces.
 
 ### End-to-End Browser Certification (`e2e/`)
 
-- `@playwright/test` is installed as a pure `devDependency` and invoked via `pnpm run e2e`.
-- It executes outside `pnpm run verify` to test browser-native focus restoration, click coordinate physics, and cross-reload local storage synchronization.
+- `@playwright/test` is a `devDependency` of `apps/web`, invoked via `pnpm run e2e` and run as the last step of `pnpm run verify`, locally and in CI (Chromium only; CI installs and caches the browser).
+- The tests in `apps/web/e2e/` cover browser-native focus restoration, click coordinate physics, cross-reload local storage synchronization and the results panel animation.
