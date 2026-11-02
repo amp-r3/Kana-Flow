@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createErrorLog } from './error-log';
 import { engine, feed, prompts, Rng } from './test-util';
-import type { StreamMatcher, StreamState } from './types';
+import type { Matcher, MatchState } from './types';
 
 describe('compact', () => {
   it('drops nothing while no prompt is committed', () => {
@@ -94,7 +94,7 @@ describe('compact', () => {
 
   it('declines when a completed bare n would lose its constraint (hand-made state)', () => {
     const m = engine.compile(prompts('ほん', 'かば'), 'ime');
-    const s: StreamState = {
+    const s: MatchState = {
       positions: [
         {
           token: 1,
@@ -121,7 +121,7 @@ describe('compact', () => {
       lastKey: 1,
       path: { token: 0, firstKey: 0, lastKey: 0, prev: null },
     };
-    const s: StreamState = { positions: [done, { ...done, spelling: 1 }], keys: 2 };
+    const s: MatchState = { positions: [done, { ...done, spelling: 1 }], keys: 2 };
     const r = engine.compact(m, s);
     expect(r.droppedTokens).toBe(2);
     expect(r.s.positions).toHaveLength(1);
@@ -163,7 +163,7 @@ describe('a 1,000-prompt zen stream', () => {
 
   for (const mode of ['learner', 'ime'] as const) {
     it(`keeps indices valid and the matcher small (${mode})`, () => {
-      let m: StreamMatcher = engine.compile(prompts(texts[0] ?? '', texts[1] ?? ''), mode);
+      let m: Matcher = engine.compile(prompts(texts[0] ?? '', texts[1] ?? ''), mode);
       let s = engine.start(m);
       let added = 2;
       let droppedPrompts = 0;

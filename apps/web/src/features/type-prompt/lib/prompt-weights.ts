@@ -23,7 +23,7 @@ export function createPromptWeights(): PromptWeights {
     const cached = kanaKeysByText.get(item.text);
     if (cached) return cached;
     const keys: string[] = [];
-    for (const token of compile(item, 'learner').tokens) {
+    for (const token of compile([item], 'learner').tokens) {
       if (token.kanaKey !== null) keys.push(token.kanaKey);
     }
     kanaKeysByText.set(item.text, keys);

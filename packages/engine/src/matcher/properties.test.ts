@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Strictness } from '../types';
 import { allKanaRows, SKIP_CHARACTERS, standaloneRows } from '../data';
 import { engine, prompts, Rng } from './test-util';
-import type { StreamMatcher, StreamState } from './types';
+import type { Matcher, MatchState } from './types';
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz-'".split('');
 
@@ -21,12 +21,12 @@ function randomPrompts(rng: Rng): string[] {
   );
 }
 
-function acceptedKeys(m: StreamMatcher, s: StreamState): string[] {
+function acceptedKeys(m: Matcher, s: MatchState): string[] {
   return ALPHABET.filter((k) => engine.step(m, s, k) !== null);
 }
 
 // Walks the matcher with random accepted keys until the stream is complete.
-function walk(m: StreamMatcher, rng: Rng): { keys: string; state: StreamState } {
+function walk(m: Matcher, rng: Rng): { keys: string; state: MatchState } {
   let state = engine.start(m);
   let keys = '';
   for (let guard = 0; guard < 400; guard++) {
@@ -69,7 +69,7 @@ describe('properties over random streams', () => {
       const relaxed = engine.compile(prompts(...texts), 'learner');
       for (let w = 0; w < 4; w++) {
         const { keys, state } = walk(strict, rng);
-        let s: StreamState | null = engine.start(relaxed);
+        let s: MatchState | null = engine.start(relaxed);
         for (const key of keys) {
           s = s === null ? null : engine.step(relaxed, s, key);
           expect(s, `${texts.join('|')} ← ${keys} at ${key}`).not.toBeNull();
@@ -86,7 +86,7 @@ describe('properties over random streams', () => {
       if (keys.length === 0) continue;
       const at = rng.int(0, keys.length - 1);
       const wrong = rng.pick(ALPHABET.filter((k) => k !== keys.charAt(at)));
-      let s: StreamState | null = engine.start(m);
+      let s: MatchState | null = engine.start(m);
       for (let i = 0; i < at && s !== null; i++) s = engine.step(m, s, keys.charAt(i));
       expect(s).not.toBeNull();
       if (s === null) continue;
@@ -97,7 +97,7 @@ describe('properties over random streams', () => {
 
 // Spellings of a bare n that the appended context ruled out stay in place with an empty set so that
 // indices do not move; a stream compiled in one go simply omits them.
-function normalised(m: StreamMatcher): unknown {
+function normalised(m: Matcher): unknown {
   return {
     ...m,
     tokens: m.tokens.map((t) => ({
@@ -142,20 +142,20 @@ describe('properties of extend and committedPrompts', () => {
         const head = engine.compile(prompts(...texts.slice(0, cut)), mode);
         const split = rng.int(0, keys.length);
 
-        let old: StreamState | null = engine.start(head);
+        let old: MatchState | null = engine.start(head);
         for (let i = 0; i < split && old !== null; i++)
           old = engine.step(head, old, keys.charAt(i));
         if (old === null) continue; // the keys had already left the head of the stream
 
         const extended = engine.extend(head, prompts(...texts.slice(cut)));
-        let full: StreamState | null = engine.start(whole);
+        let full: MatchState | null = engine.start(whole);
         for (let i = 0; i < split && full !== null; i++)
           full = engine.step(whole, full, keys.charAt(i));
         expect(full).not.toBeNull();
         if (full === null) continue;
 
-        let a: StreamState = old;
-        let b: StreamState = full;
+        let a: MatchState = old;
+        let b: MatchState = full;
         for (let i = split; ; i++) {
           expect(acceptedKeys(extended, a), `${texts.join('|')} ${mode} ← ${keys} at ${i}`).toEqual(
             acceptedKeys(whole, b),

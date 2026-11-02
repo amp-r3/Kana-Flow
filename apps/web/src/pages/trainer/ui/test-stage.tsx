@@ -35,11 +35,11 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
   useEffect(() => {
     return bindKeyboard({
       onIntent: (intent) => {
-        controller.handleIntent(intent, currentStrictness);
+        controller.handleIntent(intent);
       },
       getInputElement: () => inputRef.current,
     });
-  }, [controller, currentStrictness]);
+  }, [controller]);
 
   const handleArenaClick = () => {
     inputRef.current?.focus();

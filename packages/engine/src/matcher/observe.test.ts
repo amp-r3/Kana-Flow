@@ -196,8 +196,8 @@ describe('observers on states the engine does not produce (hand-made)', () => {
 
 describe('ー after a spelling that does not end in a vowel (custom table)', () => {
   it('adds no vowel for it', async () => {
-    const { createStreamEngine } = await import('./engine');
-    const custom = createStreamEngine([
+    const { createEngine } = await import('./engine');
+    const custom = createEngine([
       { entries: [{ hiragana: 'あ', katakana: 'ア', ime: ['a', 'ak'], learner: [] }] },
     ]);
     const m = custom.compile([{ key: 'k', text: 'あー' }], 'learner');

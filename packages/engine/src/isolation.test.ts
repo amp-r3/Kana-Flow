@@ -5,7 +5,7 @@ describe('engine isolation (lint)', { timeout: 20000 }, () => {
   const eslint = new ESLint();
 
   async function ruleIds(code: string): Promise<(string | null)[]> {
-    const [result] = await eslint.lintText(code, { filePath: 'src/engine.ts' });
+    const [result] = await eslint.lintText(code, { filePath: 'src/matcher/step.ts' });
     return (result?.messages ?? []).map((m) => m.ruleId);
   }
 

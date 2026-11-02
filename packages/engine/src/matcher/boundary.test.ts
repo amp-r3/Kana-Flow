@@ -133,6 +133,16 @@ describe('extend', () => {
     expect(typedRelaxed && engine.step(vowel, typedRelaxed, 'a')).not.toBeNull();
   });
 
+  it('does not start a bare n that the new context ruled out (strict, vowel next)', () => {
+    const m = engine.extend(engine.compile(prompts('ほん'), 'ime'), prompts('あめ'));
+    const s = feed(m, 'hon').state;
+    if (s === null) throw new Error('rejected');
+    // Only the first half of `nn` is alive: ん is not done, so the next prompt is not reached.
+    expect(engine.view(m, s)).toMatchObject({ displayedTokens: 1, pendingLatin: 'n' });
+    expect(engine.committedPrompts(m, s)).toBe(0);
+    expect(engine.step(m, s, 'a')).toBeNull();
+  });
+
   it('keeps the spelling index of a bare n that the new context rules out', () => {
     const m = engine.extend(engine.compile(prompts('ほん'), 'ime'), prompts('あめ'));
     const spellings = m.tokens[1]?.spellings;

@@ -70,7 +70,7 @@ describe('render isolation: TypingController keystrokes do not re-render static 
 
     // Dispatch 20 keystrokes through the controller
     for (let i = 0; i < 20; i++) {
-      controller.handleIntent({ kind: 'char', char: 'a' }, 'learner');
+      controller.handleIntent({ kind: 'char', char: 'a' });
     }
 
     // TopBar, ConfigBar, and RowsDialog must remain isolated and render 0 times during keystroke dispatch
