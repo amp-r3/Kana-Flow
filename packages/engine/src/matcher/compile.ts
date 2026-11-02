@@ -155,18 +155,53 @@ function canFollowBareN(text: string, strictness: Strictness): boolean {
   return strictness === 'learner' && c === 'n';
 }
 
+// The bare-n spelling of ん as seen from the token that follows it: the indices of the following
+// spellings it may precede, or null when anything may follow (end of the stream or a skip token).
+function bareNext(
+  promptIndex: number,
+  next: StreamToken | undefined,
+  strictness: Strictness,
+): readonly number[] | null {
+  if (next === undefined || next.kind === 'skip') return null;
+  const boundary = next.promptIndex !== promptIndex;
+  const permitted: number[] = [];
+  next.spellings.forEach((sp, k) => {
+    if ((boundary && strictness === 'learner') || canFollowBareN(sp.text, strictness)) {
+      permitted.push(k);
+    }
+  });
+  return permitted;
+}
+
 export function compileStream(
   index: GlyphIndex,
   prompts: readonly PromptItem[],
   strictness: Strictness,
 ): StreamMatcher {
+  return appendPrompts(index, { tokens: [], promptStarts: [], strictness }, prompts);
+}
+
+// Appends prompts to the end of the stream. Existing token and spelling indices do not change, so
+// a state made for `m` stays valid: only the bare n of a trailing ん is re-resolved, because the
+// context it was waiting for has now arrived. Its spelling keeps its index and may end up with an
+// empty set of permitted next spellings.
+export function appendPrompts(
+  index: GlyphIndex,
+  m: StreamMatcher,
+  prompts: readonly PromptItem[],
+): StreamMatcher {
+  if (prompts.length === 0) return m;
+  const strictness = m.strictness;
+  const firstPrompt = m.promptStarts.length;
+  const baseToken = m.tokens.length;
   const drafts: Draft[] = [];
   const promptStarts: number[] = [];
 
-  prompts.forEach((prompt, promptIndex) => {
+  prompts.forEach((prompt, i) => {
+    const promptIndex = firstPrompt + i;
     const raws = tokenize(index, prompt.text);
     const start = drafts.length;
-    promptStarts.push(start);
+    promptStarts.push(baseToken + start);
 
     for (let i = 0; i < raws.length; i++) {
       const raw = raws[i];
@@ -222,27 +257,16 @@ export function compileStream(
   });
 
   // A single n for ん depends on the next token's spellings, so resolve from the right.
-  const tokens: StreamToken[] = new Array<StreamToken>(drafts.length);
+  const fresh: StreamToken[] = new Array<StreamToken>(drafts.length);
   for (let f = drafts.length - 1; f >= 0; f--) {
     const d = drafts[f];
     if (d === undefined) continue;
     const spellings: Spelling[] = d.texts.map((text) => ({ text, next: null }));
     if (d.kind === 'n') {
-      const next = tokens[f + 1];
-      if (next === undefined || next.kind === 'skip') {
-        spellings.push({ text: 'n', next: null });
-      } else {
-        const boundary = next.promptIndex !== d.promptIndex;
-        const permitted: number[] = [];
-        next.spellings.forEach((sp, k) => {
-          if ((boundary && strictness === 'learner') || canFollowBareN(sp.text, strictness)) {
-            permitted.push(k);
-          }
-        });
-        if (permitted.length > 0) spellings.push({ text: 'n', next: permitted });
-      }
+      const bare = bareNext(d.promptIndex, fresh[f + 1], strictness);
+      if (bare === null || bare.length > 0) spellings.push({ text: 'n', next: bare });
     }
-    tokens[f] = {
+    fresh[f] = {
       glyph: d.glyph,
       kanaKey: d.kanaKey,
       kind: d.kind,
@@ -251,5 +275,19 @@ export function compileStream(
     };
   }
 
-  return { tokens, promptStarts, strictness };
+  const old = m.tokens.slice();
+  const last = old[baseToken - 1];
+  if (last !== undefined && last.kind === 'n') {
+    const bare = bareNext(last.promptIndex, fresh[0], strictness) ?? [];
+    old[baseToken - 1] = {
+      ...last,
+      spellings: last.spellings.map((sp) => (sp.text === 'n' ? { text: 'n', next: bare } : sp)),
+    };
+  }
+
+  return {
+    tokens: [...old, ...fresh],
+    promptStarts: [...m.promptStarts, ...promptStarts],
+    strictness,
+  };
 }

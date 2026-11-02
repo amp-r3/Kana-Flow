@@ -75,3 +75,23 @@ export function extensions(m: StreamMatcher, s: StreamState): ReadonlySet<string
   }
   return out;
 }
+
+// Number of leading prompts committed in every active position: a prompt is committed once all
+// its tokens are done, and trailing skip tokens need no input. A position inside a token has
+// committed only the tokens before it.
+export function committedPrompts(m: StreamMatcher, s: StreamState): number {
+  let committed = m.promptStarts.length;
+  for (const pos of s.positions) {
+    const text = textOf(m, pos);
+    const inProgress = text !== null && pos.offset < text.length;
+    const boundary = inProgress ? pos.token : nextReal(m, pos.token + 1);
+    let count = 0;
+    while (count < m.promptStarts.length) {
+      const end = m.promptStarts[count + 1] ?? m.tokens.length;
+      if (end > boundary) break;
+      count += 1;
+    }
+    committed = Math.min(committed, count);
+  }
+  return committed;
+}
