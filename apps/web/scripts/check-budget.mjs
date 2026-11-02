@@ -1,137 +1,187 @@
 import { readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { gzipSync } from 'node:zlib';
+import { pathToFileURL } from 'node:url';
+import { gzipSync, brotliCompressSync } from 'node:zlib';
 
-const DIST_DIR = join(process.cwd(), 'dist');
+// Size budgets from docs/spec/quality.md. All sizes are in KB (1024 bytes).
+export const BUDGETS = {
+  htmlGzipKb: 5,
+  initialJsGzipKb: 35,
+  initialCssGzipKb: 10,
+  fontKb: 45,
+  totalFirstLoadKb: 160,
+  lazyRouteGzipKb: 25,
+  lazyContentGzipKb: 40,
+};
 
-if (!existsSync(DIST_DIR)) {
-  console.error('Error: dist/ does not exist. Run build first.');
-  process.exit(1);
+// A lazy chunk is a content chunk when its source is a words/phrases module or lives under
+// a `content` directory; every other lazy chunk is a route chunk.
+const CONTENT_SOURCE = /(^|\/)(words|phrases)\.[cm]?[jt]s$|(^|\/)content\//;
+
+const kb = (bytes) => bytes / 1024;
+const fmt = (bytes) => `${kb(bytes).toFixed(2)} KB`;
+
+function sizes(path) {
+  const content = readFileSync(path);
+  return {
+    raw: content.length,
+    gzip: gzipSync(content).length,
+    brotli: brotliCompressSync(content).length,
+  };
 }
 
-const assetsDir = join(DIST_DIR, 'assets');
-const assetFiles = existsSync(assetsDir) ? readdirSync(assetsDir) : [];
+function readManifest(distDir) {
+  const manifestPath = join(distDir, '.vite', 'manifest.json');
+  if (!existsSync(manifestPath)) return null;
+  return JSON.parse(readFileSync(manifestPath, 'utf-8'));
+}
 
-let totalInitialJsGzip = 0;
-let totalInitialCssGzip = 0;
-let totalPreloadedFontsRaw = 0;
-let allFirstLoadBytes = 0;
+/**
+ * Chunks reachable from an entry through static imports are loaded with the page ("initial");
+ * every other chunk in the manifest is loaded lazily (dynamic import).
+ */
+function splitChunks(manifest) {
+  const initial = new Set();
+  const visit = (key) => {
+    if (initial.has(key) || manifest[key] === undefined) return;
+    initial.add(key);
+    for (const dep of manifest[key].imports ?? []) visit(dep);
+  };
+  for (const [key, chunk] of Object.entries(manifest)) {
+    if (chunk.isEntry === true) visit(key);
+  }
 
-console.log('--- Chunk Breakdown (Initial vs Lazy) ---');
+  const lazy = Object.entries(manifest)
+    .filter(([key, chunk]) => !initial.has(key) && chunk.file.endsWith('.js'))
+    .map(([key, chunk]) => ({ key, file: chunk.file, src: chunk.src ?? key }));
+  return { initial, lazy };
+}
 
-// 1. HTML
-const indexHtmlPath = join(DIST_DIR, 'index.html');
-const indexHtmlContent = existsSync(indexHtmlPath) ? readFileSync(indexHtmlPath) : Buffer.alloc(0);
-const indexHtmlGzip = gzipSync(indexHtmlContent).length;
-allFirstLoadBytes += indexHtmlGzip;
-console.log(
-  `[initial] dist/index.html: ${(indexHtmlContent.length / 1024).toFixed(2)} KB (raw), ${(indexHtmlGzip / 1024).toFixed(2)} KB (gzip)`,
-);
+/**
+ * Checks the production build in `distDir` against the budgets.
+ * Returns the report lines and the list of exceeded budgets; it does not exit or print.
+ */
+export function checkBudget(distDir) {
+  const lines = [];
+  const failures = [];
+  const log = (text) => lines.push(text);
 
-// 2. Assets (JS, CSS, fonts)
-for (const file of assetFiles) {
-  const filePath = join(assetsDir, file);
-  const stats = statSync(filePath);
-  if (!stats.isFile()) continue;
+  if (!existsSync(distDir)) {
+    return { lines, failures: [`${distDir} does not exist. Run the build first.`] };
+  }
+  const manifest = readManifest(distDir);
+  if (manifest === null) {
+    return {
+      lines,
+      failures: [
+        'dist/.vite/manifest.json is missing. Set build.manifest: true in vite.config.ts.',
+      ],
+    };
+  }
 
-  const content = readFileSync(filePath);
-  const rawSize = stats.size;
-  const rawKb = (rawSize / 1024).toFixed(2);
+  const { initial, lazy } = splitChunks(manifest);
+  const line = (tag, file, s) =>
+    log(`[${tag}] ${file}: ${fmt(s.raw)} (raw), ${fmt(s.gzip)} (gzip), ${fmt(s.brotli)} (brotli)`);
 
-  if (file.endsWith('.js')) {
-    const isLazyChunk = file.includes('words') || file.includes('phrases');
-    const gzipSize = gzipSync(content).length;
-    const gzipKb = (gzipSize / 1024).toFixed(2);
+  log('--- Chunk Breakdown (Initial vs Lazy) ---');
 
-    if (isLazyChunk) {
-      console.log(`[lazy]    dist/assets/${file}: ${rawKb} KB (raw), ${gzipKb} KB (gzip)`);
-    } else {
-      console.log(`[initial] dist/assets/${file}: ${rawKb} KB (raw), ${gzipKb} KB (gzip)`);
-      totalInitialJsGzip += gzipSize;
-      allFirstLoadBytes += gzipSize;
+  // 1. HTML
+  const htmlPath = join(distDir, 'index.html');
+  const html = existsSync(htmlPath) ? sizes(htmlPath) : { raw: 0, gzip: 0, brotli: 0 };
+  line('initial', 'index.html', html);
+
+  // 2. Initial JS and CSS, taken from the chunks the entry loads statically
+  let jsGzip = 0;
+  let jsBrotli = 0;
+  let cssGzip = 0;
+  let cssBrotli = 0;
+  const cssFiles = new Set();
+  const initialFonts = new Set();
+  for (const key of initial) {
+    const chunk = manifest[key];
+    if (chunk === undefined) continue;
+    if (chunk.file.endsWith('.js')) {
+      const s = sizes(join(distDir, chunk.file));
+      line('initial', chunk.file, s);
+      jsGzip += s.gzip;
+      jsBrotli += s.brotli;
     }
-  } else if (file.endsWith('.css')) {
-    const gzipSize = gzipSync(content).length;
-    const gzipKb = (gzipSize / 1024).toFixed(2);
-    console.log(`[initial] dist/assets/${file}: ${rawKb} KB (raw), ${gzipKb} KB (gzip)`);
-    totalInitialCssGzip += gzipSize;
-    allFirstLoadBytes += gzipSize;
-  }
-}
-
-// 3. Preloaded fonts
-// Fonts in src/assets/fonts/ (committed woff2s)
-const fontFiles = [];
-const fontsDir = join(process.cwd(), 'src/assets/fonts');
-if (existsSync(fontsDir)) {
-  for (const file of readdirSync(fontsDir)) {
-    if (file.endsWith('.woff2')) {
-      const stats = statSync(join(fontsDir, file));
-      const rawSize = stats.size;
-      fontFiles.push({ name: file, size: rawSize });
-      totalPreloadedFontsRaw += rawSize;
-      allFirstLoadBytes += rawSize;
-      console.log(`[preload font] ${file}: ${(rawSize / 1024).toFixed(2)} KB (raw woff2)`);
+    for (const css of chunk.css ?? []) cssFiles.add(css);
+    for (const asset of chunk.assets ?? []) {
+      if (asset.endsWith('.woff2')) initialFonts.add(asset);
     }
   }
-}
-
-const JS_BUDGET_KB = 35;
-const CSS_BUDGET_KB = 10;
-const FONT_BUDGET_KB = 45;
-const TOTAL_BUDGET_KB = 160;
-
-const totalJsKb = totalInitialJsGzip / 1024;
-const totalCssKb = totalInitialCssGzip / 1024;
-const totalFontsKb = totalPreloadedFontsRaw / 1024;
-const totalFirstLoadKb = allFirstLoadBytes / 1024;
-
-console.log('\n--- Size Budget Summary ---');
-console.log(`Initial HTML (gzip):       ${(indexHtmlGzip / 1024).toFixed(2)} KB`);
-console.log(`Initial JS (gzip):         ${totalJsKb.toFixed(2)} KB / ${JS_BUDGET_KB} KB limit`);
-console.log(`Initial CSS (gzip):        ${totalCssKb.toFixed(2)} KB / ${CSS_BUDGET_KB} KB limit`);
-console.log(
-  `Preloaded Fonts (woff2):   ${totalFontsKb.toFixed(2)} KB (budget limit: ${FONT_BUDGET_KB} KB per file)`,
-);
-console.log(
-  `Total First Load:          ${totalFirstLoadKb.toFixed(2)} KB / ${TOTAL_BUDGET_KB} KB limit`,
-);
-
-let failed = false;
-
-if (totalJsKb > JS_BUDGET_KB) {
-  console.error(
-    `FAILED: Initial JS exceeded budget (${totalJsKb.toFixed(2)} KB > ${JS_BUDGET_KB} KB)`,
-  );
-  failed = true;
-}
-
-if (totalCssKb > CSS_BUDGET_KB) {
-  console.error(
-    `FAILED: Initial CSS exceeded budget (${totalCssKb.toFixed(2)} KB > ${CSS_BUDGET_KB} KB)`,
-  );
-  failed = true;
-}
-
-for (const font of fontFiles) {
-  const fontKb = font.size / 1024;
-  if (fontKb > FONT_BUDGET_KB) {
-    console.error(
-      `FAILED: Font ${font.name} exceeded budget (${fontKb.toFixed(2)} KB > ${FONT_BUDGET_KB} KB)`,
-    );
-    failed = true;
+  for (const css of cssFiles) {
+    const s = sizes(join(distDir, css));
+    line('initial', css, s);
+    cssGzip += s.gzip;
+    cssBrotli += s.brotli;
   }
-}
 
-if (totalFirstLoadKb > TOTAL_BUDGET_KB) {
-  console.error(
-    `FAILED: Total first load exceeded budget (${totalFirstLoadKb.toFixed(2)} KB > ${TOTAL_BUDGET_KB} KB)`,
+  // 3. Fonts: read from dist, not from the sources
+  const assetsDir = join(distDir, 'assets');
+  const fonts = (existsSync(assetsDir) ? readdirSync(assetsDir) : [])
+    .filter((file) => file.endsWith('.woff2'))
+    .map((file) => ({ file: `assets/${file}`, raw: statSync(join(assetsDir, file)).size }));
+  let firstLoadFontBytes = 0;
+  for (const font of fonts) {
+    const firstLoad = initialFonts.has(font.file);
+    log(`[${firstLoad ? 'font' : 'font, lazy'}] ${font.file}: ${fmt(font.raw)} (woff2)`);
+    if (firstLoad) firstLoadFontBytes += font.raw;
+  }
+
+  // 4. Lazy chunks
+  for (const chunk of lazy) {
+    const s = sizes(join(distDir, chunk.file));
+    const isContent = CONTENT_SOURCE.test(chunk.src);
+    line(isContent ? 'lazy content' : 'lazy route', chunk.file, s);
+    const [limit, label] = isContent
+      ? [BUDGETS.lazyContentGzipKb, 'Content chunk']
+      : [BUDGETS.lazyRouteGzipKb, 'Lazy route chunk'];
+    if (kb(s.gzip) > limit) {
+      failures.push(
+        `${label} ${chunk.file} exceeded budget (${kb(s.gzip).toFixed(2)} KB > ${limit} KB gzip)`,
+      );
+    }
+  }
+
+  const totalFirstLoad = html.gzip + jsGzip + cssGzip + firstLoadFontBytes;
+
+  log('\n--- Size Budget Summary ---');
+  log(`Initial HTML (gzip):       ${fmt(html.gzip)} / ${BUDGETS.htmlGzipKb} KB limit`);
+  log(
+    `Initial JS (gzip):         ${fmt(jsGzip)} / ${BUDGETS.initialJsGzipKb} KB limit (brotli ${fmt(jsBrotli)})`,
   );
-  failed = true;
+  log(
+    `Initial CSS (gzip):        ${fmt(cssGzip)} / ${BUDGETS.initialCssGzipKb} KB limit (brotli ${fmt(cssBrotli)})`,
+  );
+  log(
+    `First-load fonts (woff2):  ${fmt(firstLoadFontBytes)} (limit ${BUDGETS.fontKb} KB per file)`,
+  );
+  log(`Total First Load (gzip):   ${fmt(totalFirstLoad)} / ${BUDGETS.totalFirstLoadKb} KB limit`);
+
+  const over = (label, value, limit) => {
+    if (value > limit) {
+      failures.push(`${label} exceeded budget (${value.toFixed(2)} KB > ${limit} KB)`);
+    }
+  };
+  over('Initial HTML', kb(html.gzip), BUDGETS.htmlGzipKb);
+  over('Initial JS', kb(jsGzip), BUDGETS.initialJsGzipKb);
+  over('Initial CSS', kb(cssGzip), BUDGETS.initialCssGzipKb);
+  for (const font of fonts) over(`Font ${font.file}`, kb(font.raw), BUDGETS.fontKb);
+  over('Total first load', kb(totalFirstLoad), BUDGETS.totalFirstLoadKb);
+
+  return { lines, failures };
 }
 
-if (failed) {
-  process.exit(1);
-} else {
+// CLI: node scripts/check-budget.mjs [distDir]
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const distDir = process.argv[2] ?? join(process.cwd(), 'dist');
+  const { lines, failures } = checkBudget(distDir);
+  for (const text of lines) console.log(text);
+  if (failures.length > 0) {
+    for (const failure of failures) console.error(`FAILED: ${failure}`);
+    process.exit(1);
+  }
   console.log('All size budgets passed!');
 }
