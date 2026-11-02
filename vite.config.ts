@@ -5,10 +5,7 @@ import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
-  plugins: [
-    tailwindcss(),
-    preact(),
-  ],
+  plugins: [tailwindcss(), preact()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

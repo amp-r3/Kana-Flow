@@ -1,9 +1,4 @@
-import type {
-  KanaKey,
-  PromptItem,
-  Strictness,
-  Script,
-} from '../model/types';
+import type { KanaKey, PromptItem, Strictness, Script } from '../model/types';
 import { allKanaRows } from '../model/data';
 
 export type Token = {
@@ -173,8 +168,7 @@ export function compile(prompt: PromptItem, strictness: Strictness): Matcher {
       const nextFirstChar = next ? next.ime[0]?.[0] : undefined;
 
       const isVowelOrNY =
-        nextFirstChar === undefined ||
-        ['a', 'i', 'u', 'e', 'o', 'n', 'y'].includes(nextFirstChar);
+        nextFirstChar === undefined || ['a', 'i', 'u', 'e', 'o', 'n', 'y'].includes(nextFirstChar);
 
       if (next && !isVowelOrNY) {
         // Double consonant of next token
@@ -271,10 +265,7 @@ export function compile(prompt: PromptItem, strictness: Strictness): Matcher {
           nextSpellings.length > 0 &&
           nextSpellings.every((sp) => {
             const firstC = sp[0];
-            return (
-              firstC !== undefined &&
-              !['a', 'i', 'u', 'e', 'o', 'n', 'y'].includes(firstC)
-            );
+            return firstC !== undefined && !['a', 'i', 'u', 'e', 'o', 'n', 'y'].includes(firstC);
           });
 
         if (canUseBareN) {

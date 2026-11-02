@@ -1,8 +1,4 @@
-export type {
-  KanaStats,
-  ProgressMap,
-  PersistedProgress,
-} from './model/types';
+export type { KanaStats, ProgressMap, PersistedProgress } from './model/types';
 
 export {
   computeWeakness,

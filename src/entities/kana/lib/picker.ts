@@ -1,9 +1,4 @@
-import type {
-  PracticeSettings,
-  PromptItem,
-  ContentItem,
-  KanaKey,
-} from '../model/types';
+import type { PracticeSettings, PromptItem, ContentItem, KanaKey } from '../model/types';
 import { allKanaRows } from '../model/data';
 import type { Rng } from '@/shared/lib';
 

@@ -1,12 +1,6 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
-import type {
-  TestConfig,
-  Phase,
-  KeystrokeEvent,
-  PromptResult,
-  SessionMetrics,
-} from './types';
+import type { TestConfig, Phase, KeystrokeEvent, PromptResult, SessionMetrics } from './types';
 import { computeMetrics } from '../lib/metrics';
 import type { KeyValueStore } from '@/shared/lib';
 import { STORAGE_KEYS, isSettings } from '@/shared/lib';

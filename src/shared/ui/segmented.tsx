@@ -29,7 +29,7 @@ export function Segmented<T extends string | number>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="inline-flex rounded bg-surface border border-border p-0.5 gap-0.5 select-none"
+      className="bg-surface border-border inline-flex gap-0.5 rounded border p-0.5 select-none"
     >
       {options.map((opt) => {
         const isSelected = opt.value === value;
@@ -47,11 +47,9 @@ export function Segmented<T extends string | number>({
               }
             }}
             className={cx(
-              'rounded transition-colors font-normal cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50 disabled:cursor-not-allowed',
+              'focus-visible:ring-accent cursor-pointer rounded font-normal transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50',
               padClass,
-              isSelected
-                ? 'bg-accent text-bg'
-                : 'text-text-dim hover:text-text hover:bg-surface-2',
+              isSelected ? 'bg-accent text-bg' : 'text-text-dim hover:text-text hover:bg-surface-2',
             )}
           >
             {opt.label}

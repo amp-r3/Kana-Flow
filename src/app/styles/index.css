@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "../../shared/styles/fonts.css";
-@import "../../shared/styles/tokens.css";
+@import 'tailwindcss';
+@import '../../shared/styles/fonts.css';
+@import '../../shared/styles/tokens.css';
 
 @theme inline {
   --color-bg: var(--bg);
@@ -15,14 +15,23 @@
   --color-ok: var(--ok);
   --color-error: var(--error);
 
-  --font-mono: "JetBrains Mono", monospace;
-  --font-kana: "Noto Sans JP", sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-kana: 'Noto Sans JP', sans-serif;
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-6px); }
-  40%, 80% { transform: translateX(6px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
 }
 
 .animate-shake {
@@ -42,4 +51,3 @@
     animation: none !important;
   }
 }
-

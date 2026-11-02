@@ -54,8 +54,8 @@ export function computeMetrics(
 
   if (elapsedMs > 0) {
     const minutes = elapsedMs / 60000;
-    wpm = Math.round(((correct / 5) / minutes) * 10) / 10;
-    rawWpm = Math.round(((totalKeys / 5) / minutes) * 10) / 10;
+    wpm = Math.round((correct / 5 / minutes) * 10) / 10;
+    rawWpm = Math.round((totalKeys / 5 / minutes) * 10) / 10;
 
     let completedTokens = 0;
     for (const p of promptResults) {
@@ -91,7 +91,7 @@ export function computeMetrics(
         }
       }
       const minuteFraction = sec / 60;
-      const secWpm = Math.round(((cumCorrect / 5) / minuteFraction) * 10) / 10;
+      const secWpm = Math.round((cumCorrect / 5 / minuteFraction) * 10) / 10;
       wpmSeries.push(secWpm);
     }
   }

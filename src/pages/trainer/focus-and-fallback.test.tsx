@@ -74,9 +74,9 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
 
   it('loadContent failure falls back to single-kana mode with an i18n message', async () => {
     // Spy on loadContent and make it reject (simulating failed dynamic import chunk)
-    const loadContentSpy = vi.spyOn(kanaModule, 'loadContent').mockRejectedValue(
-      new Error('Failed to fetch dynamically imported module'),
-    );
+    const loadContentSpy = vi
+      .spyOn(kanaModule, 'loadContent')
+      .mockRejectedValue(new Error('Failed to fetch dynamically imported module'));
 
     const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
     const controller = new TypingController(() => prompt, defaultClock, defaultScheduler);

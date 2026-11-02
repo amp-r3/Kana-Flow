@@ -71,20 +71,20 @@ export function Dialog({
       ref={dialogRef}
       onClick={handleBackdropClick}
       className={cx(
-        'm-auto rounded-lg bg-surface border border-border text-text p-0 backdrop:bg-black/70 backdrop:backdrop-blur-xs outline-none shadow-2xl max-w-xl w-full max-h-[85vh] overflow-y-auto',
+        'bg-surface border-border text-text m-auto max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-lg border p-0 shadow-2xl outline-none backdrop:bg-black/70 backdrop:backdrop-blur-xs',
         className,
       )}
       aria-labelledby="dialog-title"
     >
-      <div className="p-5 flex flex-col gap-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
-          <h2 id="dialog-title" className="text-base font-normal text-text">
+      <div className="flex flex-col gap-4 p-5">
+        <div className="border-border flex items-center justify-between border-b pb-3">
+          <h2 id="dialog-title" className="text-text text-base font-normal">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-text-dim hover:text-text cursor-pointer p-1 rounded hover:bg-surface-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="text-text-dim hover:text-text hover:bg-surface-2 focus-visible:ring-accent cursor-pointer rounded p-1 transition-colors outline-none focus-visible:ring-2"
             aria-label="Close"
           >
             ✕

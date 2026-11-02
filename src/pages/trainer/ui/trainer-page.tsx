@@ -115,21 +115,25 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
   const isFinished = useComputed(() => phase.value === 'finished');
 
   return (
-    <div className="min-h-screen bg-bg text-text flex flex-col font-sans">
-      <div className="w-full max-w-4xl mx-auto px-4 flex flex-col flex-1 pb-12">
-        <TopBar onOpenRows={() => { setRowsDialogOpen(true); }} />
+    <div className="bg-bg text-text flex min-h-screen flex-col font-sans">
+      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-12">
+        <TopBar
+          onOpenRows={() => {
+            setRowsDialogOpen(true);
+          }}
+        />
 
-        <main className="flex-1 flex flex-col items-center justify-center gap-6 mt-4">
+        <main className="mt-4 flex flex-1 flex-col items-center justify-center gap-6">
           <ConfigBar />
 
           {contentError && (
-            <div className="w-full max-w-2xl mx-auto p-2.5 rounded bg-error/15 border border-error/30 text-error text-xs text-center">
+            <div className="bg-error/15 border-error/30 text-error mx-auto w-full max-w-2xl rounded border p-2.5 text-center text-xs">
               {contentError}
             </div>
           )}
 
           {isLoadingContent && (
-            <div className="w-full max-w-2xl mx-auto p-2.5 rounded bg-surface border border-border text-text-dim text-xs text-center animate-pulse">
+            <div className="bg-surface border-border text-text-dim mx-auto w-full max-w-2xl animate-pulse rounded border p-2.5 text-center text-xs">
               {t('stage.contentLoading')}
             </div>
           )}
@@ -144,7 +148,9 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
 
       <RowsDialog
         open={rowsDialogOpen}
-        onClose={() => { setRowsDialogOpen(false); }}
+        onClose={() => {
+          setRowsDialogOpen(false);
+        }}
       />
     </div>
   );

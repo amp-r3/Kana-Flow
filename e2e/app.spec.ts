@@ -14,7 +14,9 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.locator('text=wpm')).toBeVisible();
   });
 
-  test('(b) click a ConfigBar button, press a letter: focus is on the input AND the letter was processed (also with a wrong letter: mistake counted)', async ({ page }) => {
+  test('(b) click a ConfigBar button, press a letter: focus is on the input AND the letter was processed (also with a wrong letter: mistake counted)', async ({
+    page,
+  }) => {
     await page.goto('/');
     const input = page.locator('input[aria-label="Kana input sink"]');
 
@@ -57,7 +59,9 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.locator('text=wpm')).toBeVisible();
   });
 
-  test('(d) set words mode, reload: the first prompt is a word/phrase, never a single kana', async ({ page }) => {
+  test('(d) set words mode, reload: the first prompt is a word/phrase, never a single kana', async ({
+    page,
+  }) => {
     await page.goto('/');
 
     const input = page.locator('input[aria-label="Kana input sink"]');
@@ -106,7 +110,9 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.locator('text=wpm')).toBeVisible();
   });
 
-  test('(f) a full count test (10 prompts, type canonical answers) ends on results screen, "Next test" via Enter starts a new idle test', async ({ page }) => {
+  test('(f) a full count test (10 prompts, type canonical answers) ends on results screen, "Next test" via Enter starts a new idle test', async ({
+    page,
+  }) => {
     await page.goto('/');
     const input = page.locator('input[aria-label="Kana input sink"]');
     await expect(input).toBeFocused();
@@ -187,7 +193,9 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.getByRole('button', { name: 'Kana Matrix' })).toBeVisible();
   });
 
-  test('(h) Space in the input does nothing; Esc reveals the answer and the prompt is assisted', async ({ page }) => {
+  test('(h) Space in the input does nothing; Esc reveals the answer and the prompt is assisted', async ({
+    page,
+  }) => {
     await page.goto('/');
     const input = page.locator('input[aria-label="Kana input sink"]');
     await expect(input).toBeFocused();

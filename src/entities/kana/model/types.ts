@@ -1,38 +1,12 @@
 export type RowCategory = 'basic' | 'dakuten' | 'yoon' | 'extended';
 
-export type BasicRowId =
-  | 'vowels'
-  | 'k'
-  | 's'
-  | 't'
-  | 'n'
-  | 'h'
-  | 'm'
-  | 'y'
-  | 'r'
-  | 'w_n';
+export type BasicRowId = 'vowels' | 'k' | 's' | 't' | 'n' | 'h' | 'm' | 'y' | 'r' | 'w_n';
 
 export type DakutenRowId = 'g' | 'z' | 'd' | 'b' | 'p';
 
-export type YoonRowId =
-  | 'ky'
-  | 'sh'
-  | 'ch'
-  | 'ny'
-  | 'hy'
-  | 'my'
-  | 'ry'
-  | 'gy'
-  | 'j'
-  | 'by'
-  | 'py';
+export type YoonRowId = 'ky' | 'sh' | 'ch' | 'ny' | 'hy' | 'my' | 'ry' | 'gy' | 'j' | 'by' | 'py';
 
-export type ExtendedRowId =
-  | 'ext_fa'
-  | 'ext_va'
-  | 'ext_wi'
-  | 'ext_ti'
-  | 'ext_che';
+export type ExtendedRowId = 'ext_fa' | 'ext_va' | 'ext_wi' | 'ext_ti' | 'ext_che';
 
 export type RowId = BasicRowId | DakutenRowId | YoonRowId | ExtendedRowId;
 

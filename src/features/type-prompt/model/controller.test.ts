@@ -98,11 +98,7 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
       promptQueue.push(prompt2);
     }
 
-    const controller = new TypingController(
-      () => promptQueue.shift() ?? prompt2,
-      clock,
-      scheduler,
-    );
+    const controller = new TypingController(() => promptQueue.shift() ?? prompt2, clock, scheduler);
 
     // Load first prompt: パン
     controller.loadPrompt(prompt1, 'learner');

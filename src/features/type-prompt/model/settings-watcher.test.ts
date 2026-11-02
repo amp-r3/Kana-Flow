@@ -8,12 +8,7 @@ import {
   toggleRow,
   initPracticeSettings,
 } from '@/entities/kana';
-import {
-  phase,
-  startTest,
-  setTestConfig,
-  initSession,
-} from '@/entities/session';
+import { phase, startTest, setTestConfig, initSession } from '@/entities/session';
 import { MemoryKeyValueStore } from '@/shared/lib';
 
 describe('settings-watcher: single reactive effect resetting session to idle', () => {

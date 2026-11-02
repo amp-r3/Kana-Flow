@@ -22,11 +22,9 @@ import { locale } from '@/shared/i18n';
 
 // Compile-checked type helper: verifies property 'value' is readonly without @ts-expect-error
 type IfEquals<X, Y, A = true, B = false> =
-  (<T>(x: T) => T extends X ? 1 : 2) extends
-  (<T>(x: T) => T extends Y ? 1 : 2) ? A : B;
+  (<T>(x: T) => T extends X ? 1 : 2) extends <T>(x: T) => T extends Y ? 1 : 2 ? A : B;
 
-type IsWritable<T, K extends keyof T> =
-  IfEquals<{ [Q in K]: T[Q] }, { -readonly [Q in K]: T[Q] }>;
+type IsWritable<T, K extends keyof T> = IfEquals<{ [Q in K]: T[Q] }, { -readonly [Q in K]: T[Q] }>;
 
 type AssertFalse<T extends false> = T;
 
@@ -48,13 +46,21 @@ export type _CheckProgressStats = AssertFalse<IsWritable<typeof progressStats, '
 export type _CheckLocale = AssertFalse<IsWritable<typeof locale, 'value'>>;
 
 // Controller signal checks:
-export type _CheckCtrlTypedBuffer = AssertFalse<IsWritable<TypingController['typedBuffer'], 'value'>>;
+export type _CheckCtrlTypedBuffer = AssertFalse<
+  IsWritable<TypingController['typedBuffer'], 'value'>
+>;
 export type _CheckCtrlIsShaking = AssertFalse<IsWritable<TypingController['isShaking'], 'value'>>;
 export type _CheckCtrlIsAssisted = AssertFalse<IsWritable<TypingController['isAssisted'], 'value'>>;
 export type _CheckCtrlImeNotice = AssertFalse<IsWritable<TypingController['imeNotice'], 'value'>>;
-export type _CheckCtrlCurrentPrompt = AssertFalse<IsWritable<TypingController['currentPrompt'], 'value'>>;
-export type _CheckCtrlActiveTokenIdx = AssertFalse<IsWritable<TypingController['activeTokenIdx'], 'value'>>;
-export type _CheckCtrlCanonicalRomaji = AssertFalse<IsWritable<TypingController['canonicalRomaji'], 'value'>>;
+export type _CheckCtrlCurrentPrompt = AssertFalse<
+  IsWritable<TypingController['currentPrompt'], 'value'>
+>;
+export type _CheckCtrlActiveTokenIdx = AssertFalse<
+  IsWritable<TypingController['activeTokenIdx'], 'value'>
+>;
+export type _CheckCtrlCanonicalRomaji = AssertFalse<
+  IsWritable<TypingController['canonicalRomaji'], 'value'>
+>;
 export type _CheckCtrlTickerNow = AssertFalse<IsWritable<TypingController['tickerNow'], 'value'>>;
 
 describe('store state: ReadonlySignal guarantees', () => {

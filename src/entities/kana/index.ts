@@ -18,13 +18,7 @@ export type {
   PracticeSettings,
 } from './model/types';
 
-export {
-  basicRows,
-  dakutenRows,
-  yoonRows,
-  extendedRows,
-  allKanaRows,
-} from './model/data';
+export { basicRows, dakutenRows, yoonRows, extendedRows, allKanaRows } from './model/data';
 
 export {
   scriptSetting,
@@ -47,12 +41,7 @@ export {
   presetBasic,
 } from './model/store';
 
-export type {
-  Token,
-  Matcher,
-  Position,
-  MatchState,
-} from './lib/engine';
+export type { Token, Matcher, Position, MatchState } from './lib/engine';
 
 export {
   compile,
@@ -65,15 +54,8 @@ export {
   romajiForKey,
 } from './lib/engine';
 
-export {
-  shouldAbsorb,
-} from './lib/absorption';
+export { shouldAbsorb } from './lib/absorption';
 
-export {
-  buildPool,
-  pickPrompt,
-} from './lib/picker';
+export { buildPool, pickPrompt } from './lib/picker';
 
-export {
-  loadContent,
-} from './api/content-loader';
+export { loadContent } from './api/content-loader';
