@@ -15,13 +15,18 @@ interface Engine {
   step(m: Matcher, s: MatchState, ch: string): MatchState | null; // null = key rejected
   isComplete(m: Matcher, s: MatchState): boolean; // end of the stream reached
   committedPrompts(m: Matcher, s: MatchState): number; // prompts committed in every active position
-  committedTimings(m: Matcher, s: MatchState): readonly TokenTiming[]; // per committed token, surviving path
+  committedTimings(m: Matcher, s: MatchState): readonly TokenTiming[]; // per committed token, surviving path; no skip tokens
   extensions(m: Matcher, s: MatchState): ReadonlySet<string>;
   view(m: Matcher, s: MatchState): EngineView; // live conversion
   errorTarget(m: Matcher, s: MatchState): number; // token index for error attribution
   canonical(m: Matcher, promptIndex: number): string; // hint text (Esc)
   spellingsFor(key: KanaKey, strictness: Strictness): readonly string[]; // results screen, learning mode
   canonicalFor(key: KanaKey): string;
+}
+
+interface Matcher {
+  readonly tokens: readonly Token[]; // all tokens of the window, skip tokens included
+  readonly promptStarts: readonly number[]; // index of each prompt's first token in `tokens`
 }
 
 interface EngineView {
@@ -37,10 +42,28 @@ interface TokenTiming {
 }
 ```
 
+**Error log.** `step()` is pure and records nothing. The package also exports a pure helper that holds the per-token error data of D10, D11 and the confusion pairs:
+
+```ts
+export function createErrorLog(): ErrorLog;
+
+interface ErrorLog {
+  record(tokenIndex: number, expected: KanaKey | null, typed: string): void; // mistakes += 1, errored = true
+  mistakes(tokenIndex: number): number;
+  errored(tokenIndex: number): boolean;
+  confusions(): ReadonlyMap<string, number>; // "expected kana → typed character" pairs
+  rebase(droppedTokens: number): void; // after compact()
+}
+```
+
+A pair is stored only when `expected` is a `KanaKey`: a standalone っ and ー have none (see "Statistic keys" in [Metrics and statistics](metrics.md)). The caller passes `errorTarget()` as `tokenIndex`.
+
 **Spelling constraints.** A spelling of a token MAY carry the set of next-token spellings it may precede: a single `n` for ん only before qualifying spellings, a doubled consonant for っ only before the spelling it doubles. `step()` spawns positions into the next token only for permitted spellings. This replaces the baseline token model `{ spellings[] }` and changes the baseline `start`/`step`.
 
 - **Display position.** `view()` uses the active position with the shortest `pendingLatin`; on a tie, the position whose spellings come first in table order. Example, relaxed こんな: `kon` → こん; `konn` → こん; `konna` → こんな.
 - **Window.** The stream is compiled with at least one full prompt beyond the active prompt. `extend()` MUST be called before the active token enters the last prompt of the window, so that the context of every non-final ん is known before it is typed. compact() is called after every 20 committed prompts, so a zen session does not grow the matcher without bound. It returns `droppedTokens`; the stream UI rebases its token references, errored flags and activeToken by that offset within the render of the prompt completion that triggered it, so the ≤ 1 render budget holds. `committedTimings()` covers only tokens still in the matcher, so the session reads it before calling compact(). `firstKey` and `lastKey` are session-wide keystroke indices and are never rebased.
+- **Timings.** A token is reported by `committedTimings()` only when every active position agrees on its `firstKey` and `lastKey`. Relaxed こんな after `konn` has two live paths (ん = `n` and ん = `nn`) that disagree on ん's `lastKey`; ん is reported once `a` leaves a single value. Skip tokens consume no keystroke and never appear in the result.
+- **Canonical.** `canonical()` is the concatenation of the first spelling of every token of the prompt in strict table order; ん is always `nn` and the result does not change after `extend()`.
 - **Imports.** The package MUST NOT import DOM APIs, signals, storage or application aliases. The kana table and the visually-similar kana table ship in the same package as data.
 - **Case.** Upper-case letters are lowercased before `step`; Caps Lock has no effect on matching.
 - **Types not defined here** (`KanaTable`, `PromptItem`, `ReadingHint`, `KanaKey`, `Strictness`) are retained from the baseline. `ReadingHint.tokenIndex` counts the prompt's tokens from 0; a merged っX and a skip token each count as one token.
@@ -49,10 +72,10 @@ interface TokenTiming {
 
 - **Kana** — longest match against the table (きゃ wins over き).
 - **っ followed by a kana** — spellings are built per spelling of the next kana (D22): every next spelling that starts with a latin consonant other than `n` and `y` is accepted with its first letter doubled (for ch-spellings: `cch`, `tch`, `tt` as in the table below); in addition, `xtu`, `ltu`, `xtsu` or `ltsu` followed by any next spelling is accepted. If no next spelling qualifies for doubling, only the prefixed forms remain.
-- **っ elsewhere** — at the end of a prompt, before ー or before a skip token: `xtu`, `ltu`, `xtsu`, `ltsu`.
+- **っ elsewhere** — at the end of a prompt, before ー, before a skip token or before another っ: `xtu`, `ltu`, `xtsu`, `ltsu`. In っっ the first っ is standalone and the second follows the rules above.
 - **ん** — `nn` and `n'` are always accepted. A single `n` is accepted, per spelling of the next token, when that spelling starts with a latin consonant other than `n` and `y`, and at the end of the stream or before a skip token. Relaxed mode also accepts a single `n` before a spelling that starts with `n`, and at a prompt boundary before any spelling of the next prompt (A15).
-- **ー** — `-` in both modes. Relaxed mode also accepts the final vowel of each spelling of the previous kana token (ADR 007). At the start of a prompt, after a skip token, after ん and after a standalone っ there is no such vowel, so only `-` is accepted.
-- **Small kana** — ぁぃぅぇぉゃゅょゎヵヶ as standalone tokens (D7).
+- **ー** — `-` in both modes. Relaxed mode also accepts the final vowel of each spelling of the previous kana token (ADR 007). The vowel comes from the nearest kana token to the left, looking through ー (relaxed こーー accepts `kooo`). At the start of a prompt, after a skip token, after ん and after a standalone っ there is no such vowel, so only `-` is accepted.
+- **Small kana** — ぁぃぅぇぉゃゅょゎ and ヵヶ as standalone tokens (D7), with their katakana forms. They and ゐ/ゑ live in the engine table only, as `standaloneRows`; they belong to no selectable row (see [Learning mode](learning.md)). ゕ and ゖ are not supported.
 - **Skip token** — 、。，．！？・「」『』（）…〜 and half-width and full-width spaces. Rendered in the stream, requires no input; the cursor passes over it automatically; excluded from metrics.
 
 **Invariant:** relaxed mode accepts every input that strict mode accepts, for every prompt. This is a property test. Example: ほんを — strict accepts `honwo`, `honnwo`, `hon'wo`; relaxed accepts those plus `honno` and `hon'o`.

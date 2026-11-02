@@ -53,3 +53,4 @@ Append-only log of architectural decisions, one file per decision.
 | [026](026-pnpm-as-package-manager.md)                                                | pnpm as the Package Manager                                                                  | In force             |
 | [027](027-pnpm-workspace-layout-for-the-monorepo.md)                                 | pnpm Workspace Layout for the Monorepo                                                       | In force             |
 | [028](028-empty-pool-falls-back-to-basic-rows.md)                                    | Empty Kana Pool Falls Back to the Basic Rows                                                 | In force             |
+| [029](029-stream-engine-with-spelling-constraints.md)                                | Stream Engine with Spelling Constraints                                                      | In force             |
