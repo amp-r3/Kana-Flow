@@ -66,7 +66,7 @@ Open your browser to `http://localhost:5173`.
 
 ### Automated Verification Suite
 
-Run the full verification pipeline (Typecheck + Steiger FSD Lint + Vitest Tests + Production Build + Size Budget Check):
+Run the full verification pipeline (typecheck, ESLint + Steiger FSD lint, Prettier check, Vitest tests with the engine coverage threshold, production build, size budgets, Playwright e2e):
 
 ```bash
 pnpm run verify
@@ -84,7 +84,7 @@ pnpm run budget       # check-budget.mjs (enforces first-load size caps)
 
 ### End-to-End Testing (Playwright)
 
-End-to-end browser integration tests are powered by Playwright. **Note:** `pnpm run e2e` runs in real browser environments and is intentionally kept separate—it is **NOT** part of `pnpm run verify`.
+End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify`, locally and in CI. They need Chromium once.
 
 To install the browser binary and run the E2E suite:
 
@@ -100,7 +100,7 @@ pnpm run e2e                        # Run Playwright E2E suite against Vite dev 
 | Hook         | Runs                                                                                                               | Notes                                                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                |
-| `pre-push`   | `pnpm run verify`, then `pnpm run e2e`                                                                             | Reuses a running `pnpm run dev` if there is one; needs `pnpm --filter @nekotype/web exec playwright install chromium` once |
+| `pre-push`   | `pnpm run verify` (includes e2e)                                                                                   | Reuses a running `pnpm run dev` if there is one; needs `pnpm --filter @nekotype/web exec playwright install chromium` once |
 
 CI still runs `verify` on every push and pull request; the hooks catch the same failures earlier. In an emergency, `git commit --no-verify` / `git push --no-verify` skips them.
 
@@ -131,7 +131,7 @@ Nekotype is a fully static SPA (`apps/web/dist/`, no backend, state in `localSto
 
 `.github/workflows/deploy.yml` runs on every push to `main` and on every pull request:
 
-1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + FSD lint + unit tests + build + size budget). A failing size budget blocks the deploy.
+1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e on Chromium). Any failure blocks the deploy.
 2. `wrangler pages deploy apps/web/dist` — pushes to `main` go to production, PRs get a preview deployment. Fork PRs verify but never deploy, since they cannot read secrets.
 
 ### One-Time Setup
