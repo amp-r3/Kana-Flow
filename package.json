@@ -16,7 +16,7 @@
     "lint": "pnpm -r --if-present run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm -r --if-present run test",
+    "test": "pnpm -r --workspace-concurrency=1 --if-present run test",
     "fonts": "pnpm --filter @nekotype/web run fonts",
     "budget": "pnpm -r --if-present run budget",
     "e2e": "pnpm -r --if-present run e2e",
