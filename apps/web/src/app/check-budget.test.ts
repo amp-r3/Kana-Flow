@@ -1,0 +1,173 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { checkBudget } from '../../scripts/check-budget.mjs';
+
+// Random bytes do not compress, so a file of N KB is about N KB raw, gzip and brotli.
+const KB = 1024;
+const blob = (kb: number): Buffer => randomBytes(Math.round(kb * KB));
+
+type ManifestChunk = {
+  file: string;
+  src?: string;
+  isEntry?: boolean;
+  isDynamicEntry?: boolean;
+  imports?: string[];
+  css?: string[];
+  assets?: string[];
+};
+
+type Fixture = {
+  htmlKb?: number;
+  jsKb?: number;
+  cssKb?: number;
+  fontsKb?: number[];
+  sharedJsKb?: number;
+  lazy?: { src: string; kb: number }[];
+  manifest?: boolean;
+};
+
+const dirs: string[] = [];
+
+function write(root: string, rel: string, data: Buffer | string): void {
+  const path = join(root, rel);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, data);
+}
+
+/** Builds a dist directory with a Vite manifest of the given sizes. */
+function makeDist(f: Fixture): string {
+  const root = mkdtempSync(join(tmpdir(), 'nekotype-budget-'));
+  dirs.push(root);
+  const manifest: Record<string, ManifestChunk> = {};
+  const fonts = (f.fontsKb ?? [10, 10]).map((size, i) => ({ file: `assets/font${i}.woff2`, size }));
+
+  write(root, 'index.html', blob(f.htmlKb ?? 0.3));
+  write(root, 'assets/index.js', blob(f.jsKb ?? 10));
+  write(root, 'assets/index.css', blob(f.cssKb ?? 3));
+  for (const font of fonts) write(root, font.file, blob(font.size));
+
+  const entry: ManifestChunk = {
+    file: 'assets/index.js',
+    src: 'index.html',
+    isEntry: true,
+    css: ['assets/index.css'],
+    assets: fonts.map((font) => font.file),
+  };
+  manifest['index.html'] = entry;
+
+  if (f.sharedJsKb !== undefined) {
+    write(root, 'assets/shared.js', blob(f.sharedJsKb));
+    manifest['_shared.js'] = { file: 'assets/shared.js' };
+    entry.imports = ['_shared.js'];
+  }
+  for (const [i, lazy] of (f.lazy ?? []).entries()) {
+    write(root, `assets/lazy${i}.js`, blob(lazy.kb));
+    manifest[lazy.src] = { file: `assets/lazy${i}.js`, src: lazy.src, isDynamicEntry: true };
+  }
+  if (f.manifest !== false) write(root, '.vite/manifest.json', JSON.stringify(manifest));
+  return root;
+}
+
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+const failuresFor = (f: Fixture): readonly string[] => checkBudget(makeDist(f)).failures;
+
+describe('check-budget', () => {
+  it('passes a build within every budget', () => {
+    const { failures, lines } = checkBudget(
+      makeDist({
+        lazy: [
+          { src: 'src/pages/stats/index.ts', kb: 20 },
+          { src: 'src/entities/kana/model/data/words.ts', kb: 30 },
+        ],
+      }),
+    );
+    expect(failures).toEqual([]);
+    expect(lines.join('\n')).toContain('Total First Load');
+  });
+
+  it('reports gzip and brotli for JS and CSS', () => {
+    const { lines } = checkBudget(makeDist({}));
+    const text = lines.join('\n');
+    expect(text).toMatch(/assets\/index\.js: .*\(gzip\), .*\(brotli\)/);
+    expect(text).toMatch(/assets\/index\.css: .*\(gzip\), .*\(brotli\)/);
+    expect(text).toMatch(/Initial JS \(gzip\).*brotli/);
+  });
+
+  it('fails when the HTML is over 5 KB', () => {
+    expect(failuresFor({ htmlKb: 6 })).toEqual([expect.stringContaining('Initial HTML')]);
+  });
+
+  it('fails when initial JS is over 35 KB, counting statically imported chunks', () => {
+    expect(failuresFor({ jsKb: 36 })).toEqual([expect.stringContaining('Initial JS')]);
+    // 20 + 20 KB: each file is under the limit, together they are not
+    expect(failuresFor({ jsKb: 20, sharedJsKb: 20 })).toEqual([
+      expect.stringContaining('Initial JS'),
+    ]);
+  });
+
+  it('fails when initial CSS is over 10 KB', () => {
+    expect(failuresFor({ cssKb: 11 })).toEqual([expect.stringContaining('Initial CSS')]);
+  });
+
+  it('fails for a font over 45 KB, using the files in dist', () => {
+    expect(failuresFor({ fontsKb: [10, 46] })).toEqual([expect.stringContaining('font1.woff2')]);
+  });
+
+  it('fails when the total first load is over 160 KB', () => {
+    // every part is within its own budget: 3 fonts x 44 + 30 + 3 + 0.3 is about 165 KB
+    const failures = failuresFor({ fontsKb: [44, 44, 44], jsKb: 30 });
+    expect(failures).toEqual([expect.stringContaining('Total first load')]);
+  });
+
+  it('does not count lazy chunks in the initial JS', () => {
+    const failures = failuresFor({
+      jsKb: 30,
+      lazy: [{ src: 'src/entities/kana/model/data/words.ts', kb: 39 }],
+    });
+    expect(failures).toEqual([]);
+  });
+
+  it('applies 25 KB to a lazy route chunk', () => {
+    const failures = failuresFor({ lazy: [{ src: 'src/pages/stats/index.ts', kb: 26 }] });
+    expect(failures).toEqual([expect.stringContaining('Lazy route chunk')]);
+  });
+
+  it('applies 40 KB to a content chunk, found by its source and not by file name', () => {
+    // 30 KB is fine for content (words.ts) but too big for a route
+    expect(
+      failuresFor({ lazy: [{ src: 'src/entities/kana/model/data/words.ts', kb: 30 }] }),
+    ).toEqual([]);
+    expect(failuresFor({ lazy: [{ src: 'src/pages/stats/index.ts', kb: 30 }] })).toEqual([
+      expect.stringContaining('Lazy route chunk'),
+    ]);
+    expect(
+      failuresFor({ lazy: [{ src: 'src/entities/kana/model/data/phrases.ts', kb: 41 }] }),
+    ).toEqual([expect.stringContaining('Content chunk')]);
+    expect(failuresFor({ lazy: [{ src: 'content/n5-words.ts', kb: 41 }] })).toEqual([
+      expect.stringContaining('Content chunk'),
+    ]);
+  });
+
+  it('a route chunk is not mistaken for content because of its file name', () => {
+    // the old check looked for "words" or "phrases" in the file name
+    expect(failuresFor({ lazy: [{ src: 'src/pages/wordsmith/index.ts', kb: 30 }] })).toEqual([
+      expect.stringContaining('Lazy route chunk'),
+    ]);
+  });
+
+  it('fails clearly when the Vite manifest is missing', () => {
+    expect(failuresFor({ manifest: false })).toEqual([expect.stringContaining('manifest.json')]);
+  });
+
+  it('fails clearly when dist does not exist', () => {
+    expect(checkBudget(join(tmpdir(), 'nekotype-no-such-dist')).failures).toEqual([
+      expect.stringContaining('does not exist'),
+    ]);
+  });
+});
