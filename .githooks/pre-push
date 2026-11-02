@@ -1,7 +1,7 @@
 #!/bin/sh
-# Full verification before code leaves the machine: the same `verify` that CI runs, plus e2e.
+# Full verification before code leaves the machine: the same `verify` that CI runs
+# (typecheck, lint, formatting, unit tests with coverage, build, size budgets, e2e).
 # Bypass in an emergency with `git push --no-verify`.
 set -eu
 
 pnpm run --silent verify
-pnpm run --silent e2e
