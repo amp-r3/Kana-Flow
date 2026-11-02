@@ -37,7 +37,11 @@ export {
 
 export { createStreamEngine } from './matcher/engine';
 export type { StreamEngine } from './matcher/engine';
+export { createErrorLog } from './matcher/error-log';
+export type { ErrorLog } from './matcher/error-log';
 export type {
+  EngineView,
+  TokenTiming,
   Spelling,
   StreamMatcher,
   StreamPosition,

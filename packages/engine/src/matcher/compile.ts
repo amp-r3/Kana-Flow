@@ -10,6 +10,7 @@ type GlyphInfo = {
 
 export type GlyphIndex = {
   readonly glyphs: ReadonlyMap<string, GlyphInfo>;
+  readonly byKey: ReadonlyMap<KanaKey, GlyphInfo>;
   readonly maxLength: number;
 };
 
@@ -21,11 +22,16 @@ type Draft = {
   texts: string[];
 };
 
-type Raw = {
-  readonly glyph: string;
-  readonly kind: TokenKind;
-  readonly info: GlyphInfo | null;
-};
+type Raw =
+  | {
+      readonly kind: 'kana';
+      readonly glyph: string;
+      readonly info: GlyphInfo;
+      // Preceded by a っ that is merged into this token.
+      readonly sokuon: boolean;
+    }
+  | { readonly kind: 'n'; readonly glyph: string; readonly kanaKey: KanaKey }
+  | { readonly kind: 'sokuon' | 'choonpu' | 'skip'; readonly glyph: string };
 
 const VOWELS = 'aiueo';
 // Latin consonants a single n may precede, and a sokuon may double: all but n and y.
@@ -42,22 +48,53 @@ export function buildGlyphIndex(
   }[],
 ): GlyphIndex {
   const glyphs = new Map<string, GlyphInfo>();
+  const byKey = new Map<KanaKey, GlyphInfo>();
   let maxLength = 1;
   for (const row of table) {
     for (const e of row.entries) {
       if (e.hiragana !== undefined) {
-        glyphs.set(e.hiragana, {
+        const info: GlyphInfo = {
           kanaKey: `hiragana:${e.hiragana}`,
           ime: e.ime,
           learner: e.learner,
-        });
+        };
+        glyphs.set(e.hiragana, info);
+        byKey.set(info.kanaKey, info);
         maxLength = Math.max(maxLength, e.hiragana.length);
       }
-      glyphs.set(e.katakana, { kanaKey: `katakana:${e.katakana}`, ime: e.ime, learner: e.learner });
+      const info: GlyphInfo = { kanaKey: `katakana:${e.katakana}`, ime: e.ime, learner: e.learner };
+      glyphs.set(e.katakana, info);
+      byKey.set(info.kanaKey, info);
       maxLength = Math.max(maxLength, e.katakana.length);
     }
   }
-  return { glyphs, maxLength };
+  return { glyphs, byKey, maxLength };
+}
+
+function isSokuon(ch: string): boolean {
+  return ch === 'っ' || ch === 'ッ';
+}
+
+function isN(ch: string): boolean {
+  return ch === 'ん' || ch === 'ン';
+}
+
+// A character that is a token of its own and so never merges into a preceding っ.
+function isSpecial(ch: string): boolean {
+  return isSokuon(ch) || isN(ch) || ch === 'ー' || SKIP_CHARACTERS.has(ch);
+}
+
+function matchKana(
+  index: GlyphIndex,
+  text: string,
+  from: number,
+): { glyph: string; info: GlyphInfo } | null {
+  for (let len = Math.min(index.maxLength, text.length - from); len >= 1; len--) {
+    const glyph = text.slice(from, from + len);
+    const info = index.glyphs.get(glyph);
+    if (info !== undefined) return { glyph, info };
+  }
+  return null;
 }
 
 function tokenize(index: GlyphIndex, text: string): Raw[] {
@@ -65,38 +102,34 @@ function tokenize(index: GlyphIndex, text: string): Raw[] {
   let i = 0;
   while (i < text.length) {
     const ch = text.charAt(i);
-    if (ch === 'っ' || ch === 'ッ') {
-      out.push({ glyph: ch, kind: 'sokuon', info: null });
-      i += 1;
+    if (isSokuon(ch)) {
+      // っ merges into the kana that follows it (D22), but not across ん, ー, another っ or a skip.
+      const next = text.charAt(i + 1);
+      const hit = isSpecial(next) ? null : matchKana(index, text, i + 1);
+      if (hit === null) {
+        out.push({ kind: 'sokuon', glyph: ch });
+        i += 1;
+      } else {
+        out.push({ kind: 'kana', glyph: ch + hit.glyph, info: hit.info, sokuon: true });
+        i += 1 + hit.glyph.length;
+      }
     } else if (ch === 'ー') {
-      out.push({ glyph: ch, kind: 'choonpu', info: null });
+      out.push({ kind: 'choonpu', glyph: ch });
       i += 1;
-    } else if (ch === 'ん' || ch === 'ン') {
+    } else if (isN(ch)) {
       const script: Script = ch === 'ん' ? 'hiragana' : 'katakana';
-      out.push({
-        glyph: ch,
-        kind: 'n',
-        info: { kanaKey: `${script}:${ch}`, ime: [], learner: [] },
-      });
+      out.push({ kind: 'n', glyph: ch, kanaKey: `${script}:${ch}` });
       i += 1;
     } else if (SKIP_CHARACTERS.has(ch)) {
-      out.push({ glyph: ch, kind: 'skip', info: null });
+      out.push({ kind: 'skip', glyph: ch });
       i += 1;
     } else {
-      let matched = false;
-      for (let len = Math.min(index.maxLength, text.length - i); len >= 1; len--) {
-        const glyph = text.slice(i, i + len);
-        const info = index.glyphs.get(glyph);
-        if (info !== undefined) {
-          out.push({ glyph, kind: 'kana', info });
-          i += len;
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
+      const hit = matchKana(index, text, i);
+      if (hit === null) {
         throw new Error(`Unrepresentable character in prompt: "${ch}" at index ${i} in "${text}"`);
       }
+      out.push({ kind: 'kana', glyph: hit.glyph, info: hit.info, sokuon: false });
+      i += hit.glyph.length;
     }
   }
   return out;
@@ -106,7 +139,7 @@ function unique(texts: readonly string[]): string[] {
   return Array.from(new Set(texts));
 }
 
-function kanaTexts(info: GlyphInfo, strictness: Strictness): string[] {
+export function kanaTexts(info: GlyphInfo, strictness: Strictness): string[] {
   return unique(strictness === 'ime' ? info.ime : [...info.ime, ...info.learner]);
 }
 
@@ -199,57 +232,18 @@ export function appendPrompts(
 
   prompts.forEach((prompt, i) => {
     const promptIndex = firstPrompt + i;
-    const raws = tokenize(index, prompt.text);
     const start = drafts.length;
     promptStarts.push(baseToken + start);
 
-    for (let i = 0; i < raws.length; i++) {
-      const raw = raws[i];
-      if (raw === undefined) continue;
-      const draft = ((): Draft => {
-        const base = { glyph: raw.glyph, promptIndex };
-        if (raw.kind === 'sokuon') {
-          const next = raws[i + 1];
-          if (next?.kind === 'kana' && next.info !== null) {
-            i += 1;
-            return {
-              ...base,
-              glyph: raw.glyph + next.glyph,
-              kanaKey: next.info.kanaKey,
-              kind: 'kana',
-              texts: sokuonTexts(kanaTexts(next.info, strictness)),
-            };
-          }
-          return { ...base, kanaKey: null, kind: 'sokuon', texts: [...SOKUON_PREFIXES] };
-        }
-        if (raw.kind === 'choonpu') {
-          return {
-            ...base,
-            kanaKey: null,
-            kind: 'choonpu',
-            texts: choonpuTexts(drafts, start, strictness),
-          };
-        }
-        if (raw.kind === 'n') {
-          return { ...base, kanaKey: raw.info?.kanaKey ?? null, kind: 'n', texts: ['nn', "n'"] };
-        }
-        if (raw.kind === 'skip' || raw.info === null) {
-          return { ...base, kanaKey: null, kind: 'skip', texts: [] };
-        }
-        return {
-          ...base,
-          kanaKey: raw.info.kanaKey,
-          kind: 'kana',
-          texts: kanaTexts(raw.info, strictness),
-        };
-      })();
-
+    for (const raw of tokenize(index, prompt.text)) {
+      const draft = draftOf(raw, promptIndex, drafts, start, strictness);
       // Reading hints (relaxed only) address the prompt's tokens; a merged っX counts as one.
       if (strictness === 'learner' && draft.kind === 'kana') {
         const tokenIndex = drafts.length - start;
         for (const hint of prompt.readingHints ?? []) {
-          if (hint.tokenIndex === tokenIndex)
+          if (hint.tokenIndex === tokenIndex) {
             draft.texts = unique([...draft.texts, ...hint.learner]);
+          }
         }
       }
       drafts.push(draft);
@@ -257,37 +251,77 @@ export function appendPrompts(
   });
 
   // A single n for ん depends on the next token's spellings, so resolve from the right.
-  const fresh: StreamToken[] = new Array<StreamToken>(drafts.length);
-  for (let f = drafts.length - 1; f >= 0; f--) {
-    const d = drafts[f];
-    if (d === undefined) continue;
+  const reversed: StreamToken[] = [];
+  for (const d of drafts.slice().reverse()) {
     const spellings: Spelling[] = d.texts.map((text) => ({ text, next: null }));
     if (d.kind === 'n') {
-      const bare = bareNext(d.promptIndex, fresh[f + 1], strictness);
+      const bare = bareNext(d.promptIndex, reversed.at(-1), strictness);
       if (bare === null || bare.length > 0) spellings.push({ text: 'n', next: bare });
     }
-    fresh[f] = {
+    reversed.push({
       glyph: d.glyph,
       kanaKey: d.kanaKey,
       kind: d.kind,
       promptIndex: d.promptIndex,
       spellings,
-    };
+    });
   }
+  const fresh = reversed.reverse();
 
-  const old = m.tokens.slice();
-  const last = old[baseToken - 1];
-  if (last !== undefined && last.kind === 'n') {
-    const bare = bareNext(last.promptIndex, fresh[0], strictness) ?? [];
-    old[baseToken - 1] = {
-      ...last,
-      spellings: last.spellings.map((sp) => (sp.text === 'n' ? { text: 'n', next: bare } : sp)),
-    };
-  }
+  // The bare n of a trailing ん was waiting for this context; its index stays, its set changes.
+  const last = m.tokens.at(-1);
+  const head =
+    last?.kind === 'n'
+      ? [
+          ...m.tokens.slice(0, -1),
+          {
+            ...last,
+            spellings: last.spellings.map((sp) =>
+              sp.text === 'n'
+                ? { text: 'n', next: bareNext(last.promptIndex, fresh[0], strictness) }
+                : sp,
+            ),
+          },
+        ]
+      : m.tokens;
 
   return {
-    tokens: [...old, ...fresh],
+    tokens: [...head, ...fresh],
     promptStarts: [...m.promptStarts, ...promptStarts],
     strictness,
   };
+}
+
+function draftOf(
+  raw: Raw,
+  promptIndex: number,
+  before: readonly Draft[],
+  promptStart: number,
+  strictness: Strictness,
+): Draft {
+  const base = { glyph: raw.glyph, promptIndex };
+  switch (raw.kind) {
+    case 'kana': {
+      const texts = kanaTexts(raw.info, strictness);
+      return {
+        ...base,
+        kanaKey: raw.info.kanaKey,
+        kind: 'kana',
+        texts: raw.sokuon ? sokuonTexts(texts) : texts,
+      };
+    }
+    case 'sokuon':
+      return { ...base, kanaKey: null, kind: 'sokuon', texts: [...SOKUON_PREFIXES] };
+    case 'choonpu':
+      return {
+        ...base,
+        kanaKey: null,
+        kind: 'choonpu',
+        texts: choonpuTexts(before, promptStart, strictness),
+      };
+    case 'n':
+      return { ...base, kanaKey: raw.kanaKey, kind: 'n', texts: ['nn', "n'"] };
+    case 'skip':
+      return { ...base, kanaKey: null, kind: 'skip', texts: [] };
+  }
 }

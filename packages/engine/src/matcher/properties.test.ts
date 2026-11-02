@@ -193,3 +193,58 @@ describe('properties of extend and committedPrompts', () => {
     }
   });
 });
+
+describe('properties of compact and committedTimings', () => {
+  const rng = new Rng(20261104);
+  const cases = Array.from({ length: 200 }, () => {
+    const texts = randomPrompts(rng);
+    while (texts.length < 3) texts.push(...randomPrompts(rng));
+    return texts;
+  });
+
+  it('compacting after every key does not change what is accepted', () => {
+    for (const texts of cases) {
+      for (const mode of ['learner', 'ime'] as const) {
+        const whole = engine.compile(prompts(...texts), mode);
+        const { keys } = walk(whole, rng);
+        let a = engine.start(whole);
+        let b = engine.start(whole);
+        let mb = whole;
+        let droppedPrompts = 0;
+        for (let i = 0; i <= keys.length; i++) {
+          expect(acceptedKeys(mb, b), `${texts.join('|')} ${mode} ← ${keys} at ${i}`).toEqual(
+            acceptedKeys(whole, a),
+          );
+          expect(engine.isComplete(mb, b)).toBe(engine.isComplete(whole, a));
+          expect(engine.committedPrompts(mb, b) + droppedPrompts).toBe(
+            engine.committedPrompts(whole, a),
+          );
+          if (i === keys.length) break;
+          const na = engine.step(whole, a, keys.charAt(i));
+          const nb = engine.step(mb, b, keys.charAt(i));
+          if (na === null || nb === null) throw new Error('a key of the walk was rejected');
+          a = na;
+          const r = engine.compact(mb, nb);
+          droppedPrompts += mb.promptStarts.length - r.m.promptStarts.length;
+          mb = r.m;
+          b = r.s;
+        }
+      }
+    }
+  });
+
+  it('timings are ordered, inside the typed keys, and never overlap', () => {
+    for (const texts of cases) {
+      const m = engine.compile(prompts(...texts), 'learner');
+      const { state } = walk(m, rng);
+      const timings = engine.committedTimings(m, state);
+      let previous = -1;
+      for (const t of timings) {
+        expect(t.firstKey).toBeLessThanOrEqual(t.lastKey);
+        expect(t.firstKey).toBeGreaterThan(previous);
+        expect(t.lastKey).toBeLessThan(state.keys);
+        previous = t.lastKey;
+      }
+    }
+  });
+});
