@@ -52,7 +52,8 @@ export function updateKanaStats(
 ): KanaStats {
   const a = (prev ? prev.a : 0) + 1;
   const m = (prev ? prev.m : 0) + mistakes;
-  let t = ms;
+  // ms = 0 means no measurement (the first token of a test): the stored time stays.
+  let t = ms > 0 ? ms : (prev?.t ?? 0);
 
   if (prev && prev.t > 0 && ms > 0) {
     // EMA with alpha = 0.3

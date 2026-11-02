@@ -126,7 +126,15 @@ describe('readingHints', () => {
     const merged = [
       { key: 'b', text: 'あっは', readingHints: [{ tokenIndex: 1, learner: ['wa'] }] },
     ];
-    expect(acceptsItems(merged, 'learner', 'awa')).toBe(true);
+    expect(acceptsItems(merged, 'learner', 'awwa')).toBe(true);
+    expect(acceptsItems(merged, 'learner', 'axtuwa')).toBe(true);
+  });
+
+  it('carry the っ of a merged token, so it cannot be left out (D22)', () => {
+    const merged = [
+      { key: 'b', text: 'あっは', readingHints: [{ tokenIndex: 1, learner: ['wa'] }] },
+    ];
+    expect(acceptsItems(merged, 'learner', 'awa')).toBe(false);
   });
 
   it('are ignored in strict mode and on tokens that take no spelling', () => {

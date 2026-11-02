@@ -46,6 +46,11 @@ describe('progress weights and decay', () => {
   });
 
   it('updates stats with EMA latency and triggers decay when a > 50', () => {
+    const unmeasured = updateKanaStats({ a: 3, m: 0, t: 400 }, 0, 0);
+    expect(unmeasured.a).toBe(4);
+    expect(unmeasured.t).toBe(400);
+    expect(updateKanaStats(undefined, 0, 0).t).toBe(0);
+
     const s1 = updateKanaStats(undefined, 0, 500);
     expect(s1.a).toBe(1);
     expect(s1.m).toBe(0);

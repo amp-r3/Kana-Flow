@@ -1,7 +1,14 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import type { KeyIntent } from '../lib/input-adapter';
-import type { ErrorLog, MatchState, Matcher, PromptItem, Strictness } from '@/entities/kana';
+import type {
+  EngineView,
+  ErrorLog,
+  MatchState,
+  Matcher,
+  PromptItem,
+  Strictness,
+} from '@/entities/kana';
 import type { TokenTiming } from '@/entities/kana';
 import {
   canonical,
@@ -13,6 +20,7 @@ import {
   errorTarget,
   extend,
   isComplete,
+  settledPrompts,
   start,
   step,
   view,
@@ -86,6 +94,8 @@ export class TypingController {
   private errorLog: ErrorLog = createErrorLog();
   // Time of every accepted keystroke, indexed like the engine's keystroke indices.
   private keyTimes: number[] = [];
+  // When the last recorded token ended; undefined until one is recorded.
+  private lastTokenEnd: number | undefined = undefined;
   // Mistakes made by Esc before the test started; startTest resets the counters.
   private mistakesBeforeStart = 0;
 
@@ -113,12 +123,15 @@ export class TypingController {
     this.assisted.clear();
     this.errorLog = createErrorLog();
     this.keyTimes = [];
+    this.lastTokenEnd = undefined;
     this.mistakesBeforeStart = 0;
-    this.matcher = compile([prompt], strictness);
-    this.matchState = start(this.matcher);
+    const matcher = compile([prompt], strictness);
+    const state = start(matcher);
+    this.matcher = matcher;
+    this.matchState = state;
     this._isShaking.value = false;
     this.fillWindow();
-    this.showPrompt();
+    this.showPrompt(view(matcher, state));
   }
 
   handleCompositionStart(): void {
@@ -173,7 +186,7 @@ export class TypingController {
 
   finishSession(): void {
     if (this.matcher !== null && this.matchState !== null && phase.value === 'running') {
-      this.flushResults('committed', this.clock.now());
+      this.flushResults(this.promptBase + committedPrompts(this.matcher, this.matchState));
     }
     this.clearTimers();
     finishTest(this.clock.now());
@@ -218,7 +231,7 @@ export class TypingController {
     }, 1000);
   }
 
-  // Rejected: does not enter the buffer, triggers a shake, is charged to errorTarget() (D10).
+  // Rejected: does not enter the buffer, triggers a shake, is charged to errorTarget() (D10, A34).
   private reject(matcher: Matcher, state: MatchState, char: string, now: number): void {
     recordKeystroke(now, false);
     const target = errorTarget(matcher, state);
@@ -235,16 +248,20 @@ export class TypingController {
   }
 
   private afterAccepted(matcher: Matcher, state: MatchState, now: number): void {
-    const committed = this.promptBase + committedPrompts(matcher, state);
+    const localCommitted = committedPrompts(matcher, state);
+    const committed = this.promptBase + localCommitted;
     for (let k = this.committedSeen; k < committed; k++) {
       this.committedAt.set(k, now);
     }
     this.committedSeen = Math.max(this.committedSeen, committed);
-    this.flushResults('settled', now);
+    // Settled prompts only: a ん resolved by the next prompt's first key is not inflated.
+    if (this.recorded < committed) {
+      this.flushResults(this.promptBase + settledPrompts(matcher, state));
+    }
 
     // The last prompt of a count test ends it as soon as the stream is complete.
     if (this.isFinalStream() && isComplete(matcher, state)) {
-      this.flushResults('all', now);
+      this.flushResults(this.promptBase + this.prompts.length);
       this.finishSession();
       return;
     }
@@ -256,12 +273,12 @@ export class TypingController {
     if (this.promptBase + local > this.displayed) {
       this.displayed = this.promptBase + local;
       this.fillWindow();
-      this.showPrompt();
+      this.showPrompt(v);
     } else {
-      this.updateActiveToken();
+      this.updateActiveToken(v);
     }
 
-    this.compactIfDue();
+    this.compactIfDue(localCommitted);
   }
 
   private promptLimit(): number {
@@ -287,40 +304,31 @@ export class TypingController {
     }
   }
 
-  private showPrompt(): void {
+  private showPrompt(v: EngineView): void {
     const matcher = this.matcher;
     const local = this.displayed - this.promptBase;
     this._currentPrompt.value = this.prompts[local] ?? null;
     this._canonicalRomaji.value = matcher === null ? '' : canonical(matcher, local);
     this._isAssisted.value = this.assisted.has(this.displayed);
     this._typedBuffer.value = '';
-    this.updateActiveToken();
+    this.updateActiveToken(v);
   }
 
-  private updateActiveToken(): void {
-    const matcher = this.matcher;
-    const state = this.matchState;
-    if (matcher === null || state === null) return;
-    const first = matcher.promptStarts[this.displayed - this.promptBase] ?? 0;
-    this._activeTokenIdx.value = Math.max(0, view(matcher, state).activeToken - first);
+  private updateActiveToken(v: EngineView): void {
+    const first = this.matcher?.promptStarts[this.displayed - this.promptBase] ?? 0;
+    this._activeTokenIdx.value = Math.max(0, v.activeToken - first);
   }
 
   /**
-   * Records the results of finished prompts, in order.
-   * - settled: committed prompts whose tokens all have agreed timings; the others wait for a key
-   *   that settles the paths (a ん resolved by the next prompt's first key is not inflated).
-   * - committed: every committed prompt, estimating a timing that is still ambiguous.
-   * - all: every prompt of the window, for the end of a count test.
+   * Records the results of the prompts before `upTo` (absolute), in order. While a test runs that
+   * is the settled prompts; at its end, every committed prompt or the whole window, and a token
+   * whose timing is still ambiguous is estimated to end at the last key.
    */
-  private flushResults(mode: 'settled' | 'committed' | 'all', now: number): void {
+  private flushResults(upTo: number): void {
     const matcher = this.matcher;
     const state = this.matchState;
-    if (matcher === null || state === null) return;
-    const upTo =
-      mode === 'all'
-        ? this.promptBase + this.prompts.length
-        : this.promptBase + committedPrompts(matcher, state);
-    if (this.recorded >= upTo) return;
+    if (matcher === null || state === null || this.recorded >= upTo) return;
+    const now = this.keyTimes.at(-1) ?? this.clock.now();
 
     const timings = new Map<number, TokenTiming>();
     for (const t of committedTimings(matcher, state)) timings.set(t.tokenIndex, t);
@@ -333,32 +341,29 @@ export class TypingController {
       for (let t = from; t < to; t++) {
         if (matcher.tokens[t]?.kind !== 'skip') real.push(t);
       }
-      if (mode === 'settled' && real.some((t) => !timings.has(t))) break;
 
       const endedAt = this.committedAt.get(this.recorded) ?? now;
       const tokenOutcomes: { kanaKey: string | null; mistakes: number; ms: number }[] = [];
       let startedAt = endedAt;
-      let previousEnd = endedAt;
       let mistakes = 0;
       for (const t of real) {
         const timing = timings.get(t);
-        // A timed token runs from the keystroke before its first one to its last; one whose paths
-        // are still ambiguous is estimated to end now, starting where the previous token ended.
+        // Reaction time (spec metrics.md): a timed token runs from the keystroke before its first
+        // one to its last; one whose paths are still ambiguous ends now and starts where the
+        // previous token ended. The first token of a test has no such keystroke: ms = 0 is no
+        // measurement.
         const end = timing === undefined ? endedAt : (this.keyTimes[timing.lastKey] ?? endedAt);
-        const since =
-          timing === undefined
-            ? previousEnd
-            : (this.keyTimes[Math.max(0, timing.firstKey - 1)] ?? end);
+        const since = timing === undefined ? this.lastTokenEnd : this.keyTimes[timing.firstKey - 1];
         if (tokenOutcomes.length === 0 && timing !== undefined) {
           startedAt = this.keyTimes[timing.firstKey] ?? endedAt;
         }
-        previousEnd = end;
+        this.lastTokenEnd = end;
         const tokenMistakes = this.errorLog.mistakes(t);
         mistakes += tokenMistakes;
         tokenOutcomes.push({
           kanaKey: matcher.tokens[t]?.kanaKey ?? null,
           mistakes: tokenMistakes,
-          ms: Math.max(1, end - since),
+          ms: since === undefined ? 0 : Math.max(1, end - since),
         });
       }
 
@@ -375,13 +380,12 @@ export class TypingController {
     }
   }
 
-  // Drops committed prompts after every COMPACT_EVERY of them; the engine keeps back those whose
-  // timings are not yet agreed, and results are flushed before this runs.
-  private compactIfDue(): void {
+  // Drops settled prompts after every COMPACT_EVERY committed ones. They are the prompts that were
+  // just recorded (settledPrompts in afterAccepted), so no result is lost.
+  private compactIfDue(committed: number): void {
     const matcher = this.matcher;
     const state = this.matchState;
-    if (matcher === null || state === null) return;
-    if (committedPrompts(matcher, state) < COMPACT_EVERY) return;
+    if (matcher === null || state === null || committed < COMPACT_EVERY) return;
     const result = compact(matcher, state);
     if (result.droppedTokens === 0) return;
 
@@ -397,7 +401,6 @@ export class TypingController {
     for (const k of this.assisted) {
       if (k < this.promptBase) this.assisted.delete(k);
     }
-    this.recorded = Math.max(this.recorded, this.promptBase);
   }
 
   private clearTimers(): void {

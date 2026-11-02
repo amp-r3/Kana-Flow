@@ -3,6 +3,21 @@ import { createErrorLog } from './error-log';
 import { engine, feed, prompts, Rng } from './test-util';
 import type { Matcher, MatchState } from './types';
 
+describe('settledPrompts', () => {
+  it('waits until the paths agree on the keys of the last ん', () => {
+    const m = engine.compile(prompts('ほん', 'ねこ'), 'learner');
+    const at = (input: string): number => {
+      const s = feed(m, input).state;
+      if (s === null) throw new Error('rejected');
+      return engine.settledPrompts(m, s);
+    };
+    expect(at('hon')).toBe(0);
+    expect(at('honn')).toBe(0);
+    expect(at('honne')).toBe(1);
+    expect(at('honnne')).toBe(1);
+  });
+});
+
 describe('compact', () => {
   it('drops nothing while no prompt is committed', () => {
     const m = engine.compile(prompts('あか', 'い'), 'ime');

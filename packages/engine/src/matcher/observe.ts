@@ -1,11 +1,5 @@
 import type { EngineView, PathNode, Matcher, Position, MatchState, TokenTiming } from './types';
-import { isInProgress, nextReal, textOf } from './step';
-
-// The token a position will type next: the one in progress, or the first real token after a
-// completed one.
-function pendingToken(m: Matcher, pos: Position): number {
-  return isInProgress(m, pos) ? pos.token : nextReal(m, pos.token + 1);
-}
+import { committedPrompts, isInProgress, nextReal, pendingToken, textOf } from './step';
 
 // Live conversion (spec "Display position"): the position with the shortest typed latin beyond
 // its completed tokens; on a tie the one whose spelling comes first in table order, then the
@@ -14,8 +8,7 @@ export function view(m: Matcher, s: MatchState): EngineView {
   let best: Position | null = null;
   let bestPending = '';
   for (const pos of s.positions) {
-    const text = textOf(m, pos);
-    const pending = text !== null && pos.offset < text.length ? text.slice(0, pos.offset) : '';
+    const pending = isInProgress(m, pos) ? (textOf(m, pos) ?? '').slice(0, pos.offset) : '';
     const better =
       best === null ||
       pending.length < bestPending.length ||
@@ -39,12 +32,15 @@ function activeToken(m: Matcher, s: MatchState): number {
   return min;
 }
 
-// Token that a rejected key is charged to (D10): the minimum over active positions, never past the
-// last token that needs input.
+// Token that a rejected key or a hint is charged to (D10, A34): the minimum over active positions,
+// but never before the prompt on display, whose word the user is typing, and never past the last
+// token that needs input.
 export function errorTarget(m: Matcher, s: MatchState): number {
   let last = m.tokens.length - 1;
   while (last > 0 && m.tokens[last]?.kind === 'skip') last -= 1;
-  return Math.max(0, Math.min(activeToken(m, s), last));
+  const shown = m.tokens[Math.min(view(m, s).displayedTokens, last)]?.promptIndex ?? 0;
+  const shownFirst = nextReal(m, m.promptStarts[shown] ?? 0);
+  return Math.max(0, Math.min(Math.max(activeToken(m, s), shownFirst), last));
 }
 
 function nodesOf(m: Matcher, pos: Position): Map<number, PathNode> {
@@ -83,6 +79,22 @@ export function committedTimings(m: Matcher, s: MatchState): readonly TokenTimin
     if (agreed) out.push({ tokenIndex: token, firstKey: node.firstKey, lastKey: node.lastKey });
   }
   return out.sort((a, b) => a.tokenIndex - b.tokenIndex);
+}
+
+// Leading prompts that are committed and whose tokens all have agreed timings. A prompt that is
+// committed while the paths still disagree on the keystrokes of its last ん waits for the next key.
+export function settledPrompts(m: Matcher, s: MatchState): number {
+  const committed = committedPrompts(m, s);
+  if (committed === 0) return 0;
+  const agreed = new Set(committedTimings(m, s).map((t) => t.tokenIndex));
+  const limit = m.promptStarts[committed] ?? m.tokens.length;
+  const unsettled = m.tokens
+    .slice(0, limit)
+    .findIndex((t, i) => t.kind !== 'skip' && !agreed.has(i));
+  const settled = unsettled === -1 ? limit : unsettled;
+  let k = 0;
+  while (k < committed && (m.promptStarts[k + 1] ?? m.tokens.length) <= settled) k += 1;
+  return k;
 }
 
 // The first spelling of every token of the prompt. ん is always `nn`, so it does not change when
