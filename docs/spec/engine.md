@@ -32,13 +32,13 @@ interface Matcher {
 interface EngineView {
   displayedTokens: number; // tokens completed by the display position; may exceed the committed tokens
   pendingLatin: string; // typed latin beyond those tokens
-  activeToken: number; // token highlighted in the stream
+  activeToken: number; // token highlighted in the stream: the earliest token any active position is typing, so it can lag behind displayedTokens
 }
 
 interface TokenTiming {
   tokenIndex: number;
-  firstKey: number; // index of the first keystroke consumed by the token
-  lastKey: number; // index of the last keystroke consumed by the token
+  firstKey: number; // index of the first accepted keystroke consumed by the token
+  lastKey: number; // index of the last accepted keystroke consumed by the token
 }
 ```
 
@@ -51,7 +51,7 @@ interface ErrorLog {
   record(tokenIndex: number, expected: KanaKey | null, typed: string): void; // mistakes += 1, errored = true
   mistakes(tokenIndex: number): number;
   errored(tokenIndex: number): boolean;
-  confusions(): ReadonlyMap<string, number>; // "expected kana → typed character" pairs
+  confusions(): ReadonlyMap<KanaKey, ReadonlyMap<string, number>>; // expected kana → typed character → count
   rebase(droppedTokens: number): void; // after compact()
 }
 ```
@@ -61,8 +61,8 @@ A pair is stored only when `expected` is a `KanaKey`: a standalone っ and ー h
 **Spelling constraints.** A spelling of a token MAY carry the set of next-token spellings it may precede: a single `n` for ん only before qualifying spellings, a doubled consonant for っ only before the spelling it doubles. `step()` spawns positions into the next token only for permitted spellings. `extend()` never moves a token or spelling index: when the context that arrives rules out the bare `n` of a trailing ん, that spelling stays in place with an empty set of permitted next spellings, so a state typed before the call remains valid and the stale position dies on the next key. This replaces the baseline token model `{ spellings[] }` and changes the baseline `start`/`step`.
 
 - **Display position.** `view()` uses the active position with the shortest `pendingLatin`; on a tie, the position whose spellings come first in table order. Example, relaxed こんな: `kon` → こん; `konn` → こん; `konna` → こんな.
-- **Window.** The stream is compiled with at least one full prompt beyond the active prompt. `extend()` MUST be called before the active token enters the last prompt of the window, so that the context of every non-final ん is known before it is typed. compact() is called after every 20 committed prompts, so a zen session does not grow the matcher without bound. It returns `droppedTokens`; the stream UI rebases its token references, errored flags and activeToken by that offset within the render of the prompt completion that triggered it, so the ≤ 1 render budget holds. `committedTimings()` covers only tokens still in the matcher, so the session reads it before calling compact(). `firstKey` and `lastKey` are session-wide keystroke indices and are never rebased.
-- **Timings.** A token is reported by `committedTimings()` only when every active position agrees on its `firstKey` and `lastKey`. Relaxed こんな after `konn` has two live paths (ん = `n` and ん = `nn`) that disagree on ん's `lastKey`; ん is reported once `a` leaves a single value. Skip tokens consume no keystroke and never appear in the result.
+- **Window.** The stream is compiled with at least one full prompt beyond the active prompt. `extend()` MUST be called before the active token enters the last prompt of the window, so that the context of every non-final ん is known before it is typed. compact() is called after every 20 committed prompts, so a zen session does not grow the matcher without bound. It returns `droppedTokens`; the stream UI rebases its token references, errored flags and activeToken by that offset within the render of the prompt completion that triggered it, so the ≤ 1 render budget holds. `committedTimings()` covers only tokens still in the matcher, so the session reads it before calling compact(). compact() drops only prompts that are committed and whose tokens have agreed timings, so a prompt whose last ん is still ambiguous waits for the next key and no timing is lost; it returns `droppedTokens` 0 meanwhile. `firstKey` and `lastKey` are session-wide keystroke indices and are never rebased.
+- **Timings.** Keystroke indices count accepted keystrokes only (a rejected key returns `null` and is not in the state); `MatchState` carries the running count. A token is reported by `committedTimings()` only when every active position agrees on its `firstKey` and `lastKey`. Relaxed こんな after `konn` has two live paths (ん = `n` and ん = `nn`) that disagree on ん's `lastKey`; ん is reported once `a` leaves a single path. When two paths reach the same position, the one that arrived first in table order is kept. Skip tokens consume no keystroke and never appear in the result.
 - **Canonical.** `canonical()` is the concatenation of the first spelling of every token of the prompt in strict table order; ん is always `nn` and the result does not change after `extend()`.
 - **Imports.** The package MUST NOT import DOM APIs, signals, storage or application aliases. The kana table and the visually-similar kana table ship in the same package as data.
 - **Case.** Upper-case letters are lowercased before `step`; Caps Lock has no effect on matching.

@@ -140,6 +140,16 @@ describe('extend', () => {
     expect(spellings?.[2]?.next).toEqual([]);
   });
 
+  it('treats a skip token at the start of the new context as the end of the stream', () => {
+    for (const mode of ['ime', 'learner'] as const) {
+      const before = engine.compile(prompts('ほん'), mode);
+      const state = feed(before, 'hon').state;
+      const after = engine.extend(before, prompts('、あ'));
+      expect(state && engine.step(after, state, 'a'), mode).not.toBeNull();
+      expect(after.tokens[1]?.spellings[2]?.next).toBeNull();
+    }
+  });
+
   it('leaves ん before a skip token alone', () => {
     const m = engine.extend(engine.compile(prompts('ほん。'), 'ime'), prompts('あめ'));
     expect(m.tokens[1]?.spellings[2]?.next).toBeNull();

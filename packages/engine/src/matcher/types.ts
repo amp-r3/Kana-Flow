@@ -25,14 +25,40 @@ export type StreamMatcher = {
   readonly strictness: Strictness;
 };
 
+// Completed tokens of one path through the stream, newest first. firstKey and lastKey are indices
+// of accepted keystrokes in the whole session; compact() rebases token but never the keys.
+export type PathNode = {
+  readonly token: number;
+  readonly firstKey: number;
+  readonly lastKey: number;
+  readonly prev: PathNode | null;
+};
+
 // A position inside a spelling of a token. offset === text.length means the token is done;
-// the position then waits for the first key of the next token. token === -1 is the start.
+// the position then waits for the first key of the next token. token === -1 is the start, or the
+// place of tokens dropped by compact().
 export type StreamPosition = {
   readonly token: number;
   readonly spelling: number;
   readonly offset: number;
+  readonly firstKey: number; // accepted keystroke that started the token
+  readonly lastKey: number; // accepted keystroke that completed it, -1 while in progress
+  readonly path: PathNode | null; // tokens completed before this one
 };
 
 export type StreamState = {
   readonly positions: readonly StreamPosition[];
+  readonly keys: number; // accepted keystrokes so far; the next one has this index
+};
+
+export type EngineView = {
+  readonly displayedTokens: number; // tokens completed by the display position
+  readonly pendingLatin: string; // typed latin beyond those tokens
+  readonly activeToken: number; // token highlighted in the stream, at most the token count
+};
+
+export type TokenTiming = {
+  readonly tokenIndex: number;
+  readonly firstKey: number;
+  readonly lastKey: number;
 };
