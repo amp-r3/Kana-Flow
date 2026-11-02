@@ -1,21 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import {
-  compile,
-  start,
-  step,
-  isComplete,
-  activeTokenIndex,
-  extensions,
-  canonical,
-  romajiForKey,
-  type Matcher,
-  type MatchState,
-} from './engine';
+import { createEngine } from './engine';
+import type { Matcher, MatchState } from './engine';
 import { shouldAbsorb } from './absorption';
-import type { PromptItem } from '../model/types';
-import { allKanaRows } from '../model/data';
-import { wordsData } from '../model/data/words';
-import { phrasesData } from '../model/data/phrases';
+import type { PromptItem } from './types';
+import { allKanaRows } from './data';
+
+const { compile, start, step, isComplete, activeTokenIndex, extensions, canonical, romajiForKey } =
+  createEngine(allKanaRows);
 
 function feedString(m: Matcher, s: MatchState, input: string): MatchState | null {
   let current: MatchState | null = s;
@@ -378,7 +369,7 @@ describe('engine: comprehensive property tests across all data', () => {
     return combs;
   }
 
-  // Collect all test prompts: every single kana entry + all words + all phrases
+  // Collect all test prompts: every single kana entry
   const allPrompts: PromptItem[] = [];
 
   for (const row of allKanaRows) {
@@ -388,22 +379,6 @@ describe('engine: comprehensive property tests across all data', () => {
       }
       allPrompts.push({ key: `katakana:${entry.katakana}`, text: entry.katakana });
     }
-  }
-
-  for (const w of wordsData) {
-    allPrompts.push({
-      key: w.id,
-      text: w.text,
-      ...(w.readingHints ? { readingHints: w.readingHints } : {}),
-    });
-  }
-
-  for (const p of phrasesData) {
-    allPrompts.push({
-      key: p.id,
-      text: p.text,
-      ...(p.readingHints ? { readingHints: p.readingHints } : {}),
-    });
   }
 
   const rng = new DeterministicRng(54321);
@@ -456,5 +431,27 @@ describe('engine: comprehensive property tests across all data', () => {
         }
       }
     }
+  });
+});
+
+describe('createEngine: table is a parameter', () => {
+  const miniTable = [
+    {
+      id: 'vowels' as const,
+      name: 'Vowels',
+      category: 'basic' as const,
+      entries: [{ hiragana: 'あ', katakana: 'ア', ime: ['a'], learner: [] }],
+    },
+  ];
+
+  it('works with a table that has a single row and has no shared state with others', () => {
+    const mini = createEngine(miniTable);
+    const full = createEngine(allKanaRows);
+    const m = mini.compile({ key: 'k', text: 'あ' }, 'ime');
+    expect(mini.canonical(m)).toBe('a');
+    expect(mini.romajiForKey('hiragana:あ')).toBe('a');
+    expect(mini.romajiForKey('hiragana:か')).toBeNull();
+    expect(full.romajiForKey('hiragana:か')).toBe('ka');
+    expect(() => mini.compile({ key: 'k', text: 'か' }, 'ime')).toThrow();
   });
 });

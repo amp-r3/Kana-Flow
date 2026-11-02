@@ -6,7 +6,7 @@ Instructions for AI coding agents working in this repository. `CLAUDE.md` is a s
 
 Nekotype is a keyboard-first web trainer for typing Japanese kana in romaji, modelled on Monkeytype. Production: <https://nekotype.pages.dev> (Cloudflare Pages).
 
-- **Current code** is the v1 baseline: a single Preact SPA in `apps/web/src/`, state in localStorage, no backend. P0 is moving it into a pnpm monorepo (ADR 027); `packages/engine` and `packages/shared` arrive in later P0 PRs.
+- **Current code** is the v1 baseline: a single Preact SPA in `apps/web/src/`, state in localStorage, no backend. P0 is moving it into a pnpm monorepo (ADR 027); `packages/shared` and `packages/engine` are in place; the rest of P0 is budget, CI and docs.
 - **Target** is the MVP in `docs/spec/`: pnpm monorepo, stream-based input engine, IndexedDB, Pages Functions + D1, content pipeline, learning mode. It is delivered in phases P0–P7.
 - Where documents disagree, `docs/spec/` wins over everything else. `README.md` and `docs/architecture/baseline-v1.md` are partly outdated until P0 (spec item D21).
 
@@ -78,7 +78,7 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
 
 ## Input engine
 
-- The engine (`apps/web/src/entities/kana/lib/engine.ts` today, `packages/engine` after P0) is pure TypeScript: no DOM, signals, storage or app aliases. It must run in the browser and in a Worker.
+- The engine (`packages/engine`; `apps/web/src/entities/kana/lib/engine.ts` only binds it to the kana table) is pure TypeScript: no DOM, signals, storage or app aliases. It must run in the browser and in a Worker.
 - Two strictness modes: relaxed (`learner`) and strict IME (`ime`). Invariant: relaxed accepts every input strict accepts. It is a property test; do not break it.
 - The accepted-input table in `docs/spec/engine.md` is normative. Every row is a golden test; change the spec and the test together.
 - The kana table format (`ime[]` + `learner[]` spellings per entry) is shared by the engine, the content build and the font subset.
