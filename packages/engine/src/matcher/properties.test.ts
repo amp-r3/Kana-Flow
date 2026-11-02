@@ -94,3 +94,102 @@ describe('properties over random streams', () => {
     }
   });
 });
+
+// Spellings of a bare n that the appended context ruled out stay in place with an empty set so that
+// indices do not move; a stream compiled in one go simply omits them.
+function normalised(m: StreamMatcher): unknown {
+  return {
+    ...m,
+    tokens: m.tokens.map((t) => ({
+      ...t,
+      spellings: t.spellings.filter((s) => s.next?.length !== 0),
+    })),
+  };
+}
+
+describe('properties of extend and committedPrompts', () => {
+  const rng = new Rng(20261103);
+  const cases = Array.from({ length: 300 }, () => {
+    const texts = randomPrompts(rng);
+    while (texts.length < 2) texts.push(...randomPrompts(rng));
+    return texts;
+  });
+
+  it('extend gives the same matcher as compiling the whole stream', () => {
+    for (const texts of cases) {
+      for (const mode of ['learner', 'ime'] as const) {
+        const cut = rng.int(1, texts.length - 1);
+        const head = engine.compile(prompts(...texts.slice(0, cut)), mode);
+        const extended = engine.extend(
+          head,
+          prompts(...texts.slice(cut)).map((p, i) => ({ ...p, key: `e${i}` })),
+        );
+        const whole = engine.compile(prompts(...texts), mode);
+        expect(normalised(extended), `${texts.join('|')} ${mode} cut ${cut}`).toEqual(
+          normalised(whole),
+        );
+      }
+    }
+  });
+
+  it('a state made before extend accepts the same continuations as one made after', () => {
+    let compared = 0;
+    for (const texts of cases) {
+      for (const mode of ['learner', 'ime'] as const) {
+        const whole = engine.compile(prompts(...texts), mode);
+        const { keys } = walk(whole, rng);
+        const cut = rng.int(1, texts.length - 1);
+        const head = engine.compile(prompts(...texts.slice(0, cut)), mode);
+        const split = rng.int(0, keys.length);
+
+        let old: StreamState | null = engine.start(head);
+        for (let i = 0; i < split && old !== null; i++)
+          old = engine.step(head, old, keys.charAt(i));
+        if (old === null) continue; // the keys had already left the head of the stream
+
+        const extended = engine.extend(head, prompts(...texts.slice(cut)));
+        let full: StreamState | null = engine.start(whole);
+        for (let i = 0; i < split && full !== null; i++)
+          full = engine.step(whole, full, keys.charAt(i));
+        expect(full).not.toBeNull();
+        if (full === null) continue;
+
+        let a: StreamState = old;
+        let b: StreamState = full;
+        for (let i = split; ; i++) {
+          expect(acceptedKeys(extended, a), `${texts.join('|')} ${mode} ← ${keys} at ${i}`).toEqual(
+            acceptedKeys(whole, b),
+          );
+          expect(engine.isComplete(extended, a)).toBe(engine.isComplete(whole, b));
+          if (i >= keys.length) break;
+          const na = engine.step(extended, a, keys.charAt(i));
+          const nb = engine.step(whole, b, keys.charAt(i));
+          if (na === null || nb === null) throw new Error('a key of the walk was rejected');
+          a = na;
+          b = nb;
+        }
+        compared += 1;
+      }
+    }
+    expect(compared).toBeGreaterThan(100);
+  });
+
+  it('committedPrompts never decreases along a walk and ends at the prompt count', () => {
+    for (const texts of cases) {
+      const m = engine.compile(prompts(...texts), 'learner');
+      let state = engine.start(m);
+      let last = engine.committedPrompts(m, state);
+      for (let guard = 0; guard < 400; guard++) {
+        const accepted = acceptedKeys(m, state);
+        if (accepted.length === 0) break;
+        const next = engine.step(m, state, rng.pick(accepted));
+        if (next === null) throw new Error('an accepted key was rejected');
+        state = next;
+        const now = engine.committedPrompts(m, state);
+        expect(now).toBeGreaterThanOrEqual(last);
+        last = now;
+      }
+      expect(last, texts.join('|')).toBe(texts.length);
+    }
+  });
+});
