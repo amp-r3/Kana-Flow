@@ -46,7 +46,7 @@ class DeterministicRng {
     return Math.floor(this.next() * (max - min + 1)) + min;
   }
   nextChar(): string {
-    const chars = 'abcdefghijklmnopqrstuvwxyz-\'';
+    const chars = "abcdefghijklmnopqrstuvwxyz-'";
     return chars[this.nextInt(0, chars.length - 1)] ?? 'a';
   }
 }
@@ -91,7 +91,7 @@ describe('engine: basic and digraph kana matching', () => {
     expect(completesWith(tsu, 'ime', 'su')).toBe(false);
   });
 
-  it('single ん prompt accepts nn and n\' only in ime, but accepts n in learner', () => {
+  it("single ん prompt accepts nn and n' only in ime, but accepts n in learner", () => {
     const prompt: PromptItem = { key: 'hiragana:ん', text: 'ん' };
     expect(completesWith(prompt, 'ime', 'nn')).toBe(true);
     expect(completesWith(prompt, 'ime', "n'")).toBe(true);
@@ -231,7 +231,9 @@ describe('engine: extended katakana words', () => {
     expect(completesWith({ key: 'word:disuku', text: 'ディスク' }, 'learner', 'disuku')).toBe(true);
     expect(completesWith({ key: 'word:chekku', text: 'チェック' }, 'ime', 'chekku')).toBe(true);
     expect(completesWith({ key: 'word:thisshu', text: 'ティッシュ' }, 'ime', 'thisshu')).toBe(true);
-    expect(completesWith({ key: 'word:thisshu', text: 'ティッシュ' }, 'learner', 'tisshu')).toBe(true);
+    expect(completesWith({ key: 'word:thisshu', text: 'ティッシュ' }, 'learner', 'tisshu')).toBe(
+      true,
+    );
   });
 });
 
@@ -389,11 +391,19 @@ describe('engine: comprehensive property tests across all data', () => {
   }
 
   for (const w of wordsData) {
-    allPrompts.push({ key: w.id, text: w.text, ...(w.readingHints ? { readingHints: w.readingHints } : {}) });
+    allPrompts.push({
+      key: w.id,
+      text: w.text,
+      ...(w.readingHints ? { readingHints: w.readingHints } : {}),
+    });
   }
 
   for (const p of phrasesData) {
-    allPrompts.push({ key: p.id, text: p.text, ...(p.readingHints ? { readingHints: p.readingHints } : {}) });
+    allPrompts.push({
+      key: p.id,
+      text: p.text,
+      ...(p.readingHints ? { readingHints: p.readingHints } : {}),
+    });
   }
 
   const rng = new DeterministicRng(54321);
@@ -435,8 +445,7 @@ describe('engine: comprehensive property tests across all data', () => {
           if (spelling.length > 0) {
             const mutateIdx = rng.nextInt(0, spelling.length - 1);
             const randChar = rng.nextChar();
-            const mutated =
-              spelling.slice(0, mutateIdx) + randChar + spelling.slice(mutateIdx + 1);
+            const mutated = spelling.slice(0, mutateIdx) + randChar + spelling.slice(mutateIdx + 1);
 
             const mutatedState = feedString(m, start(m), mutated);
             // It must either be rejected (null) OR, if coincidentally another valid path, non-null

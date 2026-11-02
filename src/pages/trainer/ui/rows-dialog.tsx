@@ -62,23 +62,33 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
   return (
     <Dialog open={open} onClose={onClose} title={t('app.rows')}>
       {isContentDisabled && (
-        <div className="p-3 rounded bg-surface-2 border border-accent/30 text-accent text-xs">
+        <div className="bg-surface-2 border-accent/30 text-accent rounded border p-3 text-xs">
           {t('dialog.contentDisabled')}
         </div>
       )}
 
       {warningMessage && (
-        <div className="p-2.5 rounded bg-error/15 border border-error/30 text-error text-xs">
+        <div className="bg-error/15 border-error/30 text-error rounded border p-2.5 text-xs">
           {warningMessage}
         </div>
       )}
 
       {/* Preset actions */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="sm" onClick={handleSelectAll} disabled={isContentDisabled}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleSelectAll}
+          disabled={isContentDisabled}
+        >
           {t('dialog.selectAll')}
         </Button>
-        <Button variant="secondary" size="sm" onClick={handleGojuonOnly} disabled={isContentDisabled}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleGojuonOnly}
+          disabled={isContentDisabled}
+        >
           {t('dialog.gojuonOnly')}
         </Button>
         <Button variant="ghost" size="sm" onClick={handleClear} disabled={isContentDisabled}>
@@ -90,28 +100,29 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
       <div className="flex flex-col gap-5 py-2">
         {CATEGORIES.map((cat) => {
           const rowsInCat = allKanaRows.filter((r) => r.category === cat.id);
-          const isCategoryDisabled =
-            isContentDisabled || (cat.id === 'extended' && isHiraganaOnly);
+          const isCategoryDisabled = isContentDisabled || (cat.id === 'extended' && isHiraganaOnly);
 
           return (
             <div key={cat.id} className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-normal text-text-dim uppercase tracking-wider">
+                <span className="text-text-dim text-xs font-normal tracking-wider uppercase">
                   {cat.label}
                 </span>
                 {cat.id === 'extended' && isHiraganaOnly && (
-                  <span className="text-[11px] text-text-dim italic">
+                  <span className="text-text-dim text-[11px] italic">
                     {t('dialog.extendedDisabled')}
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
                 {rowsInCat.map((row) => {
                   const isSelected = selectedRows.has(row.id);
                   const sampleKana = row.entries
                     .slice(0, 3)
-                    .map((e) => (currentScript === 'katakana' ? e.katakana : e.hiragana ?? e.katakana))
+                    .map((e) =>
+                      currentScript === 'katakana' ? e.katakana : (e.hiragana ?? e.katakana),
+                    )
                     .join(' ');
 
                   return (
@@ -122,14 +133,16 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
                       onClick={() => {
                         handleToggle(row.id);
                       }}
-                      className={`flex flex-col items-start p-2 rounded border text-left cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 disabled:cursor-not-allowed ${
+                      className={`focus-visible:ring-accent flex cursor-pointer flex-col items-start rounded border p-2 text-left transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-40 ${
                         isSelected
                           ? 'bg-accent/15 border-accent text-accent'
                           : 'bg-surface-2 border-border text-text-dim hover:text-text hover:border-border-strong'
                       }`}
                     >
                       <span className="text-xs font-normal">{row.name}</span>
-                      <span className="text-xs font-kana font-bold text-text mt-0.5">{sampleKana}</span>
+                      <span className="font-kana text-text mt-0.5 text-xs font-bold">
+                        {sampleKana}
+                      </span>
                     </button>
                   );
                 })}
@@ -139,7 +152,7 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
         })}
       </div>
 
-      <div className="flex justify-end pt-2 border-t border-border">
+      <div className="border-border flex justify-end border-t pt-2">
         <Button variant="primary" onClick={onClose}>
           {t('dialog.close')}
         </Button>

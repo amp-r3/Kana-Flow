@@ -3,11 +3,7 @@ import { signal } from '@preact/signals';
 import type { KanaStats, ProgressMap, PersistedProgress } from './types';
 import { updateKanaStats } from '../lib/weights';
 import type { KeyValueStore } from '@/shared/lib';
-import {
-  STORAGE_KEYS,
-  isProgress,
-  createDebouncedSaver,
-} from '@/shared/lib';
+import { STORAGE_KEYS, isProgress, createDebouncedSaver } from '@/shared/lib';
 
 const _progressStats = signal<ProgressMap>(new Map<string, KanaStats>());
 export const progressStats: ReadonlySignal<ProgressMap> = _progressStats;
@@ -50,7 +46,11 @@ export function initProgress(store: KeyValueStore): void {
 }
 
 export function recordTokenOutcomes(
-  outcomes: readonly { readonly kanaKey: string | null; readonly mistakes: number; readonly ms: number }[],
+  outcomes: readonly {
+    readonly kanaKey: string | null;
+    readonly mistakes: number;
+    readonly ms: number;
+  }[],
 ): void {
   const current = new Map(_progressStats.value);
 

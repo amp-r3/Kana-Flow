@@ -8,17 +8,12 @@ export type ToggleProps = {
   readonly disabled?: boolean;
 };
 
-export function Toggle({
-  checked,
-  onChange,
-  label,
-  disabled = false,
-}: ToggleProps): JSX.Element {
+export function Toggle({ checked, onChange, label, disabled = false }: ToggleProps): JSX.Element {
   return (
     <label
       className={cx(
-        'inline-flex items-center gap-2 cursor-pointer select-none text-xs font-normal text-text-dim hover:text-text transition-colors',
-        disabled && 'opacity-50 cursor-not-allowed',
+        'text-text-dim hover:text-text inline-flex cursor-pointer items-center gap-2 text-xs font-normal transition-colors select-none',
+        disabled && 'cursor-not-allowed opacity-50',
       )}
     >
       <button
@@ -30,13 +25,13 @@ export function Toggle({
           onChange(!checked);
         }}
         className={cx(
-          'relative inline-flex h-4 w-8 shrink-0 rounded-full border border-border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent cursor-pointer disabled:cursor-not-allowed',
+          'border-border focus-visible:ring-accent relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full border transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed',
           checked ? 'bg-accent border-accent' : 'bg-surface-2',
         )}
       >
         <span
           className={cx(
-            'pointer-events-none inline-block h-3 w-3 transform rounded-full bg-bg shadow-sm transition-transform my-auto mt-[1px]',
+            'bg-bg pointer-events-none my-auto mt-[1px] inline-block h-3 w-3 transform rounded-full shadow-sm transition-transform',
             checked ? 'translate-x-4' : 'translate-x-0.5',
           )}
         />

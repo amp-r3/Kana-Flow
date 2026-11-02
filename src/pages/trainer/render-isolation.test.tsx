@@ -41,11 +41,7 @@ describe('render isolation: TypingController keystrokes do not re-render static 
 
   it('renders trainer page and dispatches 20 keystrokes with 0 renders of TopBar, ConfigBar, RowsDialog', () => {
     const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
-    const controller = new TypingController(
-      () => prompt,
-      defaultClock,
-      defaultScheduler,
-    );
+    const controller = new TypingController(() => prompt, defaultClock, defaultScheduler);
 
     // Initial render of page
     render(<TrainerPage controller={controller} />, container);

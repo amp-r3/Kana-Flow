@@ -9,7 +9,12 @@ describe('features/type-prompt: bindKeyboard', () => {
     bindKeyboard({ onIntent, target });
 
     // Ctrl+R
-    const ctrlR = new KeyboardEvent('keydown', { key: 'r', code: 'KeyR', ctrlKey: true, cancelable: true });
+    const ctrlR = new KeyboardEvent('keydown', {
+      key: 'r',
+      code: 'KeyR',
+      ctrlKey: true,
+      cancelable: true,
+    });
     target.dispatchEvent(ctrlR);
     expect(ctrlR.defaultPrevented).toBe(false);
     expect(onIntent).not.toHaveBeenCalled();
@@ -27,7 +32,12 @@ describe('features/type-prompt: bindKeyboard', () => {
     expect(onIntent).not.toHaveBeenCalled();
 
     // Ctrl+L
-    const ctrlL = new KeyboardEvent('keydown', { key: 'l', code: 'KeyL', ctrlKey: true, cancelable: true });
+    const ctrlL = new KeyboardEvent('keydown', {
+      key: 'l',
+      code: 'KeyL',
+      ctrlKey: true,
+      cancelable: true,
+    });
     target.dispatchEvent(ctrlL);
     expect(ctrlL.defaultPrevented).toBe(false);
     expect(onIntent).not.toHaveBeenCalled();
@@ -64,7 +74,11 @@ describe('features/type-prompt: bindKeyboard', () => {
     expect(onIntent).not.toHaveBeenCalled();
 
     // Backspace
-    const backspace = new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', cancelable: true });
+    const backspace = new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      code: 'Backspace',
+      cancelable: true,
+    });
     input.dispatchEvent(backspace);
     expect(backspace.defaultPrevented).toBe(false);
     expect(onIntent).not.toHaveBeenCalled();

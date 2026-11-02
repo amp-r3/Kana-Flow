@@ -18,17 +18,17 @@ export function WeakestKanaList({ items }: WeakestKanaListProps): JSX.Element | 
   }
 
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-lg bg-surface border border-border">
-      <span className="text-xs text-text-dim font-normal">{t('results.weakest')}</span>
+    <div className="bg-surface border-border flex flex-col gap-2 rounded-lg border p-3">
+      <span className="text-text-dim text-xs font-normal">{t('results.weakest')}</span>
       <div className="flex flex-wrap items-center gap-2">
         {items.map((item) => (
           <div
             key={item.key}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-2 border border-border"
+            className="bg-surface-2 border-border flex items-center gap-1.5 rounded border px-2.5 py-1"
           >
-            <span className="font-kana font-bold text-base text-text">{item.glyph}</span>
-            <span className="font-mono text-xs text-accent font-normal">{item.romaji}</span>
-            <span className="text-[10px] text-error font-normal">({item.mistakes})</span>
+            <span className="font-kana text-text text-base font-bold">{item.glyph}</span>
+            <span className="text-accent font-mono text-xs font-normal">{item.romaji}</span>
+            <span className="text-error text-[10px] font-normal">({item.mistakes})</span>
           </div>
         ))}
       </div>

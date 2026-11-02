@@ -26,13 +26,13 @@ export function SpeedChart({ series }: SpeedChartProps): JSX.Element | null {
   const polylinePoints = pts.join(' ');
 
   return (
-    <div className="w-full p-3 rounded-lg bg-surface border border-border flex flex-col gap-1">
-      <span className="text-[11px] text-text-dim font-normal uppercase tracking-wider">
+    <div className="bg-surface border-border flex w-full flex-col gap-1 rounded-lg border p-3">
+      <span className="text-text-dim text-[11px] font-normal tracking-wider uppercase">
         Speed Over Time (WPM)
       </span>
       <svg
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        className="w-full h-24 overflow-visible"
+        className="h-24 w-full overflow-visible"
         aria-label="Speed over time graph"
       >
         <line

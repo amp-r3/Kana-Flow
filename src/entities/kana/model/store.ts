@@ -1,19 +1,9 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import { allKanaRows } from './data';
-import type {
-  PracticeSettings,
-  RowId,
-  ScriptMode,
-  ContentKind,
-  Strictness,
-} from './types';
+import type { PracticeSettings, RowId, ScriptMode, ContentKind, Strictness } from './types';
 import type { KeyValueStore } from '@/shared/lib';
-import {
-  STORAGE_KEYS,
-  isSettings,
-  createDebouncedSaver,
-} from '@/shared/lib';
+import { STORAGE_KEYS, isSettings, createDebouncedSaver } from '@/shared/lib';
 
 const VALID_ROW_IDS = new Set<string>(allKanaRows.map((r) => r.id));
 
@@ -64,7 +54,9 @@ function saveCurrentSettings(): void {
   try {
     const raw = boundStore.get(STORAGE_KEYS.SETTINGS);
     const parsed: unknown = raw ? JSON.parse(raw) : null;
-    const testConfig = isSettings(parsed) ? parsed.test : { kind: 'time' as const, seconds: 30 as const };
+    const testConfig = isSettings(parsed)
+      ? parsed.test
+      : { kind: 'time' as const, seconds: 30 as const };
     const full = { ...current, test: testConfig };
     boundStore.set(STORAGE_KEYS.SETTINGS, JSON.stringify(full));
   } catch {

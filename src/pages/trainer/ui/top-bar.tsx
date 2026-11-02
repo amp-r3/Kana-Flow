@@ -25,12 +25,12 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
   };
 
   return (
-    <header className="w-full flex flex-wrap items-center justify-between gap-4 py-4 border-b border-border select-none">
+    <header className="border-border flex w-full flex-wrap items-center justify-between gap-4 border-b py-4 select-none">
       <div className="flex items-center gap-3">
-        <h1 className="text-xl font-normal tracking-tight text-accent flex items-center gap-2">
+        <h1 className="text-accent flex items-center gap-2 text-xl font-normal tracking-tight">
           <span>{t('app.title')}</span>
         </h1>
-        <span className="hidden sm:inline-block text-xs text-text-dim border-l border-border pl-3">
+        <span className="text-text-dim border-border hidden border-l pl-3 text-xs sm:inline-block">
           {t('app.tagline')}
         </span>
       </div>
@@ -72,7 +72,7 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
         }}
         title={t('reset.title')}
       >
-        <p className="text-sm text-text-dim">{t('reset.confirm')}</p>
+        <p className="text-text-dim text-sm">{t('reset.confirm')}</p>
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button
             variant="ghost"
@@ -82,10 +82,7 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
           >
             {t('reset.cancel')}
           </Button>
-          <Button
-            variant="danger"
-            onClick={handleConfirmReset}
-          >
+          <Button variant="danger" onClick={handleConfirmReset}>
             {t('reset.action')}
           </Button>
         </div>

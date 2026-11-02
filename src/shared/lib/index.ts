@@ -17,17 +17,6 @@ export {
   createDebouncedSaver,
 } from './storage';
 
-export type {
-  ValidTestConfig,
-  ValidSettings,
-  ValidKanaStats,
-  ValidProgress,
-} from './guards';
+export type { ValidTestConfig, ValidSettings, ValidKanaStats, ValidProgress } from './guards';
 
-export {
-  isObject,
-  isTestConfig,
-  isSettings,
-  isKanaStats,
-  isProgress,
-} from './guards';
+export { isObject, isTestConfig, isSettings, isKanaStats, isProgress } from './guards';

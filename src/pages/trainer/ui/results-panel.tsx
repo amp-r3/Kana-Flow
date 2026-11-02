@@ -23,7 +23,7 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
 
   if (!m) {
     return (
-      <div className="w-full max-w-xl mx-auto py-12 text-center text-text-dim">
+      <div className="text-text-dim mx-auto w-full max-w-xl py-12 text-center">
         <Button variant="primary" buttonRef={nextBtnRef} autoFocus onClick={onNextTest}>
           {t('results.nextTest')}
         </Button>
@@ -60,28 +60,28 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
   const elapsedSec = (m.elapsedMs / 1000).toFixed(1);
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 py-6 select-none animate-fadeIn">
+    <div className="animate-fadeIn mx-auto flex w-full max-w-2xl flex-col gap-6 py-6 select-none">
       {/* Polite live region for screen readers (Plan 11.3 & P5 A11y) */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {`Test complete. Speed: ${m.wpm} WPM, accuracy: ${Math.round(m.accuracy * 100)} percent. Completed ${m.promptsCompleted} prompts with ${m.mistakes} mistakes.`}
       </div>
 
       {/* Header with primary WPM and Accuracy */}
-      <div className="flex flex-wrap items-baseline justify-between border-b border-border pb-4 gap-4">
+      <div className="border-border flex flex-wrap items-baseline justify-between gap-4 border-b pb-4">
         <div>
-          <span className="text-xs text-text-dim uppercase tracking-wider block font-normal">
+          <span className="text-text-dim block text-xs font-normal tracking-wider uppercase">
             {t('results.wpm')}
           </span>
-          <span className="font-mono text-5xl md:text-6xl text-accent font-normal tracking-tight">
+          <span className="text-accent font-mono text-5xl font-normal tracking-tight md:text-6xl">
             {m.wpm}
           </span>
         </div>
 
         <div>
-          <span className="text-xs text-text-dim uppercase tracking-wider block font-normal text-right">
+          <span className="text-text-dim block text-right text-xs font-normal tracking-wider uppercase">
             {t('results.accuracy')}
           </span>
-          <span className="font-mono text-4xl md:text-5xl text-text font-normal text-right">
+          <span className="text-text text-right font-mono text-4xl font-normal md:text-5xl">
             {Math.round(m.accuracy * 100)}%
           </span>
         </div>
@@ -91,35 +91,37 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
       <SpeedChart series={m.wpmSeries} />
 
       {/* Secondary metrics grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-        <div className="p-3 rounded bg-surface border border-border flex flex-col">
-          <span className="text-[11px] text-text-dim">{t('results.rawWpm')}</span>
-          <span className="font-mono text-lg font-normal text-text mt-0.5">{m.rawWpm}</span>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
+        <div className="bg-surface border-border flex flex-col rounded border p-3">
+          <span className="text-text-dim text-[11px]">{t('results.rawWpm')}</span>
+          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.rawWpm}</span>
         </div>
 
-        <div className="p-3 rounded bg-surface border border-border flex flex-col">
-          <span className="text-[11px] text-text-dim">{t('results.kanaPerMin')}</span>
-          <span className="font-mono text-lg font-normal text-text mt-0.5">{m.kanaPerMin}</span>
+        <div className="bg-surface border-border flex flex-col rounded border p-3">
+          <span className="text-text-dim text-[11px]">{t('results.kanaPerMin')}</span>
+          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.kanaPerMin}</span>
         </div>
 
-        <div className="p-3 rounded bg-surface border border-border flex flex-col">
-          <span className="text-[11px] text-text-dim">{t('results.time')}</span>
-          <span className="font-mono text-lg font-normal text-text mt-0.5">{elapsedSec}s</span>
+        <div className="bg-surface border-border flex flex-col rounded border p-3">
+          <span className="text-text-dim text-[11px]">{t('results.time')}</span>
+          <span className="text-text mt-0.5 font-mono text-lg font-normal">{elapsedSec}s</span>
         </div>
 
-        <div className="p-3 rounded bg-surface border border-border flex flex-col">
-          <span className="text-[11px] text-text-dim">{t('results.completed')}</span>
-          <span className="font-mono text-lg font-normal text-text mt-0.5">{m.promptsCompleted}</span>
+        <div className="bg-surface border-border flex flex-col rounded border p-3">
+          <span className="text-text-dim text-[11px]">{t('results.completed')}</span>
+          <span className="text-text mt-0.5 font-mono text-lg font-normal">
+            {m.promptsCompleted}
+          </span>
         </div>
 
-        <div className="p-3 rounded bg-surface border border-border flex flex-col">
-          <span className="text-[11px] text-text-dim">{t('results.mistakes')}</span>
-          <span className="font-mono text-lg font-normal text-text mt-0.5">{m.mistakes}</span>
+        <div className="bg-surface border-border flex flex-col rounded border p-3">
+          <span className="text-text-dim text-[11px]">{t('results.mistakes')}</span>
+          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.mistakes}</span>
         </div>
 
-        <div className="p-3 rounded bg-surface border border-border flex flex-col">
-          <span className="text-[11px] text-text-dim">{t('results.streak')}</span>
-          <span className="font-mono text-lg font-normal text-text mt-0.5">{m.bestStreak}</span>
+        <div className="bg-surface border-border flex flex-col rounded border p-3">
+          <span className="text-text-dim text-[11px]">{t('results.streak')}</span>
+          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.bestStreak}</span>
         </div>
       </div>
 

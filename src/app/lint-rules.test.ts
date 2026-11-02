@@ -16,9 +16,9 @@ describe('lint-rules: strict TypeScript and architecture enforcement', { timeout
 
   it('rejects "as T" type assertions', async () => {
     const messages = await getLintErrors('export const x = 1 as number;\n');
-    expect(
-      messages.some((m) => m.ruleId === '@typescript-eslint/consistent-type-assertions'),
-    ).toBe(true);
+    expect(messages.some((m) => m.ruleId === '@typescript-eslint/consistent-type-assertions')).toBe(
+      true,
+    );
   });
 
   it('rejects @ts-ignore comments', async () => {
@@ -27,12 +27,10 @@ describe('lint-rules: strict TypeScript and architecture enforcement', { timeout
   });
 
   it('rejects non-null assertion !', async () => {
-    const messages = await getLintErrors(
-      'const y: number | null = 1;\nexport const x = y!;\n',
+    const messages = await getLintErrors('const y: number | null = 1;\nexport const x = y!;\n');
+    expect(messages.some((m) => m.ruleId === '@typescript-eslint/no-non-null-assertion')).toBe(
+      true,
     );
-    expect(
-      messages.some((m) => m.ruleId === '@typescript-eslint/no-non-null-assertion'),
-    ).toBe(true);
   });
 
   it('rejects export default', async () => {
@@ -40,8 +38,7 @@ describe('lint-rules: strict TypeScript and architecture enforcement', { timeout
     expect(
       messages.some(
         (m) =>
-          m.ruleId === 'no-restricted-syntax' &&
-          m.message.includes('Export default is forbidden'),
+          m.ruleId === 'no-restricted-syntax' && m.message.includes('Export default is forbidden'),
       ),
     ).toBe(true);
   });
@@ -50,9 +47,7 @@ describe('lint-rules: strict TypeScript and architecture enforcement', { timeout
     const messages = await getLintErrors('export * from "./App";\n');
     expect(
       messages.some(
-        (m) =>
-          m.ruleId === 'no-restricted-syntax' &&
-          m.message.includes('Export * is forbidden'),
+        (m) => m.ruleId === 'no-restricted-syntax' && m.message.includes('Export * is forbidden'),
       ),
     ).toBe(true);
   });

@@ -48,7 +48,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
   return (
     <div
       onClick={handleArenaClick}
-      className="relative w-full max-w-2xl mx-auto flex flex-col items-center gap-8 py-8 cursor-text select-none outline-none"
+      className="relative mx-auto flex w-full max-w-2xl cursor-text flex-col items-center gap-8 py-8 outline-none select-none"
     >
       {/* Hidden input sink */}
       <input
@@ -81,7 +81,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
 
       {/* Japanese IME warning notice */}
       {imeNotice && (
-        <div className="w-full p-2.5 rounded bg-error/15 border border-error/30 text-error text-xs text-center">
+        <div className="bg-error/15 border-error/30 text-error w-full rounded border p-2.5 text-center text-xs">
           {t('stage.turnImeOff')}
         </div>
       )}
@@ -90,41 +90,41 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
       <div
         data-canonical={canonicalRomaji}
         className={cx(
-          'w-full flex flex-col items-center justify-center gap-4 py-10 px-4 rounded-xl bg-surface border border-border min-h-[220px] transition-transform',
+          'bg-surface border-border flex min-h-[220px] w-full flex-col items-center justify-center gap-4 rounded-xl border px-4 py-10 transition-transform',
           isShaking && 'animate-shake',
         )}
       >
         {/* Large kana glyph display (Noto Sans JP Bold) */}
-        <div className="font-kana font-bold text-5xl md:text-6xl text-text tracking-wide text-center">
+        <div className="font-kana text-text text-center text-5xl font-bold tracking-wide md:text-6xl">
           {currentPrompt ? currentPrompt.text : '...'}
         </div>
 
         {/* Translation / reading hint */}
         {currentPrompt?.meaning && (
-          <div className="text-sm font-normal text-text-dim text-center">
+          <div className="text-text-dim text-center text-sm font-normal">
             {activeLocale === 'ru' ? currentPrompt.meaning.ru : currentPrompt.meaning.en}
           </div>
         )}
 
         {/* Revealed canonical romaji */}
         {isAssisted && (
-          <div className="text-sm font-mono font-normal text-accent bg-accent/10 px-3 py-1 rounded">
+          <div className="text-accent bg-accent/10 rounded px-3 py-1 font-mono text-sm font-normal">
             {t('stage.revealed', { answer: canonicalRomaji })}
           </div>
         )}
 
         {/* Typed romaji mirror (JetBrains Mono Regular 400) */}
-        <div className="font-mono font-normal text-xl text-accent tracking-widest min-h-[1.75rem] flex items-center justify-center">
+        <div className="text-accent flex min-h-[1.75rem] items-center justify-center font-mono text-xl font-normal tracking-widest">
           {typed}
-          <span className="inline-block w-2 h-5 bg-accent ml-0.5 animate-pulse" />
+          <span className="bg-accent ml-0.5 inline-block h-5 w-2 animate-pulse" />
         </div>
       </div>
 
       {/* Unfocused "Click to focus" indicator (fixed height to prevent layout shift on blur) */}
-      <div className="h-6 -mt-4 flex items-center justify-center">
+      <div className="-mt-4 flex h-6 items-center justify-center">
         {!isFocused && (
           <div
-            className="pointer-events-none text-xs text-text-dim bg-surface-2/90 border border-border px-3 py-1 rounded-full shadow-md"
+            className="text-text-dim bg-surface-2/90 border-border pointer-events-none rounded-full border px-3 py-1 text-xs shadow-md"
             aria-hidden="true"
           >
             {t('stage.clickToFocus')}
@@ -133,7 +133,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
       </div>
 
       {/* Bottom hints & restart button */}
-      <div className="w-full flex flex-wrap items-center justify-between gap-3 text-xs text-text-dim pt-2">
+      <div className="text-text-dim flex w-full flex-wrap items-center justify-between gap-3 pt-2 text-xs">
         <div className="flex items-center gap-2">
           <Kbd>Esc</Kbd>
           <span>{t('stage.escHint')}</span>

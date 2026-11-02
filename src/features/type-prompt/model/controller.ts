@@ -1,12 +1,7 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import type { KeyIntent } from '../lib/input-adapter';
-import type {
-  PromptItem,
-  Strictness,
-  Matcher,
-  MatchState,
-} from '@/entities/kana';
+import type { PromptItem, Strictness, Matcher, MatchState } from '@/entities/kana';
 import {
   compile,
   start,
