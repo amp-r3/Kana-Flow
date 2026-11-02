@@ -157,10 +157,11 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     expect(first?.endedAt).toBe(1700);
     expect(first?.mistakes).toBe(1);
     expect(first?.assisted).toBe(false);
-    // パ: keys 0..1 (200 ms from the first key); ン: one key (1600), 400 ms after the previous
-    // token, the rejected x included. The second n belongs to ね, not to ん.
+    // パ: the first token of the test has no reaction time (spec metrics.md); ン: one key (1600),
+    // 400 ms after the previous token, the rejected x included. The second n belongs to ね, not
+    // to ん.
     expect(first?.tokenOutcomes).toEqual([
-      { kanaKey: 'katakana:パ', mistakes: 0, ms: 200 },
+      { kanaKey: 'katakana:パ', mistakes: 0, ms: 0 },
       { kanaKey: 'katakana:ン', mistakes: 1, ms: 400 },
     ]);
 
@@ -412,6 +413,71 @@ describe('controller: prompt stream (spec D3, A15)', () => {
     expect(mistakeCount.value).toBe(1);
   });
 
+  it('an Esc while the ん of the previous prompt is undecided is charged to the prompt on screen', () => {
+    const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
+    const controller = new TypingController(() => neko, clock, scheduler);
+    controller.loadPrompt(hon, 'learner');
+    type(controller, 'hon');
+    expect(controller.currentPrompt.value?.text).toBe('ねこ');
+    controller.handleIntent({ kind: 'reveal' });
+    expect(mistakeCount.value).toBe(1);
+    type(controller, 'neko');
+    const [first, second] = promptResults.value;
+    expect(first?.mistakes).toBe(0);
+    expect(first?.assisted).toBe(false);
+    expect(second?.mistakes).toBe(1);
+    expect(second?.assisted).toBe(true);
+    expect(second?.tokenOutcomes.map((t) => t.mistakes)).toEqual([1, 0]);
+  });
+
+  it('an Esc skips the leading skip token of the prompt on screen', () => {
+    const quoted: PromptItem = { key: 'phrase:q', text: '「ねこ' };
+    const controller = new TypingController(() => neko, clock, scheduler);
+    controller.loadPrompt(quoted, 'learner');
+    controller.handleIntent({ kind: 'reveal' });
+    type(controller, 'neko');
+    expect(promptResults.value[0]?.mistakes).toBe(1);
+  });
+
+  it('a single-kana ん that ends a count test is timed from the previous token, not 1 ms', () => {
+    setTestConfig({ kind: 'count', prompts: 10 });
+    const a: PromptItem = { key: 'basic:a', text: 'あ' };
+    const n: PromptItem = { key: 'basic:n', text: 'ん' };
+    let asked = 0;
+    const controller = new TypingController(() => (++asked < 9 ? a : n), clock, scheduler);
+    controller.loadPrompt(a, 'learner');
+    type(controller, 'aaaaaaaaa');
+    clock.advance(500);
+    type(controller, 'n');
+    expect(phase.value).toBe('finished');
+    const last = promptResults.value[9];
+    expect(last?.key).toBe('basic:n');
+    expect(last?.tokenOutcomes[0]?.ms).toBe(600);
+    expect(last?.endedAt).toBe(clock.currentTime);
+  });
+
+  it('the first token of a test gets no reaction time, even when its timing is ambiguous', () => {
+    setTestConfig({ kind: 'time', seconds: 15 });
+    const n: PromptItem = { key: 'basic:n', text: 'ん' };
+    const controller = new TypingController(() => neko, clock, scheduler);
+    controller.loadPrompt(n, 'learner');
+    type(controller, 'nn');
+    controller.finishSession();
+    expect(promptResults.value[0]?.tokenOutcomes[0]?.ms).toBe(0);
+  });
+
+  it('records every prompt before compaction drops it, in order and exactly once', () => {
+    setTestConfig({ kind: 'time', seconds: 120 });
+    const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
+    let i = 0;
+    const controller = new TypingController(() => (i++ % 2 === 0 ? neko : hon), clock, scheduler);
+    controller.loadPrompt(hon, 'learner');
+    for (let k = 0; k < 30; k++) type(controller, 'honneko');
+    const keys = promptResults.value.map((r) => r.key);
+    expect(keys).toHaveLength(60);
+    expect(keys.every((key, k) => key === (k % 2 === 0 ? 'word:hon' : 'word:neko'))).toBe(true);
+  });
+
   it('types 100 prompts with ん at the end of prompts, compacting the window on the way', () => {
     setTestConfig({ kind: 'count', prompts: 100 });
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
@@ -425,11 +491,12 @@ describe('controller: prompt stream (spec D3, A15)', () => {
     expect(phase.value).toBe('finished');
     expect(promptResults.value).toHaveLength(100);
     expect(metrics.value?.promptsCompleted).toBe(100);
+    const measured = promptResults.value.flatMap((r) => r.tokenOutcomes).slice(1);
     for (const result of promptResults.value) {
       expect(result.mistakes).toBe(0);
       expect(result.tokenOutcomes.length).toBe(2);
-      for (const token of result.tokenOutcomes) expect(token.ms).toBeGreaterThanOrEqual(1);
     }
+    for (const token of measured) expect(token.ms).toBeGreaterThanOrEqual(1);
   });
 
   it('a count test ends on the last prompt even when it ends in ん', () => {

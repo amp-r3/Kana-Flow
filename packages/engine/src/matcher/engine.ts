@@ -1,7 +1,7 @@
 import type { EngineTable, KanaKey, PromptItem, Strictness } from '../types';
 import { appendPrompts, buildGlyphIndex, compileStream, kanaTexts } from './compile';
 import { compact } from './compact';
-import { canonical, committedTimings, errorTarget, view } from './observe';
+import { canonical, committedTimings, errorTarget, settledPrompts, view } from './observe';
 import { committedPrompts, extensions, isComplete, start, step } from './step';
 import type { EngineView, Matcher, MatchState, TokenTiming } from './types';
 
@@ -18,6 +18,8 @@ export type Engine = {
   readonly committedPrompts: (m: Matcher, s: MatchState) => number;
   // Timings of the tokens committed in every position that agree on their keystrokes.
   readonly committedTimings: (m: Matcher, s: MatchState) => readonly TokenTiming[];
+  // Leading prompts that are committed with agreed timings: what compact() may drop.
+  readonly settledPrompts: (m: Matcher, s: MatchState) => number;
   // Live conversion for the input field and the highlighted token.
   readonly view: (m: Matcher, s: MatchState) => EngineView;
   // Token a rejected key is charged to (D10).
@@ -45,6 +47,7 @@ export function createEngine(table: EngineTable): Engine {
     extensions,
     committedPrompts,
     committedTimings,
+    settledPrompts,
     view,
     errorTarget,
     compact,

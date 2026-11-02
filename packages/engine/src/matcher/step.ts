@@ -20,11 +20,23 @@ export function isInProgress(m: Matcher, pos: Position): boolean {
   return text !== null && pos.offset < text.length;
 }
 
+// The token a position will type next: the one in progress, or the first real token after a
+// completed one.
+export function pendingToken(m: Matcher, pos: Position): number {
+  return isInProgress(m, pos) ? pos.token : nextReal(m, pos.token + 1);
+}
+
+export const START: Position = {
+  token: -1,
+  spelling: 0,
+  offset: 0,
+  firstKey: 0,
+  lastKey: -1,
+  path: null,
+};
+
 export function start(): MatchState {
-  return {
-    positions: [{ token: -1, spelling: 0, offset: 0, firstKey: 0, lastKey: -1, path: null }],
-    keys: 0,
-  };
+  return { positions: [START], keys: 0 };
 }
 
 // When two paths reach the same position the one that arrived first, in table order, is kept.
@@ -111,7 +123,7 @@ export function extensions(m: Matcher, s: MatchState): ReadonlySet<string> {
 export function committedPrompts(m: Matcher, s: MatchState): number {
   let committed = m.promptStarts.length;
   for (const pos of s.positions) {
-    const boundary = isInProgress(m, pos) ? pos.token : nextReal(m, pos.token + 1);
+    const boundary = pendingToken(m, pos);
     let count = 0;
     while (count < m.promptStarts.length) {
       const end = m.promptStarts[count + 1] ?? m.tokens.length;

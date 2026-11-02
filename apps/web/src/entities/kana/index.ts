@@ -59,6 +59,7 @@ export {
   isComplete,
   committedPrompts,
   committedTimings,
+  settledPrompts,
   view,
   errorTarget,
   compact,

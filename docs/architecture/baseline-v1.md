@@ -126,6 +126,7 @@ type Engine = {
   isComplete(matcher: Matcher, state: MatchState): boolean; // end of the stream reached
   committedPrompts(matcher: Matcher, state: MatchState): number;
   committedTimings(matcher: Matcher, state: MatchState): readonly TokenTiming[];
+  settledPrompts(matcher: Matcher, state: MatchState): number; // committed, timings agreed
   extensions(matcher: Matcher, state: MatchState): ReadonlySet<string>;
   view(matcher: Matcher, state: MatchState): EngineView; // live conversion
   errorTarget(matcher: Matcher, state: MatchState): number;
@@ -141,12 +142,12 @@ type Engine = {
 - **`step(matcher, state, char)`**: Returns a new `MatchState` if `char` advances at least one position. If rejected, returns `null` without modifying the existing state. The state counts accepted keystrokes only.
 - **`committedPrompts`**: Prompts finished in every active position. A prompt ending in ん is not committed until the next key settles whether the ん was a bare `n` or `nn`.
 - **`view` and `errorTarget`**: `view` gives the display position for the input field; `errorTarget` charges a rejected key to the earliest token any position is typing (D10).
-- **`compact`**: Drops committed prompts whose timings are agreed and rebases indices; the controller calls it after every 20 committed prompts.
+- **`compact`**: Drops the prompts counted by `settledPrompts` and rebases indices; the controller calls it after every 20 committed prompts.
 - `shouldAbsorb` and the 250 ms absorption window are gone (spec D3): a surplus `n` is resolved by matching the stream.
 
 ### `TypingController` (`features/type-prompt`)
 
-The controller keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `committedPrompts()` includes it and all its tokens have agreed timings, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change resets the session.
+The controller keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `settledPrompts()` includes it, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes; the first token of a test has no preceding keystroke and reports `ms` 0, which `updateKanaStats` treats as no measurement. A rejected key is charged to `errorTarget()`, Esc to the prompt the hint is shown for. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change resets the session.
 
 ---
 
@@ -260,7 +261,7 @@ Git hooks run the same checks earlier (`pre-commit`: staged formatting, typechec
 
 ### `entities/progress`
 
-- `updateKanaStats(prev: KanaStats | undefined, mistakes: number, ms: number): KanaStats`: Completely pure function; calculates new attempt count `a`, mistake count `m`, EMA response latency `t` ($\alpha = 0.3$), and applies `decayStats` (halving `a` and `m` when $a > 50$). Returns a fresh `KanaStats` object without mutating `prev`.
+- `updateKanaStats(prev: KanaStats | undefined, mistakes: number, ms: number): KanaStats`: Completely pure function; calculates new attempt count `a`, mistake count `m`, EMA response latency `t` ($\alpha = 0.3$; `ms` 0 is no measurement and keeps `t`), and applies `decayStats` (halving `a` and `m` when $a > 50$). Returns a fresh `KanaStats` object without mutating `prev`.
 - `ProgressMap`: Defined as `ReadonlyMap<string, KanaStats>`, guaranteeing immutable consumption by weights calculators.
 - `computeItemWeight(tokenKeys: readonly string[], weights: ReadonlyMap<string, number>): number`: Evaluates prompt weight for words/phrases by computing the arithmetic mean over all constituent token kana keys (unseen keys defaulting to weight 3.0, per section 8 of the [archived v1 plan](../archive/v1-implementation-plan.md)). Since D20 it is used: `createPromptWeights()` in `features/type-prompt` maps each word or phrase to the `KanaKey`s of its tokens and weighs it by their mean; a single kana weighs what it did before.
 

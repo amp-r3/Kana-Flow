@@ -237,12 +237,15 @@ export function appendPrompts(
 
     for (const raw of tokenize(index, prompt.text)) {
       const draft = draftOf(raw, promptIndex, drafts, start, strictness);
-      // Reading hints (relaxed only) address the prompt's tokens; a merged っX counts as one.
+      // Reading hints (relaxed only) address the prompt's tokens; a merged っX counts as one, and
+      // its hint spellings carry the っ like its other spellings (D22).
       if (strictness === 'learner' && draft.kind === 'kana') {
         const tokenIndex = drafts.length - start;
         for (const hint of prompt.readingHints ?? []) {
           if (hint.tokenIndex === tokenIndex) {
-            draft.texts = unique([...draft.texts, ...hint.learner]);
+            const merged = raw.kind === 'kana' && raw.sokuon;
+            const added = merged ? sokuonTexts(hint.learner) : hint.learner;
+            draft.texts = unique([...draft.texts, ...added]);
           }
         }
       }
