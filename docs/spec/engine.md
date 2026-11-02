@@ -19,7 +19,7 @@ interface Engine {
   settledPrompts(m: Matcher, s: MatchState): number; // leading committed prompts whose tokens all have agreed timings; what compact() may drop
   extensions(m: Matcher, s: MatchState): ReadonlySet<string>;
   view(m: Matcher, s: MatchState): EngineView; // live conversion
-  errorTarget(m: Matcher, s: MatchState): number; // token index for error attribution
+  errorTarget(m: Matcher, s: MatchState): number; // token index for error attribution (D10, A34)
   canonical(m: Matcher, promptIndex: number): string; // hint text (Esc)
   spellingsFor(key: KanaKey, strictness: Strictness): readonly string[]; // results screen, learning mode
   canonicalFor(key: KanaKey): string;
@@ -162,7 +162,7 @@ Other extended combinations (ツァ, クァ, イェ, スィ, フュ and similar)
 ## Errors
 
 - A rejected key does not enter the buffer, the state is unchanged, and a 280 ms shake is played.
-- The error is recorded on token `errorTarget()` (D10): `mistakes += 1`, `errored = true`, and the pair "expected kana → typed character" is stored for the confusion matrix.
+- The error is recorded on token `errorTarget()` (D10): the minimum `tokenIndex` among active positions, but never before the first token that needs input of the prompt on display (A34). Relaxed ほん → ねこ after `hon`: ねこ is on display, so a wrong key is charged to ね, not to ん; relaxed こんな after `kon`: the prompt has not changed, so it is charged to ん. On the token: `mistakes += 1`, `errored = true`, and the pair "expected kana → typed character" is stored for the confusion matrix.
 - Any character other than a latin letter, `-` or `'`, as well as Space, Enter and Backspace, is `ignore`, not an error (D15). Only a non-latin letter shows the layout notice.
-- Esc (hint) keeps the baseline behaviour: shows `canonical` for the active prompt, counts one error, and the prompt must still be typed in full. The error is recorded on the prompt the hint is shown for: on `errorTarget()` if that token is in the prompt, otherwise on the prompt's first token that needs input, since `errorTarget()` can still point at an undecided ん of the previous prompt.
+- Esc (hint) keeps the baseline behaviour: shows `canonical` for the active prompt, counts one error, and the prompt must still be typed in full. The error is recorded on token `errorTarget()`, as for a rejected key.
 - `shouldAbsorb` is removed; surplus `n` keys are resolved by stream matching (D3).

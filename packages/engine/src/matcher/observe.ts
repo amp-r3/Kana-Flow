@@ -1,5 +1,5 @@
 import type { EngineView, PathNode, Matcher, Position, MatchState, TokenTiming } from './types';
-import { committedPrompts, isInProgress, pendingToken, textOf } from './step';
+import { committedPrompts, isInProgress, nextReal, pendingToken, textOf } from './step';
 
 // Live conversion (spec "Display position"): the position with the shortest typed latin beyond
 // its completed tokens; on a tie the one whose spelling comes first in table order, then the
@@ -32,12 +32,15 @@ function activeToken(m: Matcher, s: MatchState): number {
   return min;
 }
 
-// Token that a rejected key is charged to (D10): the minimum over active positions, never past the
-// last token that needs input.
+// Token that a rejected key or a hint is charged to (D10, A34): the minimum over active positions,
+// but never before the prompt on display, whose word the user is typing, and never past the last
+// token that needs input.
 export function errorTarget(m: Matcher, s: MatchState): number {
   let last = m.tokens.length - 1;
   while (last > 0 && m.tokens[last]?.kind === 'skip') last -= 1;
-  return Math.max(0, Math.min(activeToken(m, s), last));
+  const shown = m.tokens[Math.min(view(m, s).displayedTokens, last)]?.promptIndex ?? 0;
+  const shownFirst = nextReal(m, m.promptStarts[shown] ?? 0);
+  return Math.max(0, Math.min(Math.max(activeToken(m, s), shownFirst), last));
 }
 
 function nodesOf(m: Matcher, pos: Position): Map<number, PathNode> {

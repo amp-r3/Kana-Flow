@@ -389,7 +389,7 @@ describe('controller: prompt stream (spec D3, A15)', () => {
     ]);
   });
 
-  it('charges a rejected key to the ん that is still undecided, not to the next prompt (D10)', () => {
+  it('charges a rejected key to the prompt on screen, not to the undecided ん before it (A34)', () => {
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
     const controller = new TypingController(() => neko, clock, scheduler);
     controller.loadPrompt(hon, 'learner');
@@ -398,8 +398,10 @@ describe('controller: prompt stream (spec D3, A15)', () => {
     expect(mistakeCount.value).toBe(1);
     type(controller, 'ne');
     expect(promptResults.value).toHaveLength(1);
-    expect(promptResults.value[0]?.mistakes).toBe(1);
-    expect(promptResults.value[0]?.tokenOutcomes.map((t) => t.mistakes)).toEqual([0, 1]);
+    expect(promptResults.value[0]?.mistakes).toBe(0);
+    type(controller, 'ko');
+    expect(promptResults.value[1]?.mistakes).toBe(1);
+    expect(promptResults.value[1]?.tokenOutcomes.map((t) => t.mistakes)).toEqual([1, 0]);
   });
 
   it('an Esc before the first key still counts once the test starts', () => {

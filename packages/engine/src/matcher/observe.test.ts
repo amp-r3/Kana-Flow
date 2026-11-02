@@ -68,9 +68,21 @@ describe('errorTarget (D10)', () => {
     expect(engine.errorTarget(...pair(after(['ねこ'], 'ime', 'ne')))).toBe(1);
   });
 
-  it('is the minimum over active positions: an undecided ん is charged, not the next token', () => {
-    expect(engine.errorTarget(...pair(after(['ほん', 'ねこ'], 'learner', 'hon')))).toBe(1);
+  it('is the minimum over active positions inside a prompt: an undecided ん is charged', () => {
+    expect(engine.errorTarget(...pair(after(['こんな'], 'learner', 'kon')))).toBe(1);
     expect(engine.errorTarget(...pair(after(['ほん', 'ねこ'], 'ime', 'honn')))).toBe(2);
+  });
+
+  it('is never before the prompt on display: the next word is charged, not its ん (A34)', () => {
+    expect(engine.errorTarget(...pair(after(['ほん', 'ねこ'], 'learner', 'hon')))).toBe(2);
+    expect(engine.errorTarget(...pair(after(['ほん', 'か'], 'ime', 'hon')))).toBe(2);
+    // The leading skip token of that prompt needs no input, so its first real token is charged.
+    expect(engine.errorTarget(...pair(after(['ほん', '「ね'], 'learner', 'hon')))).toBe(3);
+  });
+
+  it('stays on an undecided ん while the prompt that holds it is on display', () => {
+    // Strict ん before a vowel needs nn: the display stays on ほん.
+    expect(engine.errorTarget(...pair(after(['ほん', 'あ'], 'ime', 'hon')))).toBe(1);
   });
 
   it('stays on the last token that needs input once the stream is complete', () => {

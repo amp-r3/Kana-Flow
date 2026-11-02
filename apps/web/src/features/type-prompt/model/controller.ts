@@ -159,7 +159,7 @@ export class TypingController {
       if (!this.assisted.has(this.displayed)) {
         this.assisted.add(this.displayed);
         this._isAssisted.value = true;
-        this.errorLog.record(this.revealTarget(matcher, state), null, '');
+        this.errorLog.record(errorTarget(matcher, state), null, '');
         if (phase.value === 'idle') this.mistakesBeforeStart += 1;
         recordMistake();
       }
@@ -231,7 +231,7 @@ export class TypingController {
     }, 1000);
   }
 
-  // Rejected: does not enter the buffer, triggers a shake, is charged to errorTarget() (D10).
+  // Rejected: does not enter the buffer, triggers a shake, is charged to errorTarget() (D10, A34).
   private reject(matcher: Matcher, state: MatchState, char: string, now: number): void {
     recordKeystroke(now, false);
     const target = errorTarget(matcher, state);
@@ -245,14 +245,6 @@ export class TypingController {
       this._isShaking.value = false;
       this.shakeTimeoutHandle = null;
     }, 280);
-  }
-
-  // Esc is charged to the prompt the hint is shown for. errorTarget() can still point at an
-  // undecided ん of the previous prompt, which got no hint.
-  private revealTarget(matcher: Matcher, state: MatchState): number {
-    let first = matcher.promptStarts[this.displayed - this.promptBase] ?? 0;
-    while (matcher.tokens[first]?.kind === 'skip') first += 1;
-    return Math.max(first, errorTarget(matcher, state));
   }
 
   private afterAccepted(matcher: Matcher, state: MatchState, now: number): void {

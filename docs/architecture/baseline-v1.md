@@ -141,13 +141,13 @@ type Engine = {
 
 - **`step(matcher, state, char)`**: Returns a new `MatchState` if `char` advances at least one position. If rejected, returns `null` without modifying the existing state. The state counts accepted keystrokes only.
 - **`committedPrompts`**: Prompts finished in every active position. A prompt ending in ん is not committed until the next key settles whether the ん was a bare `n` or `nn`.
-- **`view` and `errorTarget`**: `view` gives the display position for the input field; `errorTarget` charges a rejected key to the earliest token any position is typing (D10).
+- **`view` and `errorTarget`**: `view` gives the display position for the input field; `errorTarget` charges a rejected key or a hint to the earliest token any position is typing, but never before the prompt on display (D10, A34).
 - **`compact`**: Drops the prompts counted by `settledPrompts` and rebases indices; the controller calls it after every 20 committed prompts.
 - `shouldAbsorb` and the 250 ms absorption window are gone (spec D3): a surplus `n` is resolved by matching the stream.
 
 ### `TypingController` (`features/type-prompt`)
 
-The controller keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `settledPrompts()` includes it, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes; the first token of a test has no preceding keystroke and reports `ms` 0, which `updateKanaStats` treats as no measurement. A rejected key is charged to `errorTarget()`, Esc to the prompt the hint is shown for. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change resets the session.
+The controller keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `settledPrompts()` includes it, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes; the first token of a test has no preceding keystroke and reports `ms` 0, which `updateKanaStats` treats as no measurement. A rejected key and Esc are charged to `errorTarget()`. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change resets the session.
 
 ---
 
