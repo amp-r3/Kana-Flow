@@ -6,9 +6,9 @@ Instructions for AI coding agents working in this repository. `CLAUDE.md` is a s
 
 Nekotype is a keyboard-first web trainer for typing Japanese kana in romaji, modelled on Monkeytype. Production: <https://nekotype.pages.dev> (Cloudflare Pages).
 
-- **Current code** is the v1 baseline: a single Preact SPA in `apps/web/src/`, state in localStorage, no backend. P0 is moving it into a pnpm monorepo (ADR 027); `packages/shared` and `packages/engine` are in place; the rest of P0 is budget, CI and docs.
+- **Current code** is the v1 baseline in a pnpm monorepo (ADR 027, phase P0 done): a Preact SPA in `apps/web/`, the engine and kana tables in `packages/engine`, shared types and guards in `packages/shared`. State is in localStorage, there is no backend.
 - **Target** is the MVP in `docs/spec/`: pnpm monorepo, stream-based input engine, IndexedDB, Pages Functions + D1, content pipeline, learning mode. It is delivered in phases P0–P7.
-- Where documents disagree, `docs/spec/` wins over everything else. `README.md` and `docs/architecture/baseline-v1.md` are partly outdated until P0 (spec item D21).
+- Where documents disagree, `docs/spec/` wins over everything else. `README.md` and `docs/architecture/baseline-v1.md` describe the code after P0; when a phase changes the code, update them in the same PR.
 
 ## Documents
 
@@ -31,7 +31,7 @@ pnpm install        # install; also enables the git hooks (prepare script)
 pnpm run dev          # Vite dev server on http://localhost:5173
 pnpm run typecheck    # tsc --noEmit
 pnpm run lint         # eslint . && steiger ./src, per package
-pnpm test             # vitest run
+pnpm test             # vitest run in every package (engine: with a coverage threshold)
 pnpm run build        # production build into apps/web/dist/
 pnpm run budget       # size budgets on apps/web/dist/
 pnpm run verify       # typecheck + lint + format:check + test (coverage) + build + budget + e2e (what CI runs)
@@ -53,7 +53,7 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
 - Never merge on your own: merging deploys to production and is the maintainer's review step.
   When the maintainer says to merge, squash-merge with `gh pr merge --squash --delete-branch`.
 - Git hooks live in `.githooks/`:
-  - `pre-commit`: Prettier on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
+  - `pre-commit`: `prettier --check` on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
   - `pre-push`: `pnpm run verify` (which includes e2e).
 - Never bypass hooks with `--no-verify` unless the maintainer explicitly asks. If a hook fails, fix the cause.
 - CI (`.github/workflows/deploy.yml`) runs `verify` on every push and PR and deploys with wrangler.
@@ -70,8 +70,8 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
 
 - TypeScript is maximally strict (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, …).
 - Forbidden by lint: `any`, type assertions (`as T`), non-null assertions (`!`), `@ts-ignore` (and `@ts-expect-error` without a description), inline `eslint-disable`, `export default` (except config files), `export *`.
-- Narrow `unknown` with type guards (`shared/lib/guards.ts`); never cast.
-- Prettier: single quotes, trailing commas, 100 columns. Many baseline files are not yet formatted; format a file when you touch it, but do not reformat unrelated files in the same commit.
+- Narrow `unknown` with type guards (`@nekotype/shared/runtime`); never cast.
+- Prettier: single quotes, trailing commas, 100 columns. The whole repository is formatted and `verify` checks it; run `pnpm run format` before committing.
 - Match the surrounding code: naming, comment density and idioms.
 - All user-visible strings, including `aria-label` values, come from `shared/i18n` (`en` and `ru` must keep key parity; a test checks it).
 - No new runtime dependency without a clear need: it counts against the JS budget.
