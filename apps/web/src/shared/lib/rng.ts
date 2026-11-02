@@ -1,6 +1,4 @@
-export interface Rng {
-  next(): number;
-}
+import type { Rng } from '@nekotype/shared/types';
 
 export const defaultRng: Rng = {
   next: () => Math.random(),

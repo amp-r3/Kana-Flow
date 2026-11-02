@@ -1,10 +1,8 @@
-export type { Rng } from './rng';
+export type { Rng, Clock, Scheduler, TimeoutHandle } from '@nekotype/shared/types';
 export { defaultRng } from './rng';
 
-export type { Clock } from './clock';
 export { defaultClock } from './clock';
 
-export type { Scheduler, TimeoutHandle } from './scheduler';
 export { defaultScheduler } from './scheduler';
 
 export { cx } from './cx';
@@ -17,6 +15,17 @@ export {
   createDebouncedSaver,
 } from './storage';
 
-export type { ValidTestConfig, ValidSettings, ValidKanaStats, ValidProgress } from './guards';
+export type {
+  ValidTestConfig,
+  ValidSettings,
+  ValidKanaStats,
+  ValidProgress,
+} from '@nekotype/shared/types';
 
-export { isObject, isTestConfig, isSettings, isKanaStats, isProgress } from './guards';
+export {
+  isObject,
+  isTestConfig,
+  isSettings,
+  isKanaStats,
+  isProgress,
+} from '@nekotype/shared/runtime';
