@@ -89,7 +89,7 @@ End-to-end browser integration tests are powered by Playwright. **Note:** `pnpm 
 To install the browser binary and run the E2E suite:
 
 ```bash
-pnpm exec playwright install chromium    # One-time install of Chromium browser
+pnpm --filter @nekotype/web exec playwright install chromium    # One-time install of Chromium browser
 pnpm run e2e                        # Run Playwright E2E suite against Vite dev server
 ```
 
@@ -97,10 +97,10 @@ pnpm run e2e                        # Run Playwright E2E suite against Vite dev 
 
 `pnpm install --frozen-lockfile` runs the `prepare` script, which points Git at the versioned hooks in `.githooks/`. No extra dependencies are involved.
 
-| Hook         | Runs                                                                                                               | Notes                                                                                               |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                         |
-| `pre-push`   | `pnpm run verify`, then `pnpm run e2e`                                                                             | Reuses a running `pnpm run dev` if there is one; needs `pnpm exec playwright install chromium` once |
+| Hook         | Runs                                                                                                               | Notes                                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                |
+| `pre-push`   | `pnpm run verify`, then `pnpm run e2e`                                                                             | Reuses a running `pnpm run dev` if there is one; needs `pnpm --filter @nekotype/web exec playwright install chromium` once |
 
 CI still runs `verify` on every push and pull request; the hooks catch the same failures earlier. In an emergency, `git commit --no-verify` / `git push --no-verify` skips them.
 
@@ -123,7 +123,7 @@ Nekotype adheres to strict first-load asset caps. Production bundle metrics:
 
 ## ☁️ Deployment
 
-Nekotype is a fully static SPA (`dist/`, no backend, state in `localStorage`) and ships to **Cloudflare Pages** at the domain root, so `VITE_BASE` stays at its default `/`.
+Nekotype is a fully static SPA (`apps/web/dist/`, no backend, state in `localStorage`) and ships to **Cloudflare Pages** at the domain root, so `VITE_BASE` stays at its default `/`.
 
 **Production:** <https://nekotype.pages.dev> · **Previews:** one URL per pull request.
 
@@ -132,7 +132,7 @@ Nekotype is a fully static SPA (`dist/`, no backend, state in `localStorage`) an
 `.github/workflows/deploy.yml` runs on every push to `main` and on every pull request:
 
 1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + FSD lint + unit tests + build + size budget). A failing size budget blocks the deploy.
-2. `wrangler pages deploy dist` — pushes to `main` go to production, PRs get a preview deployment. Fork PRs verify but never deploy, since they cannot read secrets.
+2. `wrangler pages deploy apps/web/dist` — pushes to `main` go to production, PRs get a preview deployment. Fork PRs verify but never deploy, since they cannot read secrets.
 
 ### One-Time Setup
 
@@ -154,12 +154,12 @@ A custom domain can be attached later in _Workers & Pages_ → _nekotype_ → _C
 
 ```bash
 pnpm run verify                     # guarantees a passing build + budget
-pnpm dlx wrangler pages deploy dist --project-name nekotype --branch=main
+pnpm dlx wrangler pages deploy apps/web/dist --project-name nekotype --branch=main
 ```
 
 ### Caching & Headers
 
-`public/_headers` is copied into `dist/` verbatim and served by Cloudflare Pages:
+`apps/web/public/_headers` is copied into `apps/web/dist/` verbatim and served by Cloudflare Pages:
 
 | Path          | Policy                                                                                                  | Why                                                                |
 | ------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -185,5 +185,5 @@ No `_redirects` file is needed, because there is no client-side router. A `404.h
 
 - **Source Code:** [MIT License](LICENSE)
 - **Typography:**
-  - Noto Sans JP: [SIL Open Font License 1.1](src/assets/fonts/OFL-NotoSansJP.txt)
-  - JetBrains Mono: [SIL Open Font License 1.1](src/assets/fonts/OFL-JetBrainsMono.txt)
+  - Noto Sans JP: [SIL Open Font License 1.1](apps/web/src/assets/fonts/OFL-NotoSansJP.txt)
+  - JetBrains Mono: [SIL Open Font License 1.1](apps/web/src/assets/fonts/OFL-JetBrainsMono.txt)

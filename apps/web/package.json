@@ -1,0 +1,40 @@
+{
+  "name": "@nekotype/web",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && steiger ./src",
+    "test": "vitest run",
+    "fonts": "tsx scripts/subset-fonts.mjs",
+    "budget": "node scripts/check-budget.mjs",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.4",
+    "preact": "^11.1.0"
+  },
+  "devDependencies": {
+    "@feature-sliced/steiger-plugin": "^0.8.1",
+    "@playwright/test": "^1.64.1",
+    "@preact/preset-vite": "^2.10.6",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.13.10",
+    "eslint": "^10.13.0",
+    "eslint-plugin-boundaries": "^7.4.0",
+    "happy-dom": "^21.0.4",
+    "steiger": "^0.8.1",
+    "subset-font": "^2.9.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.19.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}
