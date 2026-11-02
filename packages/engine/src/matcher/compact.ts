@@ -1,4 +1,4 @@
-import type { PathNode, StreamMatcher, StreamPosition, StreamState } from './types';
+import type { PathNode, Matcher, Position, MatchState } from './types';
 import { committedTimings } from './observe';
 import { committedPrompts, isInProgress, nextReal } from './step';
 
@@ -7,7 +7,7 @@ function rebasePath(path: PathNode | null, dropped: number): PathNode | null {
   return { ...path, token: path.token - dropped, prev: rebasePath(path.prev, dropped) };
 }
 
-const START: StreamPosition = {
+const START: Position = {
   token: -1,
   spelling: 0,
   offset: 0,
@@ -19,7 +19,7 @@ const START: StreamPosition = {
 // Prompts that are committed and whose tokens all have agreed timings. A prompt that is committed
 // while the paths still disagree on the keystrokes of its last ん waits for the next key, so no
 // timing is lost: committedTimings() only covers tokens that are still in the matcher.
-function droppablePrompts(m: StreamMatcher, s: StreamState): number {
+function droppablePrompts(m: Matcher, s: MatchState): number {
   const committed = committedPrompts(m, s);
   if (committed === 0) return 0;
   const agreed = new Set(committedTimings(m, s).map((t) => t.tokenIndex));
@@ -39,14 +39,14 @@ function droppablePrompts(m: StreamMatcher, s: StreamState): number {
 // in-progress `nn` beside it, which blocks compaction until the next key. If a hand-made state
 // breaks this, nothing is dropped. Keystroke indices are not rebased.
 export function compact(
-  m: StreamMatcher,
-  s: StreamState,
-): { m: StreamMatcher; s: StreamState; droppedTokens: number } {
+  m: Matcher,
+  s: MatchState,
+): { m: Matcher; s: MatchState; droppedTokens: number } {
   const n = droppablePrompts(m, s);
   if (n === 0) return { m, s, droppedTokens: 0 };
   const dropped = m.promptStarts[n] ?? m.tokens.length;
 
-  const positions: StreamPosition[] = [];
+  const positions: Position[] = [];
   let hasStart = false;
   for (const pos of s.positions) {
     if (isInProgress(m, pos) || pos.token >= dropped) {
@@ -62,7 +62,7 @@ export function compact(
     hasStart = true;
   }
 
-  const matcher: StreamMatcher = {
+  const matcher: Matcher = {
     tokens: m.tokens.slice(dropped).map((t) => ({ ...t, promptIndex: t.promptIndex - n })),
     promptStarts: m.promptStarts.slice(n).map((x) => x - dropped),
     strictness: m.strictness,

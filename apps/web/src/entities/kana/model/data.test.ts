@@ -45,13 +45,13 @@ describe('data integrity: content items', () => {
         text: item.text,
         ...(item.readingHints ? { readingHints: item.readingHints } : {}),
       };
-      const compiledLearner = compile(prompt, 'learner');
+      const compiledLearner = compile([prompt], 'learner');
       expect(compiledLearner.tokens.length).toBeGreaterThan(0);
-      expect(canonical(compiledLearner).length).toBeGreaterThan(0);
+      expect(canonical(compiledLearner, 0).length).toBeGreaterThan(0);
 
-      const compiledIme = compile(prompt, 'ime');
+      const compiledIme = compile([prompt], 'ime');
       expect(compiledIme.tokens.length).toBeGreaterThan(0);
-      expect(canonical(compiledIme).length).toBeGreaterThan(0);
+      expect(canonical(compiledIme, 0).length).toBeGreaterThan(0);
     }
   });
 });

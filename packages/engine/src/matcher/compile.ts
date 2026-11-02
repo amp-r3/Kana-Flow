@@ -1,6 +1,6 @@
 import type { KanaKey, PromptItem, Script, Strictness } from '../types';
 import { SKIP_CHARACTERS, SOKUON_PREFIXES } from '../data/tokens';
-import type { Spelling, StreamMatcher, StreamToken, TokenKind } from './types';
+import type { Spelling, Matcher, Token, TokenKind } from './types';
 
 type GlyphInfo = {
   readonly kanaKey: KanaKey;
@@ -192,7 +192,7 @@ function canFollowBareN(text: string, strictness: Strictness): boolean {
 // spellings it may precede, or null when anything may follow (end of the stream or a skip token).
 function bareNext(
   promptIndex: number,
-  next: StreamToken | undefined,
+  next: Token | undefined,
   strictness: Strictness,
 ): readonly number[] | null {
   if (next === undefined || next.kind === 'skip') return null;
@@ -210,7 +210,7 @@ export function compileStream(
   index: GlyphIndex,
   prompts: readonly PromptItem[],
   strictness: Strictness,
-): StreamMatcher {
+): Matcher {
   return appendPrompts(index, { tokens: [], promptStarts: [], strictness }, prompts);
 }
 
@@ -220,9 +220,9 @@ export function compileStream(
 // empty set of permitted next spellings.
 export function appendPrompts(
   index: GlyphIndex,
-  m: StreamMatcher,
+  m: Matcher,
   prompts: readonly PromptItem[],
-): StreamMatcher {
+): Matcher {
   if (prompts.length === 0) return m;
   const strictness = m.strictness;
   const firstPrompt = m.promptStarts.length;
@@ -251,7 +251,7 @@ export function appendPrompts(
   });
 
   // A single n for ん depends on the next token's spellings, so resolve from the right.
-  const reversed: StreamToken[] = [];
+  const reversed: Token[] = [];
   for (const d of drafts.slice().reverse()) {
     const spellings: Spelling[] = d.texts.map((text) => ({ text, next: null }));
     if (d.kind === 'n') {

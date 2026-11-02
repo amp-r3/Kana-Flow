@@ -1,18 +1,15 @@
 import type { PromptItem, Strictness } from '../types';
 import { engineTable } from '../data';
-import { createStreamEngine } from './engine';
-import type { StreamMatcher, StreamState } from './types';
+import { createEngine } from './engine';
+import type { Matcher, MatchState } from './types';
 
-export const engine = createStreamEngine(engineTable);
+export const engine = createEngine(engineTable);
 
 export function prompts(...texts: string[]): PromptItem[] {
   return texts.map((text, i) => ({ key: `p${i}`, text }));
 }
 
-export function feed(
-  m: StreamMatcher,
-  input: string,
-): { state: StreamState | null; failedAt: number } {
+export function feed(m: Matcher, input: string): { state: MatchState | null; failedAt: number } {
   let state = engine.start(m);
   for (let i = 0; i < input.length; i++) {
     const next = engine.step(m, state, input.charAt(i));

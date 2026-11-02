@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { compile, start, step, isComplete, canonical } from './engine';
-import type { Matcher, MatchState } from './engine';
+import { canonical, compile, extend, isComplete, start, step } from './engine';
+import type { MatchState, Matcher } from './engine';
 import { wordsData } from '../model/data/words';
 import { phrasesData } from '../model/data/phrases';
 import type { PromptItem } from '../model/types';
 
-function feedString(m: Matcher, s: MatchState, input: string): MatchState | null {
-  let current: MatchState | null = s;
+function feed(m: Matcher, input: string, from?: MatchState): MatchState | null {
+  let current: MatchState | null = from ?? start(m);
   for (const ch of input) {
     if (!current) return null;
     current = step(m, current, ch);
@@ -23,102 +23,76 @@ class DeterministicRng {
     this.s = (this.s * 1103515245 + 12345) & 0x7fffffff;
     return this.s / 0x7fffffff;
   }
-  nextInt(min: number, max: number): number {
-    return Math.floor(this.next() * (max - min + 1)) + min;
-  }
-  nextChar(): string {
-    const chars = "abcdefghijklmnopqrstuvwxyz-'";
-    return chars[this.nextInt(0, chars.length - 1)] ?? 'a';
+  pick<T>(items: readonly T[]): T {
+    const item = items[Math.floor(this.next() * items.length)];
+    if (item === undefined) throw new Error('empty');
+    return item;
   }
 }
 
-describe('engine: property tests across words and phrases', () => {
-  // Test-only capped enumerator
-  function enumerateSpellings(m: Matcher, cap = 20): string[] {
-    let combs: string[] = [''];
-    for (const token of m.tokens) {
-      const nextCombs: string[] = [];
-      for (const prefix of combs) {
-        for (const sp of token.spellings) {
-          if (nextCombs.length < cap) {
-            nextCombs.push(prefix + sp);
-          }
-        }
-      }
-      combs = nextCombs;
-      if (combs.length === 0) break;
-    }
-    return combs;
-  }
+const KEYS = "abcdefghijklmnopqrstuvwxyz-'".split('');
 
-  // Collect all test prompts: all words and phrases
-  const allPrompts: PromptItem[] = [];
+// Every word and phrase of the baseline content, with its reading hints.
+const allPrompts: PromptItem[] = [...wordsData, ...phrasesData].map((c) => ({
+  key: c.id,
+  text: c.text,
+  ...(c.readingHints ? { readingHints: c.readingHints } : {}),
+}));
 
-  for (const w of wordsData) {
-    allPrompts.push({
-      key: w.id,
-      text: w.text,
-      ...(w.readingHints ? { readingHints: w.readingHints } : {}),
-    });
-  }
-
-  for (const p of phrasesData) {
-    allPrompts.push({
-      key: p.id,
-      text: p.text,
-      ...(p.readingHints ? { readingHints: p.readingHints } : {}),
-    });
-  }
-
-  const rng = new DeterministicRng(54321);
-
-  it('property test: all prompts x both strictness levels satisfy prefix, completion, canonical, and mutation invariants', () => {
+describe('engine over the baseline words and phrases', () => {
+  it('every prompt compiles in both modes and its canonical spelling completes it', () => {
     for (const prompt of allPrompts) {
-      for (const strictness of ['ime', 'learner'] as const) {
-        const m = compile(prompt, strictness);
-        const canon = canonical(m);
-        const spellings = enumerateSpellings(m, 15);
-
-        // Canonical must be in the valid spellings (or produce complete state)
-        expect(canon.length).toBeGreaterThan(0);
-        const canonEnd = feedString(m, start(m), canon);
-        expect(canonEnd).not.toBeNull();
-        if (canonEnd) {
-          expect(isComplete(m, canonEnd)).toBe(true);
-        }
-
-        // Test every enumerated spelling
-        for (const spelling of spellings) {
-          let s: MatchState | null = start(m);
-
-          // Test proper prefixes
-          for (let i = 0; i < spelling.length; i++) {
-            expect(s).not.toBeNull();
-            if (!s) break;
-            const ch = spelling[i];
-            if (!ch) break;
-            s = step(m, s, ch);
-          }
-
-          expect(s).not.toBeNull();
-          if (s) {
-            expect(isComplete(m, s)).toBe(true);
-          }
-
-          // Random mutation test: mutate one char at a random position
-          if (spelling.length > 0) {
-            const mutateIdx = rng.nextInt(0, spelling.length - 1);
-            const randChar = rng.nextChar();
-            const mutated = spelling.slice(0, mutateIdx) + randChar + spelling.slice(mutateIdx + 1);
-
-            const mutatedState = feedString(m, start(m), mutated);
-            // It must either be rejected (null) OR, if coincidentally another valid path, non-null
-            if (mutatedState !== null) {
-              expect(typeof isComplete(m, mutatedState)).toBe('boolean');
-            }
-          }
-        }
+      for (const mode of ['ime', 'learner'] as const) {
+        const m = compile([prompt], mode);
+        const canon = canonical(m, 0);
+        expect(canon.length, prompt.key).toBeGreaterThan(0);
+        const end = feed(m, canon);
+        expect(end, `${prompt.key} ${mode} ← ${canon}`).not.toBeNull();
+        expect(end !== null && isComplete(m, end)).toBe(true);
       }
+    }
+  });
+
+  it('random walks always reach the end, and relaxed accepts what strict accepts', () => {
+    const rng = new DeterministicRng(54321);
+    for (const prompt of allPrompts) {
+      const strict = compile([prompt], 'ime');
+      const relaxed = compile([prompt], 'learner');
+      for (let walk = 0; walk < 5; walk++) {
+        let s = start(strict);
+        let typed = '';
+        while (!isComplete(strict, s) || rng.next() < 0.3) {
+          const accepted = KEYS.filter((k) => step(strict, s, k) !== null);
+          if (accepted.length === 0) break;
+          const key = rng.pick(accepted);
+          const next = step(strict, s, key);
+          if (next === null) break;
+          s = next;
+          typed += key;
+        }
+        expect(isComplete(strict, s), `${prompt.key} ← ${typed}`).toBe(true);
+        const replay = feed(relaxed, typed);
+        expect(replay, `${prompt.key} relaxed ← ${typed}`).not.toBeNull();
+        expect(replay !== null && isComplete(relaxed, replay)).toBe(true);
+      }
+    }
+  });
+
+  it('the whole content typed as one stream, extended as it goes (D3)', () => {
+    for (const mode of ['ime', 'learner'] as const) {
+      let m = compile(allPrompts.slice(0, 2), mode);
+      let s = start(m);
+      for (let i = 0; i < allPrompts.length; i++) {
+        const prompt = allPrompts[i];
+        const following = allPrompts[i + 2];
+        if (following !== undefined) m = extend(m, [following]);
+        const keys = canonical(compile(prompt ? [prompt] : [], mode), 0);
+        const next = feed(m, keys, s);
+        expect(next, `${mode} prompt ${i} ← ${keys}`).not.toBeNull();
+        if (next === null) return;
+        s = next;
+      }
+      expect(isComplete(m, s)).toBe(true);
     }
   });
 });

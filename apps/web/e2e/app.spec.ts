@@ -163,6 +163,45 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.locator('text=wpm')).toHaveCount(0);
   });
 
+  test('(i) a count test over words (ん at the end of prompts, next prompt shown early) ends on the results screen', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const input = page.locator('input[aria-label="Kana input sink"]');
+    await expect(input).toBeFocused();
+
+    await page.getByRole('radio', { name: 'Count' }).click();
+    await page.getByRole('radio', { name: '10', exact: true }).click();
+    const words = page.getByRole('radio', { name: 'Words' });
+    // The words load lazily and the trainer restarts the test when they arrive: wait for that,
+    // or the restart lands in the middle of typing and the count starts over.
+    const loaded = page.waitForResponse((r) => /words/.test(r.url()));
+    await words.click();
+    await expect(words).toHaveAttribute('aria-checked', 'true');
+    await loaded;
+    await expect(page.getByText('Loading vocabulary...')).toHaveCount(0);
+    await expect(page.locator('main .font-kana')).toHaveText(/^.{2,}$/);
+
+    for (let i = 0; i < 10; i++) {
+      const arena = page.locator('[data-canonical]');
+      await expect(arena).toBeVisible();
+      // Wait until the lazily loaded words are on screen and the hint belongs to the prompt shown
+      await expect(arena).not.toHaveAttribute('data-canonical', '');
+      const canonical = await arena.getAttribute('data-canonical');
+      const glyph = await page.locator('main .font-kana').innerText();
+      if (canonical) {
+        await page.keyboard.type(canonical, { delay: 15 });
+      }
+      if (i < 9) {
+        await expect(page.locator('main .font-kana')).not.toHaveText(glyph, { timeout: 2000 });
+      }
+    }
+
+    await expect(page.getByRole('button', { name: 'Next Test' })).toBeVisible({ timeout: 5000 });
+    // No mistakes: every answer was canonical
+    await expect(page.getByTestId('results-panel')).toBeVisible();
+  });
+
   test('(g) RU/EN switch changes a visible label and survives a reload', async ({ page }) => {
     await page.goto('/');
 

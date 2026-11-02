@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { useRef, useEffect } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
-import { romajiForKey } from '@/entities/kana';
+import { canonicalFor, isKanaKey } from '@/entities/kana';
 import { metrics, promptResults } from '@/entities/session';
 import { SpeedChart } from './speed-chart';
 import { WeakestKanaList } from './weakest-kana-list';
@@ -46,7 +46,7 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
   for (const [key, count] of mistakeMap.entries()) {
     const colonIdx = key.indexOf(':');
     const glyph = colonIdx >= 0 ? key.slice(colonIdx + 1) : key;
-    const romaji = romajiForKey(key) ?? '';
+    const romaji = isKanaKey(key) ? canonicalFor(key) : '';
     weakestItems.push({
       key,
       glyph,

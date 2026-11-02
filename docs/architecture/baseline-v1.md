@@ -1,4 +1,4 @@
-> **Scope.** Describes the v1 baseline code as it stands after P0: the application in `apps/web/src/` and the two packages it uses, `packages/engine` and `packages/shared`. Where it disagrees with the [MVP specification](../spec/README.md), the specification applies; this document is rewritten as the MVP phases land (spec item D21).
+> **Scope.** Describes the v1 baseline code as it stands after the P1 engine cutover: the application in `apps/web/src/` and the two packages it uses, `packages/engine` and `packages/shared`. Where it disagrees with the [MVP specification](../spec/README.md), the specification applies; this document is rewritten as the MVP phases land (spec item D21).
 
 # Nekotype Architecture Documentation
 
@@ -81,17 +81,21 @@ Typing Japanese romaji involves substantial ambiguity between formal IME keystro
 ### Chōonpu (ー) Dual-Tier Rules
 
 - **Strict IME:** Accepts only `-` (hyphen/minus). Phonetic repeats like `koohii` are rejected.
-- **Learner Mode:** Accepts both `-` AND the preceding token's final vowel repeated (e.g. `koohii` and `ko-hi-` are both accepted for `コーヒー`).
+- **Learner Mode:** Accepts `-` and the final vowel of the nearest kana token to the left, looking through other `ー` (`koohii` and `ko-hi-` for `コーヒー`). After ん, a standalone っ, a skip token or at the start of a prompt only `-` is accepted.
 
 ### Sokuon (っ / ッ) Consonant Doubling
 
-- **Digraph Gemination:** When `っ` precedes a consonant token, `compile()` merges it into the token and doubles the initial consonant (e.g. `k` → `kk`). Special IME digraphs (like `ch` → `tch` in IME, `cch` in learner) are generated.
-- **Standalone Fallback:** When `っ` occurs standalone, before vowels, before `n`/`y`, or at the prompt end, it generates `['xtu', 'ltu', 'xtsu']`.
+- **Merged っ:** `っ` followed by a kana becomes one token with the following kana's key. Every spelling that starts with a consonant other than `n` or `y` is doubled (`ch` gives `tch` and `cch`), and the `xtu`/`ltu`/`xtsu`/`ltsu` prefix is accepted before any spelling (spec D5, D22).
+- **Standalone っ:** At the end of a prompt, before `ん`, `ー`, another `っ` or a skip token, `っ` is its own token with the four prefix spellings. It never merges across a prompt boundary.
 
-### Syllabic ん / ン Contextual Lookahead
+### Syllabic ん / ン Contextual Lookahead (spec D2, D3, A15)
 
-- **Strict IME:** `nn` and `n'` are always accepted everywhere. Bare `n` is accepted only if all spellings of the subsequent token start with a consonant other than `n` or `y`. At the prompt end, bare `n` is rejected.
-- **Learner Mode:** `n` is accepted anywhere for ん.
+- `nn` and `n'` are always accepted. A bare `n` is stored as a spelling that may only precede certain spellings of the next token: those starting with a consonant other than `n` or `y`, and in learner mode also those starting with `n`.
+- The next token is looked up across prompt boundaries. At a boundary, learner mode accepts a bare `n` before any spelling of the next prompt. At the end of the stream and before a skip token a bare `n` is always accepted.
+
+### Skip tokens (spec D8)
+
+Punctuation and spaces (`SKIP_CHARACTERS`) are tokens that need no input; the matcher passes over them and statistics ignore them.
 
 ### Reading Hints (`readingHints`)
 
@@ -105,42 +109,44 @@ In vocabulary words, certain particles and irregular kanji readings deviate from
 
 ## 3. NFA Romaji Engine Contract
 
-The romaji engine (`packages/engine/src/engine.ts`) is a pure, immutable Non-deterministic Finite Automaton (NFA) evaluator. It does not touch the DOM, timers, or storage, and holds no module-level state: it is created from a kana table. `apps/web/src/entities/kana/lib/engine.ts` binds it to the app's table (`createEngine(allKanaRows)`) and re-exports the functions, so the rest of the app imports them from `@/entities/kana`.
+The romaji engine (`packages/engine/src/matcher/`) is a pure, immutable Non-deterministic Finite Automaton (NFA) evaluator over a **stream of prompts** (spec [Input engine rules](../spec/engine.md)). It does not touch the DOM, timers, or storage, and holds no module-level state: it is created from a kana table. `apps/web/src/entities/kana/lib/engine.ts` binds it to the app's table (`createEngine(engineTable)`) and re-exports the functions, so the rest of the app imports them from `@/entities/kana`.
 
-```
-       [Start]
-          │
-     'k'  │  (State 1)
-          ▼
-       [k-path]
-          │
-     'a'  │  (State 2, Complete Token 0)
-          ▼
-      [Token 1] ─── 'n' ───► [Match Complete]
-```
+A position is `(token, spelling, offset)` plus the keystroke indices of the path that led to it. A token whose spelling is typed in full is _done_ and waits for the first key of the next token; the spelling's `next` set limits which spellings of that token may follow (this is how a bare `n` is tied to its context). Positions of several readings live side by side, so `hon` in relaxed mode keeps both the bare `n` and the first half of `nn`.
 
 ### Public Engine API
 
 ```ts
-export function createEngine(table: KanaTable): Engine;
+export function createEngine(table: EngineTable): Engine;
 
 type Engine = {
-  compile(prompt: PromptItem, strictness: Strictness): Matcher;
+  compile(prompts: readonly PromptItem[], strictness: Strictness): Matcher;
+  extend(matcher: Matcher, prompts: readonly PromptItem[]): Matcher; // old states stay valid
   start(matcher: Matcher): MatchState;
-  step(matcher: Matcher, state: MatchState, char: string): MatchState | null;
-  isComplete(matcher: Matcher, state: MatchState): boolean;
-  activeTokenIndex(state: MatchState): number;
+  step(matcher: Matcher, state: MatchState, char: string): MatchState | null; // null = rejected
+  isComplete(matcher: Matcher, state: MatchState): boolean; // end of the stream reached
+  committedPrompts(matcher: Matcher, state: MatchState): number;
+  committedTimings(matcher: Matcher, state: MatchState): readonly TokenTiming[];
   extensions(matcher: Matcher, state: MatchState): ReadonlySet<string>;
-  canonical(matcher: Matcher): string;
-  romajiForKey(kanaKey: string): string | null;
+  view(matcher: Matcher, state: MatchState): EngineView; // live conversion
+  errorTarget(matcher: Matcher, state: MatchState): number;
+  compact(matcher, state): { m: Matcher; s: MatchState; droppedTokens: number };
+  canonical(matcher: Matcher, promptIndex: number): string;
+  spellingsFor(key: KanaKey, strictness: Strictness): readonly string[];
+  canonicalFor(key: KanaKey): string;
 };
 ```
 
-`Engine` members are function-typed properties, so they can be destructured. This per-prompt API is replaced by the stream API of [Input engine rules](../spec/engine.md) in P1.
+`createErrorLog()` is a separate pure helper for per-token mistakes and "expected kana → typed character" pairs. `Engine` members are function-typed properties, so they can be destructured. The spec's [API section](../spec/engine.md) is normative; this list only names what the app uses.
 
-- **`step(matcher, state, char)`**: Returns a new `MatchState` if `char` advances at least one active path in the NFA. If rejected, returns `null` without modifying the existing state.
-- **`extensions(matcher, state)`**: When a prompt is completed, returns characters that could have continued the state (e.g. the second `n` in `pan` completed with single `n`).
-- **`shouldAbsorb(extensions, completedAt, now, key, windowMs = 250)`**: A pure helper exported from `packages/engine/src/absorption.ts`. If a prompt completed with trailing extensions (e.g. `パン` completed as `pan`), any matching key arriving within 250 ms is absorbed silently, preventing false-positive mistakes when transitioning to words like `ねこ` or double-tapping `n`. P1 removes it: surplus `n` keys are resolved by stream matching (spec D3).
+- **`step(matcher, state, char)`**: Returns a new `MatchState` if `char` advances at least one position. If rejected, returns `null` without modifying the existing state. The state counts accepted keystrokes only.
+- **`committedPrompts`**: Prompts finished in every active position. A prompt ending in ん is not committed until the next key settles whether the ん was a bare `n` or `nn`.
+- **`view` and `errorTarget`**: `view` gives the display position for the input field; `errorTarget` charges a rejected key to the earliest token any position is typing (D10).
+- **`compact`**: Drops committed prompts whose timings are agreed and rebases indices; the controller calls it after every 20 committed prompts.
+- `shouldAbsorb` and the 250 ms absorption window are gone (spec D3): a surplus `n` is resolved by matching the stream.
+
+### `TypingController` (`features/type-prompt`)
+
+The controller keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `committedPrompts()` includes it and all its tokens have agreed timings, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change resets the session.
 
 ---
 
@@ -235,14 +241,14 @@ Every commit and pull request must satisfy `pnpm run verify`, which CI also runs
 1. **`pnpm run typecheck` (`tsc --noEmit`)**: Maximum strictness TypeScript checks. Zero `any`, zero `as T`, zero `!`.
 2. **`pnpm run lint`**: ESLint AST inspection in every package; in `apps/web` also Steiger FSD architectural boundaries and the import restrictions of section 1.
 3. **`pnpm run format:check` (`prettier --check .`)**: Formatting of the whole repository.
-4. **`pnpm run test` (`vitest run`)**: Unit, integration, property and render-isolation tests. `packages/engine` runs with a v8 coverage threshold (set to the P0 level; the spec target is 95%, reached in P1).
+4. **`pnpm run test` (`vitest run`)**: Unit, integration, property and render-isolation tests. `packages/engine` runs with a v8 coverage threshold: the P0 level for the package, and 95% for `src/matcher/` (the spec target for the whole package is reached in P1).
 5. **`pnpm run build` (`vite build`)**: Production client bundle into `apps/web/dist`, with the Vite manifest.
 6. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Reads the manifest and enforces hard budget limits (gzip unless stated; brotli is reported next to it). Figures from the P0 build:
    - Initial HTML: ≤ 5 KB (actual 0.27 KB)
-   - Initial JS, the entry and its static imports: ≤ 35 KB (actual 24.49 KB)
+   - Initial JS, the entry and its static imports: ≤ 35 KB (actual 26.77 KB)
    - Initial CSS: ≤ 10 KB (actual 4.94 KB)
    - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 14.95 KB JetBrains Mono, 16.45 KB Noto Sans JP)
-   - Total first load: ≤ 160 KB (actual 61.10 KB)
+   - Total first load: ≤ 160 KB (actual 63.39 KB)
    - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; there are no route chunks yet)
 7. **`pnpm run e2e` (`playwright test`)**: Chromium against the Vite dev server (section 7).
 

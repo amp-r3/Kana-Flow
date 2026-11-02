@@ -10,7 +10,7 @@ export type Spelling = {
   readonly next: readonly number[] | null;
 };
 
-export type StreamToken = {
+export type Token = {
   readonly glyph: string;
   readonly kanaKey: KanaKey | null;
   readonly kind: TokenKind;
@@ -18,8 +18,8 @@ export type StreamToken = {
   readonly spellings: readonly Spelling[];
 };
 
-export type StreamMatcher = {
-  readonly tokens: readonly StreamToken[];
+export type Matcher = {
+  readonly tokens: readonly Token[];
   // Index in `tokens` of the first token of each prompt.
   readonly promptStarts: readonly number[];
   readonly strictness: Strictness;
@@ -37,7 +37,7 @@ export type PathNode = {
 // A position inside a spelling of a token. offset === text.length means the token is done;
 // the position then waits for the first key of the next token. token === -1 is the start, or the
 // place of tokens dropped by compact().
-export type StreamPosition = {
+export type Position = {
   readonly token: number;
   readonly spelling: number;
   readonly offset: number;
@@ -46,8 +46,8 @@ export type StreamPosition = {
   readonly path: PathNode | null; // tokens completed before this one
 };
 
-export type StreamState = {
-  readonly positions: readonly StreamPosition[];
+export type MatchState = {
+  readonly positions: readonly Position[];
   readonly keys: number; // accepted keystrokes so far; the next one has this index
 };
 

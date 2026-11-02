@@ -41,20 +41,33 @@ export {
   presetBasic,
 } from './model/store';
 
-export type { Token, Matcher, Position, MatchState } from './lib/engine';
+export type {
+  Token,
+  Matcher,
+  Position,
+  MatchState,
+  EngineView,
+  TokenTiming,
+  ErrorLog,
+} from './lib/engine';
 
 export {
   compile,
+  extend,
   start,
   step,
   isComplete,
-  activeTokenIndex,
-  extensions,
+  committedPrompts,
+  committedTimings,
+  view,
+  errorTarget,
+  compact,
   canonical,
-  romajiForKey,
+  spellingsFor,
+  canonicalFor,
+  createErrorLog,
+  isKanaKey,
 } from './lib/engine';
-
-export { shouldAbsorb } from '@nekotype/engine';
 
 export { buildPool, pickPrompt, rowsYieldKana } from './lib/picker';
 
