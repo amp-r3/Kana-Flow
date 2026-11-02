@@ -1,6 +1,7 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import { allKanaRows } from './data';
+import { DEFAULT_BASIC_ROWS } from './default-rows';
 import type { PracticeSettings, RowId, ScriptMode, ContentKind, Strictness } from './types';
 import type { KeyValueStore } from '@/shared/lib';
 import { STORAGE_KEYS, isSettings, createDebouncedSaver } from '@/shared/lib';
@@ -11,18 +12,7 @@ function isRowId(id: string): id is RowId {
   return VALID_ROW_IDS.has(id);
 }
 
-export const DEFAULT_BASIC_ROWS: readonly RowId[] = [
-  'vowels',
-  'k',
-  's',
-  't',
-  'n',
-  'h',
-  'm',
-  'y',
-  'r',
-  'w_n',
-];
+export { DEFAULT_BASIC_ROWS };
 
 const _scriptSetting = signal<ScriptMode>('both');
 const _contentSetting = signal<ContentKind>('single');

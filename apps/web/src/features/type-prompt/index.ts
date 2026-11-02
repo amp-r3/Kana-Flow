@@ -8,3 +8,6 @@ export type { TokenOutcomeTracker } from './model/controller';
 export { TypingController } from './model/controller';
 
 export { setupSettingsResetWatcher } from './model/settings-watcher';
+
+export type { PromptWeights } from './lib/prompt-weights';
+export { createPromptWeights } from './lib/prompt-weights';

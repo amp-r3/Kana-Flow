@@ -151,6 +151,9 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(nextTestBtn).toBeVisible({ timeout: 5000 });
     await expect(nextTestBtn).toBeFocused();
 
+    // D20: the results panel fades in (`animate-fadeIn` used to be an undefined class)
+    await expect(page.getByTestId('results-panel')).toHaveCSS('animation-name', 'fadeIn');
+
     // Press Enter to activate "Next Test" button
     await page.keyboard.press('Enter');
 

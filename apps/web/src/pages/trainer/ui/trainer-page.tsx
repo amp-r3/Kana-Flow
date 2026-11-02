@@ -7,6 +7,9 @@ import {
   buildPool,
   pickPrompt,
   getPracticeSettings,
+  scriptSetting,
+  rowIdsSetting,
+  rowsYieldKana,
   strictnessSetting,
   contentSetting,
   setContent,
@@ -14,8 +17,12 @@ import {
 } from '@/entities/kana';
 import type { ContentItem, PromptItem } from '@/entities/kana';
 import { phase } from '@/entities/session';
-import { progressStats, computeWeights } from '@/entities/progress';
-import { TypingController, setupSettingsResetWatcher } from '@/features/type-prompt';
+import { progressStats } from '@/entities/progress';
+import {
+  TypingController,
+  setupSettingsResetWatcher,
+  createPromptWeights,
+} from '@/features/type-prompt';
 import { TopBar } from './top-bar';
 import { ConfigBar } from './config-bar';
 import { RowsDialog } from './rows-dialog';
@@ -34,6 +41,7 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
   const wordsRef = useRef<readonly ContentItem[]>([]);
   const phrasesRef = useRef<readonly ContentItem[]>([]);
   const previousKeyRef = useRef<string | null>(null);
+  const [promptWeights] = useState(createPromptWeights);
 
   const getNextPrompt = useCallback((): PromptItem => {
     const settings = getPracticeSettings();
@@ -46,16 +54,13 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
 
     const pool = buildPool(settings, content);
     const weights = settings.weakFocus
-      ? computeWeights(
-          progressStats.value,
-          pool.map((item) => item.key),
-        )
+      ? promptWeights(pool, progressStats.value)
       : new Map<string, number>();
 
     const picked = pickPrompt(pool, weights, defaultRng, previousKeyRef.current);
     previousKeyRef.current = picked.key;
     return picked;
-  }, []);
+  }, [promptWeights]);
 
   const [internalController] = useState(
     () => new TypingController(getNextPrompt, defaultClock, defaultScheduler),
@@ -113,6 +118,13 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
   }, [contentSetting.value, reloadFreshPrompt]);
 
   const isFinished = useComputed(() => phase.value === 'finished');
+  // D20: rows that give no kana for the script (extended rows with hiragana) fall back to the
+  // basic rows in buildPool; say so instead of silently practising other kana.
+  const noKanaForRows = useComputed(
+    () =>
+      contentSetting.value === 'single' &&
+      !rowsYieldKana({ script: scriptSetting.value, rowIds: rowIdsSetting.value }),
+  );
 
   return (
     <div className="bg-bg text-text flex min-h-screen flex-col font-sans">
@@ -129,6 +141,15 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
           {contentError && (
             <div className="bg-error/15 border-error/30 text-error mx-auto w-full max-w-2xl rounded border p-2.5 text-center text-xs">
               {contentError}
+            </div>
+          )}
+
+          {noKanaForRows.value && (
+            <div
+              role="status"
+              className="bg-surface border-border text-text-dim mx-auto w-full max-w-2xl rounded border p-2.5 text-center text-xs"
+            >
+              {t('stage.noKanaForRows')}
             </div>
           )}
 

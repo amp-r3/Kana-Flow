@@ -60,7 +60,10 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
   const elapsedSec = (m.elapsedMs / 1000).toFixed(1);
 
   return (
-    <div className="animate-fadeIn mx-auto flex w-full max-w-2xl flex-col gap-6 py-6 select-none">
+    <div
+      data-testid="results-panel"
+      className="animate-fadeIn mx-auto flex w-full max-w-2xl flex-col gap-6 py-6 select-none"
+    >
       {/* Polite live region for screen readers (Plan 11.3 & P5 A11y) */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {`Test complete. Speed: ${m.wpm} WPM, accuracy: ${Math.round(m.accuracy * 100)} percent. Completed ${m.promptsCompleted} prompts with ${m.mistakes} mistakes.`}

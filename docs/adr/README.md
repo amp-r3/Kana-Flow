@@ -43,7 +43,7 @@ Append-only log of architectural decisions, one file per decision.
 | [016](016-unified-reactive-settings-reset-watcher-setupsettingsresetwatcher.md)      | Unified Reactive Settings Reset Watcher (`setupSettingsResetWatcher`)                        | In force             |
 | [017](017-comprehensive-accessibility-pass.md)                                       | Comprehensive Accessibility Pass                                                             | In force             |
 | [018](018-playwright-e2e-test-suite-for-real-browser-focus.md)                       | Playwright E2E Test Suite for Real Browser Focus Redirection and Layout Physics Verification | Amended              |
-| [019](019-runtime-fallback-for-vocabulary-pools-in-buildpool.md)                     | Runtime Fallback for Vocabulary Pools in `buildPool`                                         | In force             |
+| [019](019-runtime-fallback-for-vocabulary-pools-in-buildpool.md)                     | Runtime Fallback for Vocabulary Pools in `buildPool`                                         | Amended              |
 | [020](020-readonlysignal-export-pattern-for-store-state.md)                          | ReadonlySignal Export Pattern for Store State                                                | In force             |
 | [021](021-global-keyboard-binding-decoupling-bindkeyboard.md)                        | Global Keyboard Binding Decoupling (`bindKeyboard`)                                          | Amended              |
 | [022](022-key-intent-semantics-reveal-strictly-via-escape.md)                        | Key Intent Semantics: Reveal Strictly via Escape                                             | In force             |
@@ -52,3 +52,4 @@ Append-only log of architectural decisions, one file per decision.
 | [025](025-rename-to-nekotype-and-new-pages-origin.md)                                | Rename to Nekotype and New Pages Origin                                                      | In force             |
 | [026](026-pnpm-as-package-manager.md)                                                | pnpm as the Package Manager                                                                  | In force             |
 | [027](027-pnpm-workspace-layout-for-the-monorepo.md)                                 | pnpm Workspace Layout for the Monorepo                                                       | In force             |
+| [028](028-empty-pool-falls-back-to-basic-rows.md)                                    | Empty Kana Pool Falls Back to the Basic Rows                                                 | In force             |
