@@ -72,7 +72,7 @@ Slices on one layer do not import each other, so a flow crossing features, such 
 | `/settings` | `showTranslation`, learning strictness. Account section: sign-in buttons (hidden on previews), profile, sync status (synced, pending, offline, session expired, blocked), sign-out, account deletion with a confirmation dialog |
 | `/about`    | See [Content pipeline](content.md) and P7                                                                                                                                                                                       |
 
-Speed-test options stay in the config bar on `/`. The report dialog has a `reason` select, an optional comment and the Turnstile widget.
+Speed-test options stay in the config bar on `/`. "Reset progress" stays in the top bar for guests only (A33). The report dialog has a `reason` select, an optional comment and the Turnstile widget.
 
 ## Interface
 

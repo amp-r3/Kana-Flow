@@ -36,6 +36,7 @@
 | A30 | Reviews are recall only; a lesson is not resumable; due dates fall on local calendar days                                                                       | Mixed review formats; persist lesson state; rolling 24-hour intervals              | Recall is the trained skill; a lesson is short, so saved state is not worth a new synced record; a rolling interval would hide a kana from a daily review done slightly earlier                                        |
 | A31 | The MVP interface is basic, with views separated from logic                                                                                                     | Design the final interface now                                                     | The interface will be redesigned in full, so the priority is an architecture that lets views be replaced without touching behaviour or its tests                                                                       |
 | A32 | Generated content is imported as Vite chunks, carries no Russian glosses, and a contributor's sentence with は or へ that differs from kuromoji is excluded     | Static files with a fetched manifest; ship `ru`; keep such sentences without hints | Vite provides hashing and prefetch with no new code; `ru` is not displayed in the MVP; a sentence without hints would reject the natural `wa` in relaxed mode                                                          |
+| A33 | "Reset progress" is available to guests only; signed-in users do not see it until a server-side reset exists                                                    | Reset the device only; design a server reset for the MVP                           | Sync only adds deltas, so a local reset would be undone by the next snapshot; deleting the account already lets a signed-in user start over                                                                            |
 
 ## Resolved items
 
@@ -44,8 +45,8 @@ Checked against primary sources on Nov 1, 2026.
 - **O1 — Tatoeba licence.** All Tatoeba exports, including transcriptions, are released under CC BY 2.0 FR; part of the sentences is also available under CC0 1.0. Reuse requires citing the author of each sentence and distributing it with its licence. Resolved by per-phrase credit (A19).
 - **O2 — JLPT list.** Jonathan Waller's lists (CC BY) through the stephenmk/yomitan-jlpt-vocab mapping (CC BY-SA 4.0) (A20). The JMdict priority-tag selection remains only as a fallback.
 - **O4 — Cloudflare free tier.** Confirmed: 100,000 requests per day and 10 ms CPU per request; Pages Functions share the daily quota with Workers, and static asset requests are free and unlimited; D1 allows 5 million rows read and 100,000 rows written per day, and an index write counts as an additional written row; after a limit is exceeded, D1 queries fail until midnight UTC; 500 MB per database, 5 GB per account, at most 2 MB per row. The 2 MB row limit applies to `user_stats`, which holds all statistics of a user as JSON. Limits are rechecked before P6, since they can change.
+- **O5 — "Reset progress" action.** A maintainer decision, not a source check. Resolved by A33.
 
 ## Open items
 
 - **O3.** Define the Russian gloss coverage threshold for enabling Russian translations in v1.1, based on the P4 coverage report.
-- **O5.** The baseline has a "Reset progress" action, which the MVP spec does not cover. Merging by adding deltas cannot express a reset on the server, so a signed-in reset needs its own design. It must be resolved before P3 for guests and before P6 for signed-in users.
