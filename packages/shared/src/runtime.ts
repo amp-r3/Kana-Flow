@@ -1,27 +1,4 @@
-export type ValidTestConfig =
-  | { readonly kind: 'time'; readonly seconds: 15 | 30 | 60 | 120 }
-  | { readonly kind: 'count'; readonly prompts: 10 | 25 | 50 | 100 };
-
-export type ValidSettings = {
-  readonly v: 1;
-  readonly script: 'hiragana' | 'katakana' | 'both';
-  readonly content: 'single' | 'words' | 'phrases';
-  readonly strictness: 'learner' | 'ime';
-  readonly rowIds: readonly string[];
-  readonly weakFocus: boolean;
-  readonly test: ValidTestConfig;
-};
-
-export type ValidKanaStats = {
-  readonly a: number;
-  readonly m: number;
-  readonly t: number;
-};
-
-export type ValidProgress = {
-  readonly v: 1;
-  readonly stats: Record<string, ValidKanaStats>;
-};
+import type { ValidTestConfig, ValidSettings, ValidKanaStats, ValidProgress } from './types';
 
 export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

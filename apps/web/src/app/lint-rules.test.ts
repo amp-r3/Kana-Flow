@@ -56,4 +56,11 @@ describe('lint-rules: strict TypeScript and architecture enforcement', { timeout
     const messages = await getLintErrors('/* eslint-disable */\nexport const x = 1;\n');
     expect(messages.some((m) => m.message.includes('noInlineConfig'))).toBe(true);
   });
+
+  it('rejects client imports of shared/schemas, content and api', async () => {
+    const messages = await getLintErrors(
+      "import a from '@nekotype/shared/schemas';\nimport b from '@nekotype/content';\nimport c from '@nekotype/api';\nexport const x = [a, b, c];\n",
+    );
+    expect(messages.filter((m) => m.ruleId === 'no-restricted-imports').length).toBe(3);
+  });
 });

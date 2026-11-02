@@ -45,6 +45,18 @@ export default [
       'boundaries/include': ['src/**/*'],
     },
     rules: {
+      // The client must not bundle valibot schemas, the content build or the API (architecture.md).
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@nekotype/shared/schemas', '@nekotype/content', '@nekotype/api'],
+              message: 'apps/web must not import shared/schemas, content or api.',
+            },
+          ],
+        },
+      ],
       'boundaries/dependencies': [
         'error',
         {
