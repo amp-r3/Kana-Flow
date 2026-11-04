@@ -1,15 +1,3 @@
-export type TimeTestConfig = {
-  readonly kind: 'time';
-  readonly seconds: 15 | 30 | 60 | 120;
-};
-
-export type CountTestConfig = {
-  readonly kind: 'count';
-  readonly prompts: 10 | 25 | 50 | 100;
-};
-
-export type TestConfig = TimeTestConfig | CountTestConfig;
-
 export type Phase = 'idle' | 'running' | 'finished';
 
 export type KeystrokeEvent = {

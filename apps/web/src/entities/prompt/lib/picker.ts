@@ -1,5 +1,5 @@
 import type {
-  PracticeSettings,
+  PoolSettings,
   PromptItem,
   ContentItem,
   KanaKey,
@@ -7,11 +7,11 @@ import type {
   ScriptMode,
 } from '../model/types';
 import { allKanaRows } from '../model/data';
-import { DEFAULT_BASIC_ROWS } from '../model/default-rows';
 import type { Rng } from '@/shared/lib';
+import { DEFAULT_BASIC_ROWS } from '@/shared/lib';
 
 export function buildPool(
-  settings: PracticeSettings,
+  settings: PoolSettings,
   content?: readonly ContentItem[],
 ): readonly PromptItem[] {
   if (settings.content === 'words' || settings.content === 'phrases') {
@@ -71,7 +71,7 @@ function buildKanaPool(script: ScriptMode, rowIds: readonly RowId[]): readonly P
 }
 
 /** True when the selected rows give at least one kana for the script. */
-export function rowsYieldKana(settings: Pick<PracticeSettings, 'script' | 'rowIds'>): boolean {
+export function rowsYieldKana(settings: Pick<PoolSettings, 'script' | 'rowIds'>): boolean {
   return buildKanaPool(settings.script, settings.rowIds).length > 0;
 }
 

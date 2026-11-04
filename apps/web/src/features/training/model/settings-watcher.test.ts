@@ -6,9 +6,10 @@ import {
   setStrictness,
   setWeakFocus,
   toggleRow,
-  initPracticeSettings,
-} from '@/entities/kana';
-import { phase, startTest, setTestConfig, initSession } from '@/entities/session';
+  initSettings,
+  setTestConfig,
+} from '@/entities/settings';
+import { phase, startTest } from '@/entities/session';
 import { MemoryKeyValueStore } from '@/shared/lib';
 
 describe('settings-watcher: single reactive effect resetting session to idle', () => {
@@ -17,8 +18,7 @@ describe('settings-watcher: single reactive effect resetting session to idle', (
 
   beforeEach(() => {
     const store = new MemoryKeyValueStore();
-    initPracticeSettings(store);
-    initSession(store);
+    initSettings(store);
     resetCallCount = 0;
     if (dispose) {
       dispose();

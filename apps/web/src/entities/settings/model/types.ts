@@ -1,0 +1,21 @@
+import type { RowId, Strictness } from '@nekotype/engine';
+import type { ValidSettings, ValidTestConfig } from '@/shared/lib';
+
+// Derived from the persisted shape, so this slice does not import the prompt slice.
+export type ScriptMode = ValidSettings['script'];
+
+export type ContentKind = ValidSettings['content'];
+
+export type TestConfig = ValidTestConfig;
+
+export type TimeTestConfig = Extract<TestConfig, { readonly kind: 'time' }>;
+
+export type CountTestConfig = Extract<TestConfig, { readonly kind: 'count' }>;
+
+export type PracticeSettings = {
+  readonly script: ScriptMode;
+  readonly content: ContentKind;
+  readonly strictness: Strictness;
+  readonly rowIds: readonly RowId[];
+  readonly weakFocus: boolean;
+};

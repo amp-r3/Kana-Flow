@@ -1,10 +1,10 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
-import { allKanaRows } from './data';
-import { DEFAULT_BASIC_ROWS } from './default-rows';
-import type { PracticeSettings, RowId, ScriptMode, ContentKind, Strictness } from './types';
+import { allKanaRows } from '@nekotype/engine';
+import type { RowId, Strictness } from '@nekotype/engine';
+import type { PracticeSettings, ScriptMode, ContentKind, TestConfig } from './types';
 import type { KeyValueStore } from '@/shared/lib';
-import { STORAGE_KEYS, isSettings, createDebouncedSaver } from '@/shared/lib';
+import { DEFAULT_BASIC_ROWS, STORAGE_KEYS, isSettings, createDebouncedSaver } from '@/shared/lib';
 
 const VALID_ROW_IDS = new Set<string>(allKanaRows.map((r) => r.id));
 
@@ -12,49 +12,44 @@ function isRowId(id: string): id is RowId {
   return VALID_ROW_IDS.has(id);
 }
 
-export { DEFAULT_BASIC_ROWS };
+export const DEFAULT_TEST_CONFIG: TestConfig = { kind: 'time', seconds: 30 };
 
 const _scriptSetting = signal<ScriptMode>('both');
 const _contentSetting = signal<ContentKind>('single');
 const _strictnessSetting = signal<Strictness>('learner');
 const _rowIdsSetting = signal<readonly RowId[]>(DEFAULT_BASIC_ROWS);
 const _weakFocusSetting = signal<boolean>(true);
+const _testConfig = signal<TestConfig>(DEFAULT_TEST_CONFIG);
 
 export const scriptSetting: ReadonlySignal<ScriptMode> = _scriptSetting;
 export const contentSetting: ReadonlySignal<ContentKind> = _contentSetting;
 export const strictnessSetting: ReadonlySignal<Strictness> = _strictnessSetting;
 export const rowIdsSetting: ReadonlySignal<readonly RowId[]> = _rowIdsSetting;
 export const weakFocusSetting: ReadonlySignal<boolean> = _weakFocusSetting;
+export const testConfig: ReadonlySignal<TestConfig> = _testConfig;
 
 let boundStore: KeyValueStore | null = null;
 let debouncedSaver: ReturnType<typeof createDebouncedSaver> | null = null;
 
 function saveCurrentSettings(): void {
   if (!boundStore) return;
-  const current = {
+  const full = {
     v: 1 as const,
     script: _scriptSetting.value,
     content: _contentSetting.value,
     strictness: _strictnessSetting.value,
     rowIds: _rowIdsSetting.value,
     weakFocus: _weakFocusSetting.value,
-    // Note: session test config is merged when saving full settings
+    test: _testConfig.value,
   };
-  // Retrieve existing test config if present
   try {
-    const raw = boundStore.get(STORAGE_KEYS.SETTINGS);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    const testConfig = isSettings(parsed)
-      ? parsed.test
-      : { kind: 'time' as const, seconds: 30 as const };
-    const full = { ...current, test: testConfig };
     boundStore.set(STORAGE_KEYS.SETTINGS, JSON.stringify(full));
   } catch {
     // Ignore error
   }
 }
 
-export function flushPracticeSettings(): void {
+export function flushSettings(): void {
   debouncedSaver?.flush();
 }
 
@@ -64,7 +59,7 @@ function notifyChange(): void {
   }
 }
 
-export function initPracticeSettings(store: KeyValueStore): void {
+export function initSettings(store: KeyValueStore): void {
   boundStore = store;
   debouncedSaver = createDebouncedSaver(saveCurrentSettings, 300);
 
@@ -82,6 +77,7 @@ export function initPracticeSettings(store: KeyValueStore): void {
           _rowIdsSetting.value = validRows;
         }
         _weakFocusSetting.value = parsed.weakFocus;
+        _testConfig.value = parsed.test;
         return;
       }
     } catch {
@@ -95,6 +91,7 @@ export function initPracticeSettings(store: KeyValueStore): void {
   _strictnessSetting.value = 'learner';
   _rowIdsSetting.value = DEFAULT_BASIC_ROWS;
   _weakFocusSetting.value = true;
+  _testConfig.value = DEFAULT_TEST_CONFIG;
 }
 
 export function getPracticeSettings(): PracticeSettings {
@@ -124,6 +121,12 @@ export function setStrictness(strictness: Strictness): void {
 
 export function setWeakFocus(focus: boolean): void {
   _weakFocusSetting.value = focus;
+  notifyChange();
+}
+
+// Changing the test length or kind restarts the session; features/training watches this signal.
+export function setTestConfig(config: TestConfig): void {
+  _testConfig.value = config;
   notifyChange();
 }
 

@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { useState } from 'preact/hooks';
 import { locale, setLocale, t } from '@/shared/i18n';
 import { Button, Dialog, Segmented, RowsIcon, ResetIcon } from '@/shared/ui';
-import { resetProgress } from '@/entities/progress';
+import { resetProgress } from '@/entities/stats';
 import lockupUrl from '@/assets/logo/lockup.svg';
 
 export type TopBarProps = {

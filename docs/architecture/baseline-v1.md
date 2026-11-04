@@ -29,7 +29,7 @@ Packages are consumed as TypeScript source (no build step). Each package has its
 apps/web/src/
 ├── app/                  # Application root, initialization, global styles, providers
 ├── pages/                # Composed full-page views (TrainerPage)
-├── features/             # User interaction workflows (type-prompt)
+├── features/             # User interaction workflows (training)
 ├── entities/             # Core domain models and business state (kana, session, progress)
 └── shared/               # Reusable primitives, UI components, i18n, storage, and utility libraries
 ```
@@ -37,8 +37,8 @@ apps/web/src/
 ### Import Rules & Layer Hierarchy
 
 1. **Unidirectional Dependency Flow:** Slices in higher layers may import slices from lower layers only (`app` → `pages` → `features` → `entities` → `shared`). Lower layers NEVER import from higher layers.
-2. **No Same-Layer Cross-Slice Imports:** Slices within the same layer (e.g. `entities/kana` and `entities/session`) must never import from each other. They interact through compositional coordination in higher layers (`features/type-prompt` or `pages/trainer`).
-3. **Public API Facades:** All inter-slice imports must resolve through the target slice's root `index.ts` public re-export file. Deep internal imports (e.g. `@/entities/kana/lib/picker`) are forbidden and rejected by lint checks.
+2. **No Same-Layer Cross-Slice Imports:** Slices within the same layer (e.g. `entities/prompt` and `entities/settings`) must never import from each other. They interact through compositional coordination in higher layers (`features/training` or `pages/trainer`).
+3. **Public API Facades:** All inter-slice imports must resolve through the target slice's root `index.ts` public re-export file. Deep internal imports (e.g. `@/entities/prompt/lib/picker`) are forbidden and rejected by lint checks.
 4. **Zero-Assertion TypeScript:** The entire codebase operates under maximum strictness: zero `any`, zero `as T` type assertions, zero non-null assertions (`!`), and zero `@ts-ignore` or `eslint-disable` directives.
 
 ### Widgets Layer Consolidation
@@ -115,7 +115,7 @@ In vocabulary words, certain particles and irregular kanji readings deviate from
 
 ## 3. NFA Romaji Engine Contract
 
-The romaji engine (`packages/engine/src/matcher/`) is a pure, immutable Non-deterministic Finite Automaton (NFA) evaluator over a **stream of prompts** (spec [Input engine rules](../spec/engine.md)). It does not touch the DOM, timers, or storage, and holds no module-level state: it is created from a kana table. `apps/web/src/entities/kana/lib/engine.ts` binds it to the app's table (`createEngine(engineTable)`) and re-exports the functions, so the rest of the app imports them from `@/entities/kana`.
+The romaji engine (`packages/engine/src/matcher/`) is a pure, immutable Non-deterministic Finite Automaton (NFA) evaluator over a **stream of prompts** (spec [Input engine rules](../spec/engine.md)). It does not touch the DOM, timers, or storage, and holds no module-level state: it is created from a kana table. `apps/web/src/entities/prompt/lib/engine.ts` binds it to the app's table (`createEngine(engineTable)`) and re-exports the functions, so the rest of the app imports them from `@/entities/prompt`.
 
 A position is `(token, spelling, offset)` plus the keystroke indices of the path that led to it. A token whose spelling is typed in full is _done_ and waits for the first key of the next token; the spelling's `next` set limits which spellings of that token may follow (this is how a bare `n` is tied to its context). Positions of several readings live side by side, so `hon` in relaxed mode keeps both the bare `n` and the first half of `nn`.
 
@@ -151,7 +151,7 @@ type Engine = {
 - **`compact`**: Drops the prompts counted by `settledPrompts` and rebases indices; the controller calls it after every 20 committed prompts.
 - `shouldAbsorb` and the 250 ms absorption window are gone (spec D3): a surplus `n` is resolved by matching the stream.
 
-### `TypingController` (`features/type-prompt`)
+### `TypingController` (`features/training`)
 
 The controller keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `settledPrompts()` includes it, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes; the first token of a test has no preceding keystroke and reports `ms` 0, which `updateKanaStats` treats as no measurement. A rejected key and Esc are charged to `errorTarget()`. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change resets the session.
 
@@ -170,7 +170,7 @@ The controller keeps a window of the displayed prompt and two more in the matche
    ```ts
    export const customRows: readonly KanaRow[] = [ ... ];
    ```
-3. Re-export it in `packages/engine/src/data/index.ts`, include it in `allKanaRows`, and export a new group from `packages/engine/src/index.ts` and `apps/web/src/entities/kana/model/data/index.ts` if the app needs it.
+3. Re-export it in `packages/engine/src/data/index.ts`, include it in `allKanaRows`, and export a new group from `packages/engine/src/index.ts` and `apps/web/src/entities/prompt/model/data/index.ts` if the app needs it.
 4. Run `pnpm --filter @nekotype/web run fonts` (downloads the pinned sources, ADR 034) so `glyphs.txt` and the font subset include the new glyphs (a test fails while `glyphs.txt` is out of sync).
 5. Run `pnpm test`: the row-count and `RowId` tests in `packages/engine/src/data.test.ts` need updating, and the property tests cover the new entries in both strictness modes.
 
@@ -178,7 +178,7 @@ The controller keeps a window of the displayed prompt and two more in the matche
 
 > These files are test fixtures from P4 on: content is generated by the content pipeline, not edited by hand (spec D19).
 
-1. Open `apps/web/src/entities/kana/model/data/words.ts` or `phrases.ts`.
+1. Open `apps/web/src/entities/prompt/model/data/words.ts` or `phrases.ts`.
 2. Append a new `ContentItem`:
    ```ts
    {
@@ -201,7 +201,7 @@ The controller keeps a window of the displayed prompt and two more in the matche
 
 ### Recipe D: Adding a Test Mode (e.g. Zen Mode, Sudden Death)
 
-1. Expand `TestConfig` in `apps/web/src/entities/session/model/types.ts`:
+1. Expand `TestConfig` in `apps/web/src/entities/settings/model/types.ts` (it derives from `ValidTestConfig` in `packages/shared`, which gains the same member):
    ```ts
    export type TestConfig =
      | { readonly kind: 'time'; readonly seconds: number }
@@ -209,7 +209,7 @@ The controller keeps a window of the displayed prompt and two more in the matche
      | { readonly kind: 'zen' };
    ```
 2. Update `ValidTestConfig` in `packages/shared/src/types.ts` and `isTestConfig` in `packages/shared/src/runtime.ts`; stored settings are validated with them, so an unlisted mode is discarded on load.
-3. Update `TypingController` in `apps/web/src/features/type-prompt/model/controller.ts` to skip deadline timers when `kind === 'zen'`.
+3. Update `TypingController` in `apps/web/src/features/training/model/controller.ts` to skip deadline timers when `kind === 'zen'`.
 4. Add UI segmented selector in `apps/web/src/pages/trainer/ui/config-bar.tsx`.
 
 ---
@@ -232,7 +232,7 @@ Nekotype is currently optimized for desktop physical keyboards. However, the inp
 
 ### Implementing a Mobile / On-Screen Touch Keyboard
 
-1. Create a touch keyboard component in `apps/web/src/features/type-prompt/ui/touch-keyboard.tsx`.
+1. Create a touch keyboard component in `apps/web/src/features/training/ui/touch-keyboard.tsx`.
 2. When the user taps a virtual key button (e.g. `'k'`, `'a'`, or `Esc`), dispatch the intent directly:
    ```ts
    controller.handleIntent({ kind: 'char', char: 'k' });
@@ -265,20 +265,25 @@ Git hooks run the same checks earlier (`pre-commit`: staged formatting, typechec
 
 ## 7. Public Domain API Signatures & Contract Specifications
 
-### `entities/progress`
+### `entities/stats`
 
 - `updateKanaStats(prev: KanaStats | undefined, mistakes: number, ms: number): KanaStats`: Completely pure function; calculates new attempt count `a`, mistake count `m`, EMA response latency `t` ($\alpha = 0.3$; `ms` 0 is no measurement and keeps `t`), and applies `decayStats` (halving `a` and `m` when $a > 50$). Returns a fresh `KanaStats` object without mutating `prev`.
 - `ProgressMap`: Defined as `ReadonlyMap<string, KanaStats>`, guaranteeing immutable consumption by weights calculators.
-- `computeItemWeight(tokenKeys: readonly string[], weights: ReadonlyMap<string, number>): number`: Evaluates prompt weight for words/phrases by computing the arithmetic mean over all constituent token kana keys (unseen keys defaulting to weight 3.0, per section 8 of the [archived v1 plan](../archive/v1-implementation-plan.md)). Since D20 it is used: `createPromptWeights()` in `features/type-prompt` maps each word or phrase to the `KanaKey`s of its tokens and weighs it by their mean; a single kana weighs what it did before.
+- `computeItemWeight(tokenKeys: readonly string[], weights: ReadonlyMap<string, number>): number`: Evaluates prompt weight for words/phrases by computing the arithmetic mean over all constituent token kana keys (unseen keys defaulting to weight 3.0, per section 8 of the [archived v1 plan](../archive/v1-implementation-plan.md)). Since D20 it is used: `createPromptWeights()` in `features/training` maps each word or phrase to the `KanaKey`s of its tokens and weighs it by their mean; a single kana weighs what it did before.
+
+### `entities/settings`
+
+- Holds the practice settings (`script`, `content`, `strictness`, `rowIds`, `weakFocus`) and the test length `testConfig` as `ReadonlySignal`s, and the actions that change them (`setScript`, `setTestConfig`, `toggleRow`, …). `initSettings(store)` reads `kanaflow:settings:v1`; one debounced writer saves all six values together (`flushSettings()` on `pagehide`). It does not import `entities/prompt`: its `ScriptMode` and `ContentKind` derive from `ValidSettings`.
+- Changing a setting does not reset the session here (a slice cannot import another); `setupSettingsResetWatcher` in `features/training` does.
 
 ### `entities/session`
 
 - `finishTest(endTimeMs?: number): SessionMetrics`: Transitions `phase.value = 'finished'`, evaluates final `SessionMetrics`, stores the result into `metrics.value`, and returns `SessionMetrics` directly.
 - `metrics: Signal<SessionMetrics | null>`: Reactive signal holding `null` during `idle` and `running` phases, populated on session completion.
 
-### `entities/kana`
+### `entities/prompt`
 
-- `buildPool(settings: PracticeSettings, content?: readonly ContentItem[]): readonly PromptItem[]`: Builds the prompt pool. In `words` and `phrases` content modes, if `content` is empty or no vocabulary items match the active script mode, it falls back to constructing the single-kana pool matching `settings.rowIds` and `settings.script` (ADR 019). If the selected rows give no kana for the script (extended rows with hiragana), it falls back to the basic rows (D20, ADR 028).
+- `buildPool(settings: PoolSettings, content?: readonly ContentItem[]): readonly PromptItem[]`: Builds the prompt pool. In `words` and `phrases` content modes, if `content` is empty or no vocabulary items match the active script mode, it falls back to constructing the single-kana pool matching `settings.rowIds` and `settings.script` (ADR 019). If the selected rows give no kana for the script (extended rows with hiragana), it falls back to the basic rows (D20, ADR 028).
 - `rowsYieldKana(settings): boolean`: Whether the selected rows give at least one kana for the script; the trainer shows a notice when it is false.
 - `pickPrompt(pool: readonly PromptItem[], weights: ReadonlyMap<string, number>, rng: Rng, previousKey: string | null): PromptItem`: Selects the next prompt using weighted distribution. Throws an invariant Error on an empty pool, which `buildPool` no longer produces.
 

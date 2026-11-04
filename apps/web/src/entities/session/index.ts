@@ -1,7 +1,4 @@
 export type {
-  TimeTestConfig,
-  CountTestConfig,
-  TestConfig,
   Phase,
   KeystrokeEvent,
   TokenOutcome,
@@ -12,8 +9,6 @@ export type {
 export { computeMetrics } from './lib/metrics';
 
 export {
-  DEFAULT_TEST_CONFIG,
-  testConfig,
   phase,
   keystrokes,
   promptResults,
@@ -21,8 +16,6 @@ export {
   correctKeystrokes,
   mistakeCount,
   sessionStartedAt,
-  initSession,
-  setTestConfig,
   startTest,
   recordKeystroke,
   recordMistake,

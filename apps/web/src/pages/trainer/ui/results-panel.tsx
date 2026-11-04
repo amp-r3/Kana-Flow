@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { useRef, useEffect } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
-import { canonicalFor, isKanaKey } from '@/entities/kana';
+import { canonicalFor, isKanaKey } from '@/entities/prompt';
 import { metrics, promptResults } from '@/entities/session';
 import { SpeedChart } from './speed-chart';
 import { WeakestKanaList } from './weakest-kana-list';

@@ -5,8 +5,9 @@ import {
   strictnessSetting,
   rowIdsSetting,
   weakFocusSetting,
-} from '@/entities/kana';
-import { testConfig, resetSession } from '@/entities/session';
+  testConfig,
+} from '@/entities/settings';
+import { resetSession } from '@/entities/session';
 
 export function setupSettingsResetWatcher(onReset: () => void): () => void {
   let isFirstRun = true;

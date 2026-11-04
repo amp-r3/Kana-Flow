@@ -1,4 +1,4 @@
-import type { ReadingHint, RowId, Script, Strictness } from '@nekotype/engine';
+import type { ReadingHint, RowId, Script } from '@nekotype/engine';
 
 export type {
   BasicRowId,
@@ -28,10 +28,9 @@ export type ContentItem = {
   readonly readingHints?: readonly ReadingHint[];
 };
 
-export type PracticeSettings = {
+// What the pool builder reads from the user's settings; the settings slice is not imported here.
+export type PoolSettings = {
   readonly script: ScriptMode;
   readonly content: ContentKind;
-  readonly strictness: Strictness;
   readonly rowIds: readonly RowId[];
-  readonly weakFocus: boolean;
 };

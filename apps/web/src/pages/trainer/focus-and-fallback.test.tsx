@@ -2,12 +2,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { TrainerPage } from './ui/trainer-page';
-import { TypingController } from '@/features/type-prompt';
+import { TypingController } from '@/features/training';
 import { defaultClock, defaultScheduler } from '@/shared/lib';
-import type { PromptItem } from '@/entities/kana';
-import * as kanaModule from '@/entities/kana';
-import { contentSetting, setContent } from '@/entities/kana';
+import type { PromptItem } from '@/entities/prompt';
+import { contentSetting, setContent } from '@/entities/settings';
 import { resetSession, correctKeystrokes } from '@/entities/session';
+import * as kanaModule from '@/entities/prompt';
 import { t } from '@/shared/i18n';
 
 describe('trainer UI: focus redirection and content loader error fallback', () => {

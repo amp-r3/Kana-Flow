@@ -6,9 +6,9 @@ import { TrainerPage } from './ui/trainer-page';
 import { TopBar } from './ui/top-bar';
 import { ConfigBar } from './ui/config-bar';
 import { RowsDialog } from './ui/rows-dialog';
-import { TypingController } from '@/features/type-prompt';
+import { TypingController } from '@/features/training';
 import { defaultClock, defaultScheduler } from '@/shared/lib';
-import type { PromptItem } from '@/entities/kana';
+import type { PromptItem } from '@/entities/prompt';
 import { resetSession } from '@/entities/session';
 
 describe('render isolation: TypingController keystrokes do not re-render static controls', () => {

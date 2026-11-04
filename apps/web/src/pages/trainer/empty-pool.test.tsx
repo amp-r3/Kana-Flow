@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TrainerPage } from './ui/trainer-page';
-import { setScript, selectAllRows, presetBasic, setContent } from '@/entities/kana';
+import { setScript, selectAllRows, presetBasic, setContent } from '@/entities/settings';
 import { resetSession } from '@/entities/session';
 import { t } from '@/shared/i18n';
 

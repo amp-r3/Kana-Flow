@@ -8,8 +8,8 @@ import type {
   Matcher,
   PromptItem,
   Strictness,
-} from '@/entities/kana';
-import type { TokenTiming } from '@/entities/kana';
+  TokenTiming,
+} from '@/entities/prompt';
 import {
   canonical,
   committedPrompts,
@@ -24,10 +24,9 @@ import {
   start,
   step,
   view,
-} from '@/entities/kana';
+} from '@/entities/prompt';
 import {
   phase,
-  testConfig,
   startTest,
   recordKeystroke,
   recordMistake,
@@ -35,7 +34,8 @@ import {
   finishTest,
   resetSession,
 } from '@/entities/session';
-import { recordTokenOutcomes, flushProgress } from '@/entities/progress';
+import { testConfig } from '@/entities/settings';
+import { recordTokenOutcomes, flushProgress } from '@/entities/stats';
 import type { Clock, Scheduler, TimeoutHandle } from '@/shared/lib';
 import { defaultClock, defaultScheduler } from '@/shared/lib';
 

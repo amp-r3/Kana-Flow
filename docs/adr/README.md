@@ -59,3 +59,4 @@ Append-only log of architectural decisions, one file per decision.
 | [032](032-font-weights-for-the-design-system.md)                                     | Font Weights for the Design System                                                           | In force             |
 | [033](033-repeat-test.md)                                                            | Repeat Test                                                                                  | In force             |
 | [034](034-design-tokens-and-font-build.md)                                           | Design Tokens and Font Build                                                                 | In force             |
+| [035](035-entities-slice-layout.md)                                                  | Entities Slice Layout                                                                        | In force             |

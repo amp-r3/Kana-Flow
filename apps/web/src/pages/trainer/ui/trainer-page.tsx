@@ -3,26 +3,23 @@ import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 import { useComputed } from '@preact/signals';
 import { defaultRng, defaultClock, defaultScheduler } from '@/shared/lib';
 import { t } from '@/shared/i18n';
+import { buildPool, pickPrompt, rowsYieldKana, loadContent } from '@/entities/prompt';
 import {
-  buildPool,
-  pickPrompt,
   getPracticeSettings,
   scriptSetting,
   rowIdsSetting,
-  rowsYieldKana,
   strictnessSetting,
   contentSetting,
   setContent,
-  loadContent,
-} from '@/entities/kana';
-import type { ContentItem, PromptItem } from '@/entities/kana';
+} from '@/entities/settings';
+import type { ContentItem, PromptItem } from '@/entities/prompt';
 import { phase } from '@/entities/session';
-import { progressStats } from '@/entities/progress';
+import { progressStats } from '@/entities/stats';
 import {
   TypingController,
   setupSettingsResetWatcher,
   createPromptWeights,
-} from '@/features/type-prompt';
+} from '@/features/training';
 import { TopBar } from './top-bar';
 import { ConfigBar } from './config-bar';
 import { RowsDialog } from './rows-dialog';
