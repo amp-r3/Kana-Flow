@@ -60,3 +60,4 @@ Append-only log of architectural decisions, one file per decision.
 | [033](033-repeat-test.md)                                                            | Repeat Test                                                                                  | In force             |
 | [034](034-design-tokens-and-font-build.md)                                           | Design Tokens and Font Build                                                                 | In force             |
 | [035](035-entities-slice-layout.md)                                                  | Entities Slice Layout                                                                        | In force             |
+| [036](036-session-factory-and-trainer.md)                                            | Session Factory and Trainer                                                                  | In force             |

@@ -9,10 +9,9 @@ import {
   initSettings,
   setTestConfig,
 } from '@/entities/settings';
-import { phase, startTest } from '@/entities/session';
 import { MemoryKeyValueStore } from '@/shared/lib';
 
-describe('settings-watcher: single reactive effect resetting session to idle', () => {
+describe('settings-watcher: one reactive effect calling the reset callback', () => {
   let resetCallCount = 0;
   let dispose: (() => void) | null = null;
 
@@ -28,44 +27,31 @@ describe('settings-watcher: single reactive effect resetting session to idle', (
     });
   });
 
-  it('resets session to idle and invokes callback when any practice setting changes', () => {
-    startTest(1000);
-    expect(phase.value).toBe('running');
+  it('invokes the callback once per change of any of the six settings, not for the initial values', () => {
     expect(resetCallCount).toBe(0);
 
     // 1. Script change
     setScript('katakana');
-    expect(phase.value).toBe('idle');
     expect(resetCallCount).toBe(1);
 
     // 2. Content change
-    startTest(1000);
     setContent('words');
-    expect(phase.value).toBe('idle');
     expect(resetCallCount).toBe(2);
 
     // 3. Strictness change
-    startTest(1000);
     setStrictness('ime');
-    expect(phase.value).toBe('idle');
     expect(resetCallCount).toBe(3);
 
     // 4. Row toggle
-    startTest(1000);
     toggleRow('k');
-    expect(phase.value).toBe('idle');
     expect(resetCallCount).toBe(4);
 
     // 5. Weak focus toggle
-    startTest(1000);
     setWeakFocus(false);
-    expect(phase.value).toBe('idle');
     expect(resetCallCount).toBe(5);
 
     // 6. Test config change
-    startTest(1000);
     setTestConfig({ kind: 'count', prompts: 50 });
-    expect(phase.value).toBe('idle');
     expect(resetCallCount).toBe(6);
   });
 

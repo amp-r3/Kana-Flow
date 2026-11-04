@@ -7,8 +7,12 @@ import {
   weakFocusSetting,
   testConfig,
 } from '@/entities/settings';
-import { resetSession } from '@/entities/session';
 
+/**
+ * Calls `onReset` whenever one of the six practice and test settings changes, but not for the
+ * values present when it is set up. The settings slice cannot reset a session itself, so this is
+ * where a change of setting ends the running test.
+ */
 export function setupSettingsResetWatcher(onReset: () => void): () => void {
   let isFirstRun = true;
 
@@ -28,10 +32,7 @@ export function setupSettingsResetWatcher(onReset: () => void): () => void {
       return;
     }
 
-    untracked(() => {
-      resetSession();
-      onReset();
-    });
+    untracked(onReset);
   });
 
   return dispose;

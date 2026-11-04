@@ -1,6 +1,9 @@
 import type { ReadonlySignal } from '@preact/signals';
-import { signal } from '@preact/signals';
+import { computed, signal } from '@preact/signals';
 import type { KeyIntent } from '../lib/input-adapter';
+import { computeMetrics } from '../lib/metrics';
+import { createKeyTally } from '../lib/key-tally';
+import type { Phase, PromptResult, SessionMetrics } from './types';
 import type {
   EngineView,
   ErrorLog,
@@ -25,16 +28,7 @@ import {
   step,
   view,
 } from '@/entities/prompt';
-import {
-  phase,
-  startTest,
-  recordKeystroke,
-  recordMistake,
-  recordPromptResult,
-  finishTest,
-  resetSession,
-} from '@/entities/session';
-import { testConfig } from '@/entities/settings';
+import type { TestConfig } from '@/entities/settings';
 import { recordTokenOutcomes, flushProgress } from '@/entities/stats';
 import type { Clock, Scheduler, TimeoutHandle } from '@/shared/lib';
 import { defaultClock, defaultScheduler } from '@/shared/lib';
@@ -45,6 +39,54 @@ const LOOKAHEAD = 2;
 // Committed prompts after which the matcher drops them (spec "Window").
 const COMPACT_EVERY = 20;
 
+// A live indicator stays at 0 until this much of the test has passed, so the first keys do not
+// show a figure that is only noise.
+const MIN_LIVE_MS = 1000;
+
+export type SessionDeps = {
+  readonly nextPrompt: () => PromptItem;
+  // Read when a test starts, so a settings change takes effect on the next test.
+  readonly config: () => TestConfig;
+  readonly clock?: Clock;
+  readonly scheduler?: Scheduler;
+};
+
+/** What a view may read and call. Everything a session holds is private to this instance (D17). */
+export type Session = {
+  readonly typedBuffer: ReadonlySignal<string>;
+  readonly isShaking: ReadonlySignal<boolean>;
+  readonly isAssisted: ReadonlySignal<boolean>;
+  readonly imeNotice: ReadonlySignal<boolean>;
+  readonly currentPrompt: ReadonlySignal<PromptItem | null>;
+  readonly activeTokenIdx: ReadonlySignal<number>;
+  readonly canonicalRomaji: ReadonlySignal<string>;
+  readonly tickerNow: ReadonlySignal<number>;
+  readonly phase: ReadonlySignal<Phase>;
+  readonly metrics: ReadonlySignal<SessionMetrics | null>;
+  readonly promptResults: ReadonlySignal<readonly PromptResult[]>;
+  readonly correctKeystrokes: ReadonlySignal<number>;
+  readonly mistakeCount: ReadonlySignal<number>;
+  readonly sessionStartedAt: ReadonlySignal<number>;
+  // Committed tokens per minute and kana accuracy in percent, for the live strip (metrics.md).
+  readonly liveKpm: ReadonlySignal<number>;
+  readonly liveAccuracy: ReadonlySignal<number>;
+  loadPrompt(prompt: PromptItem, strictness: Strictness): void;
+  handleIntent(intent: KeyIntent): void;
+  handleCompositionStart(): void;
+  handleCompositionEnd(): void;
+  finishSession(): void;
+  reset(): void;
+};
+
+export function createSession(deps: SessionDeps): Session {
+  return new TrainingSession(
+    deps.nextPrompt,
+    deps.config,
+    deps.clock ?? defaultClock,
+    deps.scheduler ?? defaultScheduler,
+  );
+}
+
 /**
  * Types a stream of prompts. The matcher holds a window of the displayed prompt and the next ones;
  * the next prompt is displayed as soon as the live conversion reaches the end of the current one,
@@ -53,7 +95,7 @@ const COMPACT_EVERY = 20;
  * Prompts are numbered from the start of the test ("absolute"); the matcher numbers them from the
  * first prompt of its window ("local"), which moves when `compact()` drops committed prompts.
  */
-export class TypingController {
+class TrainingSession implements Session {
   private readonly _typedBuffer = signal<string>('');
   private readonly _isShaking = signal<boolean>(false);
   private readonly _isAssisted = signal<boolean>(false);
@@ -62,6 +104,14 @@ export class TypingController {
   private readonly _activeTokenIdx = signal<number>(0);
   private readonly _canonicalRomaji = signal<string>('');
   private readonly _tickerNow = signal<number>(0);
+  private readonly _phase = signal<Phase>('idle');
+  private readonly _metrics = signal<SessionMetrics | null>(null);
+  private readonly _promptResults = signal<readonly PromptResult[]>([]);
+  private readonly _correctKeystrokes = signal<number>(0);
+  private readonly _mistakeCount = signal<number>(0);
+  private readonly _sessionStartedAt = signal<number>(0);
+  private readonly _committedTokens = signal<number>(0);
+  private readonly _erroredTokens = signal<number>(0);
 
   readonly typedBuffer: ReadonlySignal<string> = this._typedBuffer;
   readonly isShaking: ReadonlySignal<boolean> = this._isShaking;
@@ -71,13 +121,32 @@ export class TypingController {
   readonly activeTokenIdx: ReadonlySignal<number> = this._activeTokenIdx;
   readonly canonicalRomaji: ReadonlySignal<string> = this._canonicalRomaji;
   readonly tickerNow: ReadonlySignal<number> = this._tickerNow;
+  readonly phase: ReadonlySignal<Phase> = this._phase;
+  readonly metrics: ReadonlySignal<SessionMetrics | null> = this._metrics;
+  readonly promptResults: ReadonlySignal<readonly PromptResult[]> = this._promptResults;
+  readonly correctKeystrokes: ReadonlySignal<number> = this._correctKeystrokes;
+  readonly mistakeCount: ReadonlySignal<number> = this._mistakeCount;
+  readonly sessionStartedAt: ReadonlySignal<number> = this._sessionStartedAt;
+
+  readonly liveKpm: ReadonlySignal<number> = computed(() => {
+    const startedAt = this._sessionStartedAt.value;
+    const elapsed = this._tickerNow.value - startedAt;
+    if (startedAt === 0 || elapsed < MIN_LIVE_MS) return 0;
+    return Math.round(this._committedTokens.value / (elapsed / 60000));
+  });
+
+  readonly liveAccuracy: ReadonlySignal<number> = computed(() => {
+    const committed = this._committedTokens.value;
+    if (committed === 0) return 100;
+    return Math.round(((committed - this._erroredTokens.value) / committed) * 100);
+  });
 
   private matcher: Matcher | null = null;
   private matchState: MatchState | null = null;
 
-  private readonly nextPrompt: () => PromptItem;
-  private readonly clock: Clock;
-  private readonly scheduler: Scheduler;
+  private readonly keyTally = createKeyTally();
+  // Index in the matcher's tokens up to which committed tokens are counted for the live strip.
+  private committedPtr = 0;
 
   // The prompts of the matcher's window, in order.
   private prompts: PromptItem[] = [];
@@ -104,14 +173,11 @@ export class TypingController {
   private shakeTimeoutHandle: TimeoutHandle | null = null;
 
   constructor(
-    nextPrompt: () => PromptItem,
-    clock: Clock = defaultClock,
-    scheduler: Scheduler = defaultScheduler,
-  ) {
-    this.nextPrompt = nextPrompt;
-    this.clock = clock;
-    this.scheduler = scheduler;
-  }
+    private readonly nextPrompt: () => PromptItem,
+    private readonly config: () => TestConfig,
+    private readonly clock: Clock,
+    private readonly scheduler: Scheduler,
+  ) {}
 
   loadPrompt(prompt: PromptItem, strictness: Strictness): void {
     this.prompts = [prompt];
@@ -125,6 +191,7 @@ export class TypingController {
     this.keyTimes = [];
     this.lastTokenEnd = undefined;
     this.mistakesBeforeStart = 0;
+    this.committedPtr = 0;
     const matcher = compile([prompt], strictness);
     const state = start(matcher);
     this.matcher = matcher;
@@ -143,7 +210,7 @@ export class TypingController {
   }
 
   handleIntent(intent: KeyIntent): void {
-    if (phase.value === 'finished' || intent.kind === 'ignore') {
+    if (this._phase.value === 'finished' || intent.kind === 'ignore') {
       return;
     }
     const matcher = this.matcher;
@@ -160,14 +227,14 @@ export class TypingController {
         this.assisted.add(this.displayed);
         this._isAssisted.value = true;
         this.errorLog.record(errorTarget(matcher, state), null, '');
-        if (phase.value === 'idle') this.mistakesBeforeStart += 1;
-        recordMistake();
+        if (this._phase.value === 'idle') this.mistakesBeforeStart += 1;
+        this._mistakeCount.value += 1;
       }
       return;
     }
 
     // First typed letter starts the test if idle
-    if (phase.value === 'idle') {
+    if (this._phase.value === 'idle') {
       this.beginTest(now);
     }
 
@@ -177,7 +244,8 @@ export class TypingController {
       return;
     }
 
-    recordKeystroke(now, true);
+    this.keyTally.record(now, true);
+    this._correctKeystrokes.value += 1;
     this.keyTimes.push(now);
     this.matchState = next;
     this._typedBuffer.value += intent.char;
@@ -185,11 +253,11 @@ export class TypingController {
   }
 
   finishSession(): void {
-    if (this.matcher !== null && this.matchState !== null && phase.value === 'running') {
+    if (this.matcher !== null && this.matchState !== null && this._phase.value === 'running') {
       this.flushResults(this.promptBase + committedPrompts(this.matcher, this.matchState));
     }
     this.clearTimers();
-    finishTest(this.clock.now());
+    this.finishTest(this.clock.now());
     flushProgress();
   }
 
@@ -207,17 +275,18 @@ export class TypingController {
     this._imeNotice.value = false;
     this._activeTokenIdx.value = 0;
     this._canonicalRomaji.value = '';
-    resetSession();
+    this.resetState();
   }
 
   private beginTest(now: number): void {
-    startTest(now);
-    for (let i = 0; i < this.mistakesBeforeStart; i++) {
-      recordMistake();
-    }
+    this.resetState();
+    this._phase.value = 'running';
+    this._sessionStartedAt.value = now;
+    // Mistakes made by Esc before the first key count for this test.
+    this._mistakeCount.value = this.mistakesBeforeStart;
 
     // If time test, arm deadline timer
-    const config = testConfig.value;
+    const config = this.config();
     if (config.kind === 'time') {
       this.deadlineTimeoutHandle = this.scheduler.setTimeout(() => {
         this.finishSession();
@@ -233,7 +302,8 @@ export class TypingController {
 
   // Rejected: does not enter the buffer, triggers a shake, is charged to errorTarget() (D10, A34).
   private reject(matcher: Matcher, state: MatchState, char: string, now: number): void {
-    recordKeystroke(now, false);
+    this.keyTally.record(now, false);
+    this._mistakeCount.value += 1;
     const target = errorTarget(matcher, state);
     this.errorLog.record(target, matcher.tokens[target]?.kanaKey ?? null, char);
 
@@ -259,6 +329,11 @@ export class TypingController {
       this.flushResults(this.promptBase + settledPrompts(matcher, state));
     }
 
+    // Live strip: tokens before the earliest active token are committed in every position.
+    const v = view(matcher, state);
+    this.advanceCommitted(matcher, v.activeToken);
+    this._tickerNow.value = now;
+
     // The last prompt of a count test ends it as soon as the stream is complete.
     if (this.isFinalStream() && isComplete(matcher, state)) {
       this.flushResults(this.promptBase + this.prompts.length);
@@ -267,7 +342,6 @@ export class TypingController {
     }
 
     // Move to the next prompt when the live conversion has reached it.
-    const v = view(matcher, state);
     const last = matcher.tokens.length - 1;
     const local = matcher.tokens[Math.min(v.displayedTokens, last)]?.promptIndex ?? 0;
     if (this.promptBase + local > this.displayed) {
@@ -281,8 +355,46 @@ export class TypingController {
     this.compactIfDue(localCommitted);
   }
 
+  // Counts the non-skip tokens that became committed, and those of them that were errored, once
+  // each. Tokens before `upTo` cannot change any more: the earliest active position has passed them.
+  private advanceCommitted(matcher: Matcher, upTo: number): void {
+    if (upTo <= this.committedPtr) return;
+    let committed = 0;
+    let errored = 0;
+    for (let t = this.committedPtr; t < upTo; t++) {
+      if (matcher.tokens[t]?.kind === 'skip') continue;
+      committed += 1;
+      if (this.errorLog.errored(t)) errored += 1;
+    }
+    this.committedPtr = upTo;
+    this._committedTokens.value += committed;
+    this._erroredTokens.value += errored;
+  }
+
+  private finishTest(endTimeMs: number): void {
+    this._phase.value = 'finished';
+    this._metrics.value = computeMetrics(
+      this.keyTally.snapshot,
+      this._promptResults.value,
+      endTimeMs,
+    );
+  }
+
+  private resetState(): void {
+    this._phase.value = 'idle';
+    this._sessionStartedAt.value = 0;
+    this._correctKeystrokes.value = 0;
+    this._mistakeCount.value = 0;
+    this._committedTokens.value = 0;
+    this._erroredTokens.value = 0;
+    this._promptResults.value = [];
+    this._metrics.value = null;
+    this.keyTally.reset();
+    this.committedPtr = 0;
+  }
+
   private promptLimit(): number {
-    const config = testConfig.value;
+    const config = this.config();
     return config.kind === 'count' ? config.prompts : Number.POSITIVE_INFINITY;
   }
 
@@ -367,14 +479,17 @@ export class TypingController {
         });
       }
 
-      recordPromptResult({
-        key: this.prompts[local]?.key ?? '',
-        startedAt,
-        endedAt,
-        mistakes,
-        assisted: this.assisted.has(this.recorded),
-        tokenOutcomes,
-      });
+      this._promptResults.value = [
+        ...this._promptResults.value,
+        {
+          key: this.prompts[local]?.key ?? '',
+          startedAt,
+          endedAt,
+          mistakes,
+          assisted: this.assisted.has(this.recorded),
+          tokenOutcomes,
+        },
+      ];
       recordTokenOutcomes(tokenOutcomes);
       this.recorded += 1;
     }
@@ -395,6 +510,7 @@ export class TypingController {
     this.prompts.splice(0, droppedPrompts);
     this.promptBase += droppedPrompts;
     this.errorLog.rebase(result.droppedTokens);
+    this.committedPtr = Math.max(0, this.committedPtr - result.droppedTokens);
     for (const k of this.committedAt.keys()) {
       if (k < this.promptBase) this.committedAt.delete(k);
     }

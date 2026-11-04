@@ -3,14 +3,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TrainerPage } from './ui/trainer-page';
 import { setScript, selectAllRows, presetBasic, setContent } from '@/entities/settings';
-import { resetSession } from '@/entities/session';
 import { t } from '@/shared/i18n';
 
 describe('D20: rows with no kana for the script do not crash the trainer', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
-    resetSession();
     setContent('single');
     setScript('katakana');
     selectAllRows(['ext_fa']);

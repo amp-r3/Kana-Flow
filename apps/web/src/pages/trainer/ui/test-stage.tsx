@@ -3,26 +3,26 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { t, locale } from '@/shared/i18n';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
 import { cx } from '@/shared/lib';
-import type { TypingController } from '@/features/training';
+import type { Session } from '@/features/training';
 import { bindKeyboard } from '@/features/training';
 import { strictnessSetting } from '@/entities/settings';
 import { LiveStatsStrip } from './live-stats-strip';
 
 export type TestStageProps = {
-  readonly controller: TypingController;
+  readonly session: Session;
   readonly onRestart: () => void;
 };
 
-export function TestStage({ controller, onRestart }: TestStageProps): JSX.Element {
+export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
   const [isFocused, setIsFocused] = useState(true);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const currentPrompt = controller.currentPrompt.value;
-  const typed = controller.typedBuffer.value;
-  const isShaking = controller.isShaking.value;
-  const isAssisted = controller.isAssisted.value;
-  const imeNotice = controller.imeNotice.value;
-  const canonicalRomaji = controller.canonicalRomaji.value;
+  const currentPrompt = session.currentPrompt.value;
+  const typed = session.typedBuffer.value;
+  const isShaking = session.isShaking.value;
+  const isAssisted = session.isAssisted.value;
+  const imeNotice = session.imeNotice.value;
+  const canonicalRomaji = session.canonicalRomaji.value;
   const currentStrictness = strictnessSetting.value;
   const activeLocale = locale.value;
 
@@ -35,11 +35,11 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
   useEffect(() => {
     return bindKeyboard({
       onIntent: (intent) => {
-        controller.handleIntent(intent);
+        session.handleIntent(intent);
       },
       getInputElement: () => inputRef.current,
     });
-  }, [controller]);
+  }, [session]);
 
   const handleArenaClick = () => {
     inputRef.current?.focus();
@@ -56,10 +56,10 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
         type="text"
         value=""
         onCompositionStart={() => {
-          controller.handleCompositionStart();
+          session.handleCompositionStart();
         }}
         onCompositionEnd={() => {
-          controller.handleCompositionEnd();
+          session.handleCompositionEnd();
         }}
         onFocus={() => {
           setIsFocused(true);
@@ -77,7 +77,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
       />
 
       {/* Live stats strip */}
-      <LiveStatsStrip controller={controller} strictness={currentStrictness} />
+      <LiveStatsStrip session={session} strictness={currentStrictness} />
 
       {/* Japanese IME warning notice */}
       {imeNotice && (

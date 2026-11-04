@@ -148,12 +148,14 @@ type Engine = {
 - **`step(matcher, state, char)`**: Returns a new `MatchState` if `char` advances at least one position. If rejected, returns `null` without modifying the existing state. The state counts accepted keystrokes only.
 - **`committedPrompts`**: Prompts finished in every active position. A prompt ending in ん is not committed until the next key settles whether the ん was a bare `n` or `nn`.
 - **`view` and `errorTarget`**: `view` gives the display position for the input field; `errorTarget` charges a rejected key or a hint to the earliest token any position is typing, but never before the prompt on display (D10, A34).
-- **`compact`**: Drops the prompts counted by `settledPrompts` and rebases indices; the controller calls it after every 20 committed prompts.
+- **`compact`**: Drops the prompts counted by `settledPrompts` and rebases indices; the session calls it after every 20 committed prompts.
 - `shouldAbsorb` and the 250 ms absorption window are gone (spec D3): a surplus `n` is resolved by matching the stream.
 
-### `TypingController` (`features/training`)
+### `createSession()` and `createTrainer()` (`features/training`)
 
-The controller keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `settledPrompts()` includes it, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes; the first token of a test has no preceding keystroke and reports `ms` 0, which `updateKanaStats` treats as no measurement. A rejected key and Esc are charged to `errorTarget()`. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change resets the session.
+`createSession({ nextPrompt, config, clock?, scheduler? })` returns a `Session`: the signals a view reads (`currentPrompt`, `typedBuffer`, `phase`, `metrics`, `promptResults`, the keystroke counters, `liveKpm`, `liveAccuracy`, …) and the actions `loadPrompt`, `handleIntent`, `finishSession`, `reset`. Everything is held by the instance, so two sessions share no state (D17). `config` is read when a test starts. `createTrainer()` composes one session with the prompt source (pool, weights, `Rng`) and the loading of vocabulary content; the trainer page creates it, calls `start()` (first prompt, following the settings, content loading) and reads its signals. Keystrokes are counted by `lib/key-tally.ts` (totals plus accepted keys per second), never stored; `lib/metrics.ts` computes `SessionMetrics` from it when a test ends. `liveKpm` and `liveAccuracy` count the tokens before `view().activeToken`, which are committed in every position, once each.
+
+The session keeps a window of the displayed prompt and two more in the matcher (`extend` as the test goes, no more than a count test needs). The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `settledPrompts()` includes it, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes; the first token of a test has no preceding keystroke and reports `ms` 0, which `updateKanaStats` treats as no measurement. A rejected key and Esc are charged to `errorTarget()`. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change makes the trainer restart the session.
 
 ---
 
@@ -209,7 +211,7 @@ The controller keeps a window of the displayed prompt and two more in the matche
      | { readonly kind: 'zen' };
    ```
 2. Update `ValidTestConfig` in `packages/shared/src/types.ts` and `isTestConfig` in `packages/shared/src/runtime.ts`; stored settings are validated with them, so an unlisted mode is discarded on load.
-3. Update `TypingController` in `apps/web/src/features/training/model/controller.ts` to skip deadline timers when `kind === 'zen'`.
+3. Update `createSession` in `apps/web/src/features/training/model/session.ts` to skip deadline timers when `kind === 'zen'`.
 4. Add UI segmented selector in `apps/web/src/pages/trainer/ui/config-bar.tsx`.
 
 ---
@@ -224,7 +226,7 @@ Nekotype is currently optimized for desktop physical keyboards. However, the inp
                         [ inputAdapter ] ──► KeyIntent { kind: 'char', char: 'k' }
                               ▲                                 │
 [ On-Screen Touch Pad ] ──────┘                                 ▼
-                                                    [ TypingController ]
+                                                       [ Session ]
                                                                 │
                                                                 ▼
                                                        [ NFA Engine.step ]
@@ -275,11 +277,6 @@ Git hooks run the same checks earlier (`pre-commit`: staged formatting, typechec
 
 - Holds the practice settings (`script`, `content`, `strictness`, `rowIds`, `weakFocus`) and the test length `testConfig` as `ReadonlySignal`s, and the actions that change them (`setScript`, `setTestConfig`, `toggleRow`, …). `initSettings(store)` reads `kanaflow:settings:v1`; one debounced writer saves all six values together (`flushSettings()` on `pagehide`). It does not import `entities/prompt`: its `ScriptMode` and `ContentKind` derive from `ValidSettings`.
 - Changing a setting does not reset the session here (a slice cannot import another); `setupSettingsResetWatcher` in `features/training` does.
-
-### `entities/session`
-
-- `finishTest(endTimeMs?: number): SessionMetrics`: Transitions `phase.value = 'finished'`, evaluates final `SessionMetrics`, stores the result into `metrics.value`, and returns `SessionMetrics` directly.
-- `metrics: Signal<SessionMetrics | null>`: Reactive signal holding `null` during `idle` and `running` phases, populated on session completion.
 
 ### `entities/prompt`
 

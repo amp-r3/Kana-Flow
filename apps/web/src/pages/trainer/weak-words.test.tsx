@@ -4,7 +4,6 @@ import { render } from 'preact';
 import { TrainerPage } from './ui/trainer-page';
 import { buildPool, loadContent } from '@/entities/prompt';
 import { getPracticeSettings, setContent, setScript, setWeakFocus } from '@/entities/settings';
-import { resetSession } from '@/entities/session';
 import { initProgress, resetProgress } from '@/entities/stats';
 import { MemoryKeyValueStore, STORAGE_KEYS } from '@/shared/lib';
 import { createPromptWeights } from '@/features/training';
@@ -15,7 +14,6 @@ describe('D20: weak kana steer which word the trainer picks', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
-    resetSession();
     setScript('katakana');
     setWeakFocus(true);
     container = document.createElement('div');
