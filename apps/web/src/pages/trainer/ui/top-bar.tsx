@@ -4,6 +4,7 @@ import { locale, setLocale, t } from '@/shared/i18n';
 import { LocalStorageStore } from '@/shared/lib';
 import { Button, Dialog, Segmented, RowsIcon, ResetIcon } from '@/shared/ui';
 import { resetProgress } from '@/entities/progress';
+import lockupUrl from '@/assets/logo/lockup.svg';
 
 export type TopBarProps = {
   readonly onOpenRows: () => void;
@@ -28,7 +29,7 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
     <header className="border-line flex w-full flex-wrap items-center justify-between gap-4 border-b py-4 select-none">
       <div className="flex items-center gap-3">
         <h1 className="text-ui-heading text-fur flex items-center gap-2">
-          <span>{t('app.title')}</span>
+          <img src={lockupUrl} alt={t('app.title')} width="138" height="28" />
         </h1>
         <span className="text-fur-dim border-line text-ui-caption hidden border-l pl-3 sm:inline-block">
           {t('app.tagline')}

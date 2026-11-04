@@ -24,6 +24,7 @@ type Fixture = {
   jsKb?: number;
   cssKb?: number;
   fontsKb?: number[];
+  svgKb?: number;
   sharedJsKb?: number;
   lazy?: { src: string; kb: number }[];
   manifest?: boolean;
@@ -56,6 +57,10 @@ function makeDist(f: Fixture): string {
     css: ['assets/index.css'],
     assets: fonts.map((font) => font.file),
   };
+  if (f.svgKb !== undefined) {
+    write(root, 'assets/logo.svg', blob(f.svgKb));
+    entry.assets = [...(entry.assets ?? []), 'assets/logo.svg'];
+  }
   manifest['index.html'] = entry;
 
   if (f.sharedJsKb !== undefined) {
@@ -117,6 +122,14 @@ describe('check-budget', () => {
 
   it('fails for a font over 45 KB, using the files in dist', () => {
     expect(failuresFor({ fontsKb: [10, 46] })).toEqual([expect.stringContaining('font1.woff2')]);
+  });
+
+  it('counts the SVG of the initial chunk in the first load', () => {
+    // 3 x 44 KB of fonts + 24 KB of JS + 3 KB of CSS is under 160 KB; a 6 KB logo is not
+    const without = failuresFor({ fontsKb: [44, 44, 44], jsKb: 24 });
+    expect(without).toEqual([]);
+    const withSvg = failuresFor({ fontsKb: [44, 44, 44], jsKb: 24, svgKb: 6 });
+    expect(withSvg).toEqual([expect.stringContaining('Total first load')]);
   });
 
   it('fails when the total first load is over 160 KB', () => {

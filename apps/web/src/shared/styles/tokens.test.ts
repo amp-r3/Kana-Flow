@@ -116,3 +116,25 @@ describe('the old scales are gone', () => {
     }
   });
 });
+
+describe('assets follow the design system', () => {
+  const sourceLogo = (name: string): string =>
+    read(`../../../../../docs/design/source/assets/Logo/${name}`);
+
+  it('the favicon and the lockup are the exported files', () => {
+    expect(read('../../../public/favicon.svg')).toBe(sourceLogo('favicon.svg'));
+    expect(read('../../assets/logo/lockup.svg')).toBe(sourceLogo('lockup.svg'));
+  });
+
+  it('every colour of 404.html is a token', () => {
+    const colours = new Set<string>();
+    for (const [name, value] of cssVars) {
+      if (/^#[0-9a-f]{6}$/i.test(value) && !name.startsWith('--text'))
+        colours.add(value.toLowerCase());
+    }
+    const page = read('../../../public/404.html');
+    const used = page.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [];
+    expect(used.length).toBeGreaterThan(0);
+    for (const hex of used) expect(colours.has(hex.toLowerCase()), hex).toBe(true);
+  });
+});

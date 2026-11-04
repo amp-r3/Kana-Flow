@@ -97,6 +97,7 @@ export function checkBudget(distDir) {
   let cssBrotli = 0;
   const cssFiles = new Set();
   const initialFonts = new Set();
+  const initialSvgs = new Set();
   for (const key of initial) {
     const chunk = manifest[key];
     if (chunk === undefined) continue;
@@ -109,6 +110,7 @@ export function checkBudget(distDir) {
     for (const css of chunk.css ?? []) cssFiles.add(css);
     for (const asset of chunk.assets ?? []) {
       if (asset.endsWith('.woff2')) initialFonts.add(asset);
+      if (asset.endsWith('.svg')) initialSvgs.add(asset);
     }
   }
   for (const css of cssFiles) {
@@ -116,6 +118,14 @@ export function checkBudget(distDir) {
     line('initial', css, s);
     cssGzip += s.gzip;
     cssBrotli += s.brotli;
+  }
+
+  // Images the entry imports and Vite did not inline (the logo) are part of the first load.
+  let svgGzip = 0;
+  for (const asset of initialSvgs) {
+    const s = sizes(join(distDir, asset));
+    line('initial', asset, s);
+    svgGzip += s.gzip;
   }
 
   // 3. Fonts: read from dist, not from the sources
@@ -145,7 +155,7 @@ export function checkBudget(distDir) {
     }
   }
 
-  const totalFirstLoad = html.gzip + jsGzip + cssGzip + firstLoadFontBytes;
+  const totalFirstLoad = html.gzip + jsGzip + cssGzip + svgGzip + firstLoadFontBytes;
 
   log('\n--- Size Budget Summary ---');
   log(`Initial HTML (gzip):       ${fmt(html.gzip)} / ${BUDGETS.htmlGzipKb} KB limit`);
