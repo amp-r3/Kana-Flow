@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/design/readme-banner.svg" alt="Nekotype" width="340" height="104" />
+</p>
+
 # Nekotype (ねこタイプ)
 
 > A lightweight, keyboard-first Japanese kana speed trainer inspired by Monkeytype. Master Hiragana and Katakana with instantaneous typing feedback, dual-tier romaji matching, adaptive weak-kana weighting, and zero latency.
@@ -30,6 +34,7 @@
   - Typing any letter while a button has focus immediately refocuses and processes the key (Plan 6.2).
   - Automatic fallback for Russian Cyrillic keyboard layouts via physical `event.code` mapping.
   - Japanese IME warning notice when full-width Japanese IME is accidentally left enabled.
+- **🎨 Design System:** Muted dark palette with a single eye-blue accent, Golos Text / JetBrains Mono / Noto Sans JP, a cat logo and favicon. Tokens live in `apps/web/src/shared/styles/tokens.css` and are checked against [`docs/design/source/tokens.json`](docs/design/source/tokens.json) (ADR 031, ADR 034).
 - **🌐 Localization:** Instant bilingual toggle between English and Russian (`en` / `ru`).
 - **♿ Accessible:**
   - Native `<dialog>` modal backdrops with automatic focus restoration to opener elements.
