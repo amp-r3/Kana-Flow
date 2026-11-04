@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { isObject } from '@nekotype/shared/runtime';
@@ -80,5 +81,38 @@ describe('tokens.css matches docs/design/source/tokens.json', () => {
       }
     }
     expect(styles).toBe(19);
+  });
+});
+
+describe('the old scales are gone', () => {
+  const srcDir = fileURLToPath(new URL('../../', import.meta.url));
+  const forbidden: readonly RegExp[] = [
+    /\b(?:bg|text|border|ring|fill|stroke|from|to|via)-(?:text|text-dim|surface|surface-2|border|border-strong|accent|accent-dim|ok|error)\b/,
+    /-(?:accent|error)\b/,
+    /\btext-(?:xs|sm|base|lg|xl|\dxl)\b/,
+    /\btext-\[/,
+    /\bfont-(?:bold|kana|sans)\b/,
+    /\brounded(?:-(?:lg|xl|full))?(?=[\s"'`])/,
+    /\bshadow-/,
+    /\bmd:/,
+    /#[0-9a-fA-F]{3,8}\b/,
+    /\brgba?\(/,
+  ];
+
+  const files = readdirSync(srcDir, { recursive: true, encoding: 'utf8' }).filter(
+    (f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'),
+  );
+
+  it('finds the components', () => {
+    expect(files.length).toBeGreaterThan(10);
+  });
+
+  it('no component uses a removed class, a hex colour or rgb()', () => {
+    for (const file of files) {
+      const source = readFileSync(join(srcDir, file), 'utf8');
+      for (const re of forbidden) {
+        expect(source, `${file}: ${String(re)}`).not.toMatch(re);
+      }
+    }
   });
 });

@@ -1,3 +1,15 @@
+/* Drop the Tailwind default scales: only the design tokens below generate classes. */
+@theme {
+  --color-*: initial;
+  --text-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --ease-*: initial;
+  --animate-*: initial;
+  --breakpoint-*: initial;
+}
+
 [data-theme='dark'] {
   --bg: #1c1e21;
   --bg-raised: #23262a;

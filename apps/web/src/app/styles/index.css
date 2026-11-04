@@ -2,33 +2,6 @@
 @import '../../shared/styles/fonts.css';
 @import '../../shared/styles/tokens.css';
 
-/* Old palette, removed once the components move to the design tokens. */
-[data-theme='dark'] {
-  --surface: #181a1f;
-  --surface-2: #20232a;
-  --border: #2e333d;
-  --border-strong: #383e4a;
-  --text: #e4e4e7;
-  --text-dim: #a1a1aa;
-  --accent: #fbbf24;
-  --accent-dim: #ca8a04;
-  --ok: #10b981;
-  --error: #f43f5e;
-}
-
-@theme inline {
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
-  --color-text: var(--text);
-  --color-text-dim: var(--text-dim);
-  --color-accent: var(--accent);
-  --color-accent-dim: var(--accent-dim);
-  --color-ok: var(--ok);
-  --color-error: var(--error);
-}
-
 @keyframes shake {
   0%,
   100% {
