@@ -19,6 +19,6 @@ The visual reference for Nekotype: tokens, components, logo and cat assets. [ADR
 `bundle.js` and `bundle.css` are a React reference, not a dependency. Components are rewritten in Preact in `shared/ui` under the rules in [Frontend](../spec/frontend.md).
 
 - **Test stream.** The reference controller marks characters, while the engine reports tokens: きゃ and a merged っち are one token. The app maps tokens to character ranges. The engine, not the controller, decides what is a skip token.
-- **Fonts.** Fonts are subset by the project's own build ([ADR 032](../adr/032-font-weights-for-the-design-system.md)). The exported JetBrains Mono has no Cyrillic, although units such as `мс` use it, and no font has `←` and `→`. Add these glyphs. `！` and `？` are listed as skip characters but are not in the Noto subset; settle this with the content in P4.
+- **Fonts.** Fonts are subset by the project's own build ([ADR 032](../adr/032-font-weights-for-the-design-system.md)). The exported JetBrains Mono has no Cyrillic, although units such as `мс` use it, and no font has `←` and `→`. These glyphs, `ū`, `ō`, `é` and `✕` are added by the build ([ADR 034](../adr/034-design-tokens-and-font-build.md)). `！` and `？` are listed as skip characters but are not in the Noto subset; settle this with the content in P4.
 - **Identifiers.** Row and strictness values are the engine's (`RowId`, `learner`, `ime`). `index.d.ts` documents them but is not imported.
 - **Strings.** Russian and English labels in the reference are examples. All strings come from `shared/i18n`.

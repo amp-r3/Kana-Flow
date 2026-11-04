@@ -48,7 +48,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
   return (
     <div
       onClick={handleArenaClick}
-      className="relative mx-auto flex w-full max-w-2xl cursor-text flex-col items-center gap-8 py-8 outline-none select-none"
+      className="max-w-layout-test relative mx-auto flex w-full cursor-text flex-col items-center gap-8 py-8 outline-none select-none"
     >
       {/* Hidden input sink */}
       <input
@@ -81,42 +81,47 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
 
       {/* Japanese IME warning notice */}
       {imeNotice && (
-        <div className="bg-error/15 border-error/30 text-error w-full rounded border p-2.5 text-center text-xs">
+        <div className="text-fur-dim text-ui-label w-full p-2.5 text-center">
           {t('stage.turnImeOff')}
         </div>
       )}
 
       {/* Main prompt arena */}
       <div
+        data-testid="prompt-arena"
         data-canonical={canonicalRomaji}
+        data-rejected={isShaking ? 'true' : undefined}
         className={cx(
-          'bg-surface border-border flex min-h-[220px] w-full flex-col items-center justify-center gap-4 rounded-xl border px-4 py-10 transition-transform',
+          'flex min-h-56 w-full flex-col items-center justify-center gap-4 px-4 py-10 transition-transform',
           isShaking && 'animate-shake',
         )}
       >
         {/* Large kana glyph display (Noto Sans JP Bold) */}
-        <div className="font-kana text-text text-center text-5xl font-bold tracking-wide md:text-6xl">
+        <div
+          data-testid="prompt-text"
+          className="font-jp text-fur text-jp-test-sm sm:text-jp-test text-center"
+        >
           {currentPrompt ? currentPrompt.text : '...'}
         </div>
 
         {/* Translation / reading hint */}
         {currentPrompt?.meaning && (
-          <div className="text-text-dim text-center text-sm font-normal">
+          <div className="text-fur-dim text-ui-body text-center">
             {activeLocale === 'ru' ? currentPrompt.meaning.ru : currentPrompt.meaning.en}
           </div>
         )}
 
         {/* Revealed canonical romaji */}
         {isAssisted && (
-          <div className="text-accent bg-accent/10 rounded px-3 py-1 font-mono text-sm font-normal">
+          <div className="text-eye text-mono-romaji px-3 py-1 font-mono">
             {t('stage.revealed', { answer: canonicalRomaji })}
           </div>
         )}
 
         {/* Typed romaji mirror (JetBrains Mono Regular 400) */}
-        <div className="text-accent flex min-h-[1.75rem] items-center justify-center font-mono text-xl font-normal tracking-widest">
+        <div className="text-eye text-mono-romaji flex min-h-7 items-center justify-center font-mono">
           {typed}
-          <span className="bg-accent ml-0.5 inline-block h-5 w-2 animate-pulse" />
+          <span className="bg-eye animate-blink ml-0.5 inline-block h-5 w-0.5" />
         </div>
       </div>
 
@@ -124,7 +129,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
       <div className="-mt-4 flex h-6 items-center justify-center">
         {!isFocused && (
           <div
-            className="text-text-dim bg-surface-2/90 border-border pointer-events-none rounded-full border px-3 py-1 text-xs shadow-md"
+            className="text-fur-dim text-ui-caption pointer-events-none px-3 py-1"
             aria-hidden="true"
           >
             {t('stage.clickToFocus')}
@@ -133,7 +138,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
       </div>
 
       {/* Bottom hints & restart button */}
-      <div className="text-text-dim flex w-full flex-wrap items-center justify-between gap-3 pt-2 text-xs">
+      <div className="text-fur-dim text-ui-caption flex w-full flex-wrap items-center justify-between gap-3 pt-2">
         <div className="flex items-center gap-2">
           <Kbd>Esc</Kbd>
           <span>{t('stage.escHint')}</span>

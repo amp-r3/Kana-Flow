@@ -54,7 +54,7 @@ export function ConfigBar(): JSX.Element {
   };
 
   return (
-    <div className="bg-surface border-border flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-xs select-none">
+    <div className="flex w-full flex-wrap items-center justify-between gap-3 py-3 select-none">
       {/* Script & Content switches */}
       <div className="flex flex-wrap items-center gap-3">
         <Segmented<ScriptMode>

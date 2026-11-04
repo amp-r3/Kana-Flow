@@ -37,7 +37,7 @@ describe('D20: rows with no kana for the script do not crash the trainer', () =>
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(container.textContent).toContain(t('stage.noKanaForRows'));
-    const glyph = container.querySelector('.font-kana')?.textContent ?? '';
+    const glyph = container.querySelector('[data-testid="prompt-text"]')?.textContent ?? '';
     expect(glyph).toMatch(/^[぀-ゟ]+$/);
   });
 
@@ -47,6 +47,8 @@ describe('D20: rows with no kana for the script do not crash the trainer', () =>
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(container.textContent).toContain(t('stage.noKanaForRows'));
-    expect(container.querySelector('.font-kana')?.textContent).toMatch(/^[぀-ゟ]+$/);
+    expect(container.querySelector('[data-testid="prompt-text"]')?.textContent).toMatch(
+      /^[぀-ゟ]+$/,
+    );
   });
 });

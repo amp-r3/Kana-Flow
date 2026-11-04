@@ -63,7 +63,7 @@ describe('data integrity: font glyphs sync', () => {
     const committedGlyphs = readFileSync(glyphsPath, 'utf-8');
 
     const expectedSet = new Set<string>();
-    const mandatoryChars = 'ーっッゃゅょャュョァィゥェォ';
+    const mandatoryChars = 'ーっッゃゅょャュョァィゥェォ、。・０１２３４５６７８９';
     for (const ch of mandatoryChars) expectedSet.add(ch);
 
     for (const row of allKanaRows) {

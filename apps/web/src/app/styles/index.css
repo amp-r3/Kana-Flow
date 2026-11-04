@@ -2,23 +2,6 @@
 @import '../../shared/styles/fonts.css';
 @import '../../shared/styles/tokens.css';
 
-@theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
-  --color-text: var(--text);
-  --color-text-dim: var(--text-dim);
-  --color-accent: var(--accent);
-  --color-accent-dim: var(--accent-dim);
-  --color-ok: var(--ok);
-  --color-error: var(--error);
-
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-kana: 'Noto Sans JP', sans-serif;
-}
-
 @keyframes shake {
   0%,
   100% {
@@ -47,8 +30,39 @@
   }
 }
 
+.animate-blink {
+  animation: blink var(--dur-blink) var(--ease-inout) infinite;
+}
+
 .animate-fadeIn {
-  animation: fadeIn 200ms ease-out;
+  animation: fadeIn var(--dur-reveal) var(--ease-out);
+}
+
+html {
+  background: var(--bg);
+  color: var(--fur);
+  color-scheme: dark;
+  font-synthesis: none;
+}
+
+::selection {
+  background: var(--selection);
+}
+
+:focus-visible {
+  outline: var(--stroke-mark) solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -61,6 +75,7 @@
     scroll-behavior: auto !important;
   }
   .animate-shake,
+  .animate-blink,
   .animate-fadeIn {
     animation: none !important;
   }

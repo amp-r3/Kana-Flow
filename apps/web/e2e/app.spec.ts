@@ -31,10 +31,9 @@ test.describe('focus redirection and keyboard-first typing', () => {
     // Focus must immediately move back to input
     await expect(input).toBeFocused();
 
-    // Test starts and records mistake (shake animation class applied)
+    // Test starts and records mistake (arena is marked rejected)
     await expect(page.locator('text=wpm')).toBeVisible();
-    const arena = page.locator('.animate-shake');
-    await expect(arena).toBeAttached();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-rejected', 'true');
   });
 
   test('(c) open and close the rows dialog: focus returns, typing works', async ({ page }) => {
@@ -80,7 +79,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(input).toBeFocused();
 
     // First prompt must be a word/phrase (length >= 2 characters, never a single kana)
-    const promptElement = page.locator('main .font-kana');
+    const promptElement = page.getByTestId('prompt-text');
     await expect(async () => {
       const text = await promptElement.innerText();
       expect(text.length).toBeGreaterThanOrEqual(2);
@@ -131,14 +130,14 @@ test.describe('focus redirection and keyboard-first typing', () => {
       const arena = page.locator('[data-canonical]');
       await expect(arena).toBeVisible();
       const canonical = await arena.getAttribute('data-canonical');
-      const glyph = await page.locator('main .font-kana').innerText();
+      const glyph = await page.getByTestId('prompt-text').innerText();
 
       if (i < 9) {
         if (canonical) {
           await page.keyboard.type(canonical, { delay: 15 });
         }
         // Wait for prompt to change to next one
-        await expect(page.locator('main .font-kana')).not.toHaveText(glyph, { timeout: 2000 });
+        await expect(page.getByTestId('prompt-text')).not.toHaveText(glyph, { timeout: 2000 });
       } else {
         if (canonical) {
           await page.keyboard.type(canonical, { delay: 15 });
@@ -180,7 +179,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(words).toHaveAttribute('aria-checked', 'true');
     await loaded;
     await expect(page.getByText('Loading vocabulary...')).toHaveCount(0);
-    await expect(page.locator('main .font-kana')).toHaveText(/^.{2,}$/);
+    await expect(page.getByTestId('prompt-text')).toHaveText(/^.{2,}$/);
 
     for (let i = 0; i < 10; i++) {
       const arena = page.locator('[data-canonical]');
@@ -188,12 +187,12 @@ test.describe('focus redirection and keyboard-first typing', () => {
       // Wait until the lazily loaded words are on screen and the hint belongs to the prompt shown
       await expect(arena).not.toHaveAttribute('data-canonical', '');
       const canonical = await arena.getAttribute('data-canonical');
-      const glyph = await page.locator('main .font-kana').innerText();
+      const glyph = await page.getByTestId('prompt-text').innerText();
       if (canonical) {
         await page.keyboard.type(canonical, { delay: 15 });
       }
       if (i < 9) {
-        await expect(page.locator('main .font-kana')).not.toHaveText(glyph, { timeout: 2000 });
+        await expect(page.getByTestId('prompt-text')).not.toHaveText(glyph, { timeout: 2000 });
       }
     }
 
@@ -261,13 +260,13 @@ test.describe('focus redirection and keyboard-first typing', () => {
     // Type canonical answer to complete the assisted prompt
     const arena = page.locator('[data-canonical]');
     const canonical = await arena.getAttribute('data-canonical');
-    const firstGlyph = await page.locator('main .font-kana').innerText();
+    const firstGlyph = await page.getByTestId('prompt-text').innerText();
     if (canonical) {
       await page.keyboard.type(canonical, { delay: 15 });
     }
 
     // Prompt advances, test starts and reflects accuracy < 100% due to the reveal mistake
-    await expect(page.locator('main .font-kana')).not.toHaveText(firstGlyph, { timeout: 2000 });
+    await expect(page.getByTestId('prompt-text')).not.toHaveText(firstGlyph, { timeout: 2000 });
     await expect(page.locator('text=wpm')).toBeVisible();
     await expect(page.locator('text=100%')).toHaveCount(0);
   });
