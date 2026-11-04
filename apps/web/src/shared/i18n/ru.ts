@@ -3,10 +3,29 @@ import type { en } from './en';
 export const ru = {
   // Top bar
   'app.title': 'Nekotype',
-  'app.tagline': 'Тренажер скорости Хираганы и Катаканы',
   'app.rows': 'Таблица кана',
   'app.reset': 'Сбросить прогресс',
   'app.language': 'Язык интерфейса',
+
+  // Navigation and routes
+  'nav.label': 'Основная навигация',
+  'nav.test': 'тест',
+  'nav.learn': 'обучение',
+  'nav.stats': 'статистика',
+  'nav.settings': 'настройки',
+  'nav.about': 'о проекте',
+  'page.learn': 'Обучение',
+  'page.stats': 'Статистика',
+  'page.settings': 'Настройки',
+  'page.about': 'О проекте',
+  'page.stub': 'Этот экран ещё не готов.',
+  'route.loading': 'Загрузка...',
+  'route.loadError': 'Не удалось загрузить страницу. Проверьте соединение и повторите.',
+  'route.retry': 'Повторить',
+  'notFound.title': 'Страница не найдена',
+  'notFound.home': 'Вернуться к тренажёру',
+  'settings.reset.description':
+    'Удаляет статистику точности и времени реакции, сохранённую в этом браузере.',
 
   // Config bar
   'config.script.hiragana': 'Хирагана',

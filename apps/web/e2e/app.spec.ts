@@ -172,12 +172,11 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await page.getByRole('radio', { name: 'Count' }).click();
     await page.getByRole('radio', { name: '10', exact: true }).click();
     const words = page.getByRole('radio', { name: 'Words' });
-    // The words load lazily and the trainer restarts the test when they arrive: wait for that,
-    // or the restart lands in the middle of typing and the count starts over.
-    const loaded = page.waitForResponse((r) => /words/.test(r.url()));
+    // The words load lazily (or were prefetched while the browser was idle) and the trainer
+    // restarts the test when they are in: wait for a word on screen, or the restart lands in the
+    // middle of typing and the count starts over.
     await words.click();
     await expect(words).toHaveAttribute('aria-checked', 'true');
-    await loaded;
     await expect(page.getByText('Loading vocabulary...')).toHaveCount(0);
     await expect(page.getByTestId('prompt-text')).toHaveText(/^.{2,}$/);
 

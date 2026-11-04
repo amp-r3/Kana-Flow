@@ -27,8 +27,8 @@ Packages are consumed as TypeScript source (no build step). Each package has its
 
 ```
 apps/web/src/
-├── app/                  # Application root, initialization, global styles, providers
-├── pages/                # Composed full-page views (TrainerPage)
+├── app/                  # Application root: shell (navigation, footer), routes, initialization, styles
+├── pages/                # Full-page views: trainer, learn, stats, settings, about
 ├── features/             # User interaction workflows (training)
 ├── entities/             # Core domain models and business state (kana, session, progress)
 └── shared/               # Reusable primitives, UI components, i18n, storage, and utility libraries
@@ -43,10 +43,18 @@ apps/web/src/
 
 ### Widgets Layer Consolidation
 
-Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks. The FSD linter (`steiger`) enforces `fsd/insignificant-slice`, requiring slices to have more than one consumer across the application. Because `pages/trainer` is currently the sole full-page route, all trainer-specific widgets (`TopBar`, `ConfigBar`, `TestStage`, `ResultsPanel`, `RowsDialog`, `LiveStatsStrip`, `SpeedChart`, `WeakestKanaList`) were consolidated into `apps/web/src/pages/trainer/ui/` as page-internal UI components.
+Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks. The FSD linter (`steiger`) enforces `fsd/insignificant-slice`, requiring slices to have more than one consumer across the application. Each screen is a separate page slice and the trainer is the only one with several components, so all trainer-specific widgets (`ModePanel`, `TestStage`, `ResultsPanel`, `RowsDialog`, `LiveStatsStrip`, `SpeedChart`, `WeakestKanaList`) were consolidated into `apps/web/src/pages/trainer/ui/` as page-internal UI components.
 
 > [!NOTE]
 > **When to Extract Widgets:** If a second full-page view is introduced (such as a historical stats dashboard, custom word list editor, or flashcard review page) that reuses these UI blocks, extract them back into `apps/web/src/widgets/<widget-name>/` with their own public APIs.
+
+### Routing and the application shell (ADR 037)
+
+- `shared/lib/router.ts` is a router on the History API: `currentPath` (a signal), `navigate()`, `startRouter()` for the back button. It knows paths only.
+- `app/route-paths.ts` lists the screens (`/`, `/learn`, `/stats`, `/settings`, `/about`); `app/routes.tsx` maps each to a loader. `/` is in the initial chunk, the others are dynamic imports (separate chunks, checked by `check-budget.mjs` as route chunks). `app/route-state.ts` holds the loaded screens and the failed ones; `RouteView` renders the screen, a loading line, a retry notice or the not-found screen.
+- `app/App.tsx` is the shell: `Nav` and `Footer` from `shared/ui` (they take their strings and the navigation handler as props), the language switch, `<main>`. The pages carry no frame of their own.
+- `public/_redirects` rewrites the four non-root routes to `/index.html` with status 200; `redirects.test.ts` keeps it equal to `ROUTE_PATHS`. There is no catch-all, so `404.html` still answers unknown paths and missing assets.
+- `app/prefetch.ts` fetches the lazy screens and the content chunks on `requestIdleCallback` (a timer where it is missing) after the first render. The tab title follows the screen and the language (`initApp`).
 
 ### Styles and design tokens (ADR 034)
 
@@ -199,7 +207,7 @@ The session keeps a window of the displayed prompt and two more in the matcher (
 1. In `apps/web/src/shared/i18n/`, create `es.ts` with the same keys as `en.ts` (`ru.ts` shows the form; a test checks key parity).
 2. Add the locale code to `Locale` and to the checks in `initLocale` in `apps/web/src/shared/i18n/locale.ts`.
 3. Pick the dictionary for it in `apps/web/src/shared/i18n/translate.ts` (today `t()` chooses between `ru` and `en`).
-4. Add the language toggle option in `apps/web/src/pages/trainer/ui/top-bar.tsx`.
+4. Add the language toggle option in `apps/web/src/app/App.tsx` (the `Segmented` in the navigation).
 
 ### Recipe D: Adding a Test Mode (e.g. Zen Mode, Sudden Death)
 
@@ -212,7 +220,7 @@ The session keeps a window of the displayed prompt and two more in the matcher (
    ```
 2. Update `ValidTestConfig` in `packages/shared/src/types.ts` and `isTestConfig` in `packages/shared/src/runtime.ts`; stored settings are validated with them, so an unlisted mode is discarded on load.
 3. Update `createSession` in `apps/web/src/features/training/model/session.ts` to skip deadline timers when `kind === 'zen'`.
-4. Add UI segmented selector in `apps/web/src/pages/trainer/ui/config-bar.tsx`.
+4. Add UI segmented selector in `apps/web/src/pages/trainer/ui/mode-panel.tsx`.
 
 ---
 

@@ -7,6 +7,8 @@ export { defaultScheduler } from './scheduler';
 
 export { cx } from './cx';
 
+export { currentPath, navigate, startRouter, isPlainLeftClick } from './router';
+
 export { DEFAULT_BASIC_ROWS } from './default-rows';
 
 export type { KeyValueStore } from './storage';

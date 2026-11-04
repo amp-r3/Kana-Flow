@@ -1,10 +1,29 @@
 export const en = {
   // Top bar
   'app.title': 'Nekotype',
-  'app.tagline': 'Hiragana & Katakana Speed Trainer',
   'app.rows': 'Kana Matrix',
   'app.reset': 'Reset Progress',
   'app.language': 'Interface language',
+
+  // Navigation and routes
+  'nav.label': 'Main navigation',
+  'nav.test': 'test',
+  'nav.learn': 'learn',
+  'nav.stats': 'stats',
+  'nav.settings': 'settings',
+  'nav.about': 'about',
+  'page.learn': 'Learn',
+  'page.stats': 'Statistics',
+  'page.settings': 'Settings',
+  'page.about': 'About',
+  'page.stub': 'This screen is not built yet.',
+  'route.loading': 'Loading...',
+  'route.loadError': 'Failed to load the page. Check the connection and try again.',
+  'route.retry': 'Try again',
+  'notFound.title': 'Page not found',
+  'notFound.home': 'Back to the trainer',
+  'settings.reset.description':
+    'Erases the accuracy and reaction-time statistics stored in this browser.',
 
   // Config bar
   'config.script.hiragana': 'Hiragana',
