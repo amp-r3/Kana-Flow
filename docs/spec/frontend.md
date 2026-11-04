@@ -15,7 +15,7 @@ The training screen consists of a Japanese text stream with a romaji buffer at t
 
 ## Text stream and romaji buffer (D13)
 
-- **Stream:** 2–3 lines of prompts; the current line is in focus and completed lines scroll up. Prompts are separated by a gap. The engine window is extended as described in [Input engine rules](engine.md).
+- **Stream:** 2–3 lines of prompts; the current line is in focus and completed lines scroll up. Prompts are separated by a gap. The engine window is extended as described in [Input engine rules](engine.md); it holds the prompts the stream draws after the displayed one, about 60 tokens (ADR 040).
 - **Token states:** upcoming (`untyped`), completed (`fur`), current (`eye` caret before the token), errored (`miss` with a `miss-dim` underline). Skip tokens are rendered; the caret passes over them.
 - **Romaji buffer** next to the caret renders the remainder from `engine.view()` as latin; displayed tokens are already marked in the stream. It does not shift the text. Example for きて: `k` → buffer "k"; `ki` → き is marked and the buffer is empty; `kit` → buffer "t".
 - **Translation** of the current word or phrase is shown on one line below the stream; controlled by `showTranslation` in settings, on by default.

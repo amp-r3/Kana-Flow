@@ -1,9 +1,17 @@
 import type { ReadonlySignal } from '@preact/signals';
-import { computed, signal } from '@preact/signals';
+import { batch, computed, signal } from '@preact/signals';
 import type { KeyIntent } from '../lib/input-adapter';
 import { computeMetrics } from '../lib/metrics';
 import { createKeyTally } from '../lib/key-tally';
 import type { Phase, PromptResult, SessionMetrics } from './types';
+import {
+  AHEAD_TOKENS,
+  EMPTY_STREAM,
+  MAX_WINDOW_PROMPTS,
+  staleCount,
+  streamPromptsOf,
+} from './stream';
+import type { Mistake, StreamPrompt, StreamSnapshot } from './stream';
 import type {
   EngineView,
   ErrorLog,
@@ -33,9 +41,6 @@ import { recordTokenOutcomes, flushProgress } from '@/entities/stats';
 import type { Clock, Scheduler, TimeoutHandle } from '@/shared/lib';
 import { defaultClock, defaultScheduler } from '@/shared/lib';
 
-// Prompts kept in the matcher beyond the displayed one, so the context of a non-final ん is known
-// before it is typed (spec "Window").
-const LOOKAHEAD = 2;
 // Committed prompts after which the matcher drops them (spec "Window").
 const COMPACT_EVERY = 20;
 
@@ -69,6 +74,17 @@ export type Session = {
   // Committed tokens per minute and kana accuracy in percent, for the live strip (metrics.md).
   readonly liveKpm: ReadonlySignal<number>;
   readonly liveAccuracy: ReadonlySignal<number>;
+  // The text stream (frontend.md). `stream` lists the prompts to draw and changes when one enters
+  // or leaves, which is once per completed prompt. The rest changes on a keystroke and is meant to
+  // be written to the DOM without a render: `caret` is the number of the token the caret stands
+  // before, `romajiBuffer` the Latin typed beyond it, `mistake` the latest wrong key or hint.
+  // Token numbers count from the start of the test and survive `compact()`.
+  readonly stream: ReadonlySignal<StreamSnapshot>;
+  readonly caret: ReadonlySignal<number>;
+  readonly romajiBuffer: ReadonlySignal<string>;
+  readonly mistake: ReadonlySignal<Mistake | null>;
+  // Tokens of the stream that have been charged an error (D11); read to paint a stream afresh.
+  erroredTokens(): ReadonlySet<number>;
   loadPrompt(prompt: PromptItem, strictness: Strictness): void;
   handleIntent(intent: KeyIntent): void;
   finishSession(): void;
@@ -106,6 +122,10 @@ class TrainingSession implements Session {
   private readonly _correctKeystrokes = signal<number>(0);
   private readonly _mistakeCount = signal<number>(0);
   private readonly _sessionStartedAt = signal<number>(0);
+  private readonly _stream = signal<StreamSnapshot>(EMPTY_STREAM);
+  private readonly _caret = signal<number>(0);
+  private readonly _romajiBuffer = signal<string>('');
+  private readonly _mistake = signal<Mistake | null>(null);
   private readonly _committedTokens = signal<number>(0);
   private readonly _erroredTokens = signal<number>(0);
 
@@ -122,6 +142,11 @@ class TrainingSession implements Session {
   readonly correctKeystrokes: ReadonlySignal<number> = this._correctKeystrokes;
   readonly mistakeCount: ReadonlySignal<number> = this._mistakeCount;
   readonly sessionStartedAt: ReadonlySignal<number> = this._sessionStartedAt;
+
+  readonly stream: ReadonlySignal<StreamSnapshot> = this._stream;
+  readonly caret: ReadonlySignal<number> = this._caret;
+  readonly romajiBuffer: ReadonlySignal<string> = this._romajiBuffer;
+  readonly mistake: ReadonlySignal<Mistake | null> = this._mistake;
 
   readonly liveKpm: ReadonlySignal<number> = computed(() => {
     const startedAt = this._sessionStartedAt.value;
@@ -140,6 +165,13 @@ class TrainingSession implements Session {
   private matchState: MatchState | null = null;
 
   private readonly keyTally = createKeyTally();
+  // The prompts drawn in the stream, which outlive their tokens in the matcher: the matcher drops
+  // committed prompts, the stream keeps the line just typed on screen.
+  private streamPrompts: StreamPrompt[] = [];
+  // Number, from the start of the test, of the matcher's first token; compact() raises it.
+  private tokenBase = 0;
+  private readonly erroredAbs = new Set<number>();
+  private mistakeSeq = 0;
   // Index in the matcher's tokens up to which committed tokens are counted for the live strip.
   private committedPtr = 0;
 
@@ -187,13 +219,20 @@ class TrainingSession implements Session {
     this.lastTokenEnd = undefined;
     this.mistakesBeforeStart = 0;
     this.committedPtr = 0;
+    this.tokenBase = 0;
+    this.streamPrompts = [];
+    this.erroredAbs.clear();
     const matcher = compile([prompt], strictness);
     const state = start(matcher);
     this.matcher = matcher;
     this.matchState = state;
+    this.streamPrompts = streamPromptsOf(matcher, 0, this.promptBase, this.tokenBase);
     this._isShaking.value = false;
+    this._mistake.value = null;
     this.fillWindow();
-    this.showPrompt(view(matcher, state));
+    const v = view(matcher, state);
+    this.showPrompt(v);
+    this.updateCaret(v);
   }
 
   handleIntent(intent: KeyIntent): void {
@@ -213,9 +252,13 @@ class TrainingSession implements Session {
       if (!this.assisted.has(this.displayed)) {
         this.assisted.add(this.displayed);
         this._isAssisted.value = true;
-        this.errorLog.record(errorTarget(matcher, state), null, '');
+        const target = errorTarget(matcher, state);
+        this.errorLog.record(target, null, '');
         if (this._phase.value === 'idle') this.mistakesBeforeStart += 1;
-        this._mistakeCount.value += 1;
+        batch(() => {
+          this._mistakeCount.value += 1;
+          this.noteMistake(target, 'hint');
+        });
       }
       return;
     }
@@ -225,18 +268,21 @@ class TrainingSession implements Session {
       this.beginTest(now);
     }
 
-    const next = step(matcher, state, intent.char);
-    if (next === null) {
-      this.reject(matcher, state, intent.char, now);
-      return;
-    }
+    // One batch per keystroke: a reader of several signals sees them in step.
+    batch(() => {
+      const next = step(matcher, state, intent.char);
+      if (next === null) {
+        this.reject(matcher, state, intent.char, now);
+        return;
+      }
 
-    this.keyTally.record(now, true);
-    this._correctKeystrokes.value += 1;
-    this.keyTimes.push(now);
-    this.matchState = next;
-    this._typedBuffer.value += intent.char;
-    this.afterAccepted(matcher, next, now);
+      this.keyTally.record(now, true);
+      this._correctKeystrokes.value += 1;
+      this.keyTimes.push(now);
+      this.matchState = next;
+      this._typedBuffer.value += intent.char;
+      this.afterAccepted(matcher, next, now);
+    });
   }
 
   finishSession(): void {
@@ -261,7 +307,18 @@ class TrainingSession implements Session {
     this._isAssisted.value = false;
     this._activeTokenIdx.value = 0;
     this._canonicalRomaji.value = '';
+    this.streamPrompts = [];
+    this.tokenBase = 0;
+    this.erroredAbs.clear();
+    this._stream.value = EMPTY_STREAM;
+    this._caret.value = 0;
+    this._romajiBuffer.value = '';
+    this._mistake.value = null;
     this.resetState();
+  }
+
+  erroredTokens(): ReadonlySet<number> {
+    return this.erroredAbs;
   }
 
   private beginTest(now: number): void {
@@ -292,6 +349,7 @@ class TrainingSession implements Session {
     this._mistakeCount.value += 1;
     const target = errorTarget(matcher, state);
     this.errorLog.record(target, matcher.tokens[target]?.kanaKey ?? null, char);
+    this.noteMistake(target, 'rejected');
 
     this._isShaking.value = true;
     if (this.shakeTimeoutHandle) {
@@ -318,6 +376,7 @@ class TrainingSession implements Session {
     // Live strip: tokens before the earliest active token are committed in every position.
     const v = view(matcher, state);
     this.advanceCommitted(matcher, v.activeToken);
+    this.updateCaret(v);
     this._tickerNow.value = now;
 
     // The last prompt of a count test ends it as soon as the stream is complete.
@@ -388,17 +447,39 @@ class TrainingSession implements Session {
     return this.promptBase + this.prompts.length >= this.promptLimit();
   }
 
-  // Keeps the displayed prompt and LOOKAHEAD more in the matcher, up to the end of a count test.
+  // Keeps the displayed prompt and, after it, enough prompts to fill the lines of the stream
+  // (AHEAD_TOKENS), up to the end of a count test. They all stand in the matcher, so the context of
+  // a non-final ん is known long before it is typed (spec "Window"), and the stream draws tokens the
+  // matcher has already cut. They are asked for in batches sized by the prompts seen so far.
   private fillWindow(): void {
-    if (this.matcher === null) return;
-    const want = Math.min(this.promptLimit(), this.displayed + 1 + LOOKAHEAD);
-    const more: PromptItem[] = [];
-    while (this.promptBase + this.prompts.length + more.length < want) {
-      more.push(this.nextPrompt());
-    }
-    if (more.length > 0) {
+    for (;;) {
+      const matcher = this.matcher;
+      if (matcher === null) return;
+      const have = this.promptBase + this.prompts.length;
+      const limit = this.promptLimit();
+      if (have >= limit || this.prompts.length >= MAX_WINDOW_PROMPTS) return;
+
+      const local = this.displayed - this.promptBase;
+      const endOfDisplayed = matcher.promptStarts[local + 1] ?? matcher.tokens.length;
+      const ahead = matcher.tokens.length - endOfDisplayed;
+      if (ahead >= AHEAD_TOKENS) return;
+
+      const perPrompt = Math.max(1, matcher.tokens.length / this.prompts.length);
+      const count = Math.min(
+        Math.max(1, Math.ceil((AHEAD_TOKENS - ahead) / perPrompt)),
+        limit - have,
+        MAX_WINDOW_PROMPTS - this.prompts.length,
+      );
+      const more: PromptItem[] = [];
+      for (let i = 0; i < count; i++) more.push(this.nextPrompt());
+
+      const firstNew = matcher.promptStarts.length;
       this.prompts.push(...more);
-      this.matcher = extend(this.matcher, more);
+      const extended = extend(matcher, more);
+      this.matcher = extended;
+      this.streamPrompts.push(
+        ...streamPromptsOf(extended, firstNew, this.promptBase, this.tokenBase),
+      );
     }
   }
 
@@ -410,6 +491,35 @@ class TrainingSession implements Session {
     this._isAssisted.value = this.assisted.has(this.displayed);
     this._typedBuffer.value = '';
     this.updateActiveToken(v);
+    this.publishStream(this.tokenBase + v.displayedTokens);
+  }
+
+  // Drops the prompts that ended long before the caret and publishes the window if it changed.
+  // Called when the displayed prompt changes, so the stream is redrawn once per completed prompt.
+  private publishStream(caret: number): void {
+    const stale = staleCount(this.streamPrompts, caret);
+    if (stale > 0) this.streamPrompts.splice(0, stale);
+    const head = this.streamPrompts[0]?.firstToken ?? 0;
+    for (const token of this.erroredAbs) {
+      if (token < head) this.erroredAbs.delete(token);
+    }
+    const shown = this._stream.value.prompts;
+    const changed =
+      shown.length !== this.streamPrompts.length ||
+      shown.some((prompt, i) => prompt !== this.streamPrompts[i]);
+    if (changed) this._stream.value = { prompts: [...this.streamPrompts] };
+  }
+
+  private updateCaret(v: EngineView): void {
+    this._caret.value = this.tokenBase + v.displayedTokens;
+    this._romajiBuffer.value = v.pendingLatin;
+  }
+
+  private noteMistake(localToken: number, kind: Mistake['kind']): void {
+    const token = this.tokenBase + localToken;
+    this.erroredAbs.add(token);
+    this.mistakeSeq += 1;
+    this._mistake.value = { seq: this.mistakeSeq, token, kind };
   }
 
   private updateActiveToken(v: EngineView): void {
@@ -496,6 +606,7 @@ class TrainingSession implements Session {
     this.prompts.splice(0, droppedPrompts);
     this.promptBase += droppedPrompts;
     this.errorLog.rebase(result.droppedTokens);
+    this.tokenBase += result.droppedTokens;
     this.committedPtr = Math.max(0, this.committedPtr - result.droppedTokens);
     for (const k of this.committedAt.keys()) {
       if (k < this.promptBase) this.committedAt.delete(k);

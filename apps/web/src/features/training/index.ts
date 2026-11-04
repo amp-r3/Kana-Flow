@@ -11,6 +11,16 @@ export { createTrainer } from './model/trainer';
 
 export type { Phase, TokenOutcome, PromptResult, SessionMetrics } from './model/types';
 
+export type { StreamToken, StreamPrompt, StreamSnapshot, Mistake } from './model/stream';
+
+export type {
+  StreamElements,
+  StreamPaint,
+  StreamWriter,
+  StreamWriterOptions,
+} from './lib/stream-dom';
+export { createStreamWriter } from './lib/stream-dom';
+
 export { setupSettingsResetWatcher } from './model/settings-watcher';
 
 export type { PromptWeights } from './lib/prompt-weights';
