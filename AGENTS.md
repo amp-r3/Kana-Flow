@@ -17,6 +17,7 @@ Start at `docs/README.md`: it maps each question to the file that answers it. Op
 | Path                               | Purpose                                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `docs/spec/`                       | MVP requirements, one file per area (`engine.md`, `metrics.md`, `storage-sync.md`, …); `README.md` lists them |
+| `docs/design/`                     | Design system: tokens, components, assets; start at `README.md`                                               |
 | `docs/adr/`                        | Decision records, one file per decision; `README.md` is the index with statuses                               |
 | `docs/architecture/baseline-v1.md` | Architecture of the current v1 code                                                                           |
 | `docs/archive/`                    | Historical documents; not maintained                                                                          |

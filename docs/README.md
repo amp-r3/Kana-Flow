@@ -5,6 +5,7 @@ Start here. Each folder has its own `README.md` with an index.
 | Folder                                        | Contents                                             | Status                                              |
 | --------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------- |
 | [spec/](spec/README.md)                       | MVP specification, one file per area                 | Normative: wins over every other document           |
+| [design/](design/README.md)                   | Design system: tokens, components, assets            | Visual reference; the spec wins                     |
 | [adr/](adr/README.md)                         | Architecture decision records, one file per decision | Append-only log                                     |
 | [architecture/](architecture/baseline-v1.md)  | Architecture of the current code                     | Describes the v1 baseline; rewritten during the MVP |
 | [archive/](archive/v1-implementation-plan.md) | Historical documents                                 | Not maintained; kept for context                    |
@@ -24,6 +25,7 @@ Start here. Each folder has its own `README.md` with an index.
 | API, D1 schema, auth, free-tier limits                      | [spec/backend.md](spec/backend.md)                                           |
 | Size and latency budgets, tests, CI                         | [spec/quality.md](spec/quality.md)                                           |
 | What is built in which phase, and acceptance criteria       | [spec/phases.md](spec/phases.md)                                             |
+| What does the interface look like? Tokens, components, logo | [design/README.md](design/README.md)                                         |
 | Why was something decided?                                  | [spec/decisions.md](spec/decisions.md) (A-items), then [adr/](adr/README.md) |
 | How the current v1 code is structured                       | [architecture/baseline-v1.md](architecture/baseline-v1.md)                   |
 | Setup, scripts, git hooks, deployment                       | [../README.md](../README.md)                                                 |
