@@ -70,7 +70,7 @@ describe('D20: weak kana steer which word the trainer picks', () => {
     render(<TrainerPage />, container);
     await settle();
 
-    const shown = container.querySelector('.font-kana')?.textContent ?? '';
+    const shown = container.querySelector('[data-testid="prompt-text"]')?.textContent ?? '';
     expect(shown).toBe(weakWord.text);
   });
 });

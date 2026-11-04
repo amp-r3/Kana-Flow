@@ -88,14 +88,19 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
 
       {/* Main prompt arena */}
       <div
+        data-testid="prompt-arena"
         data-canonical={canonicalRomaji}
+        data-rejected={isShaking ? 'true' : undefined}
         className={cx(
           'bg-surface border-border flex min-h-[220px] w-full flex-col items-center justify-center gap-4 rounded-xl border px-4 py-10 transition-transform',
           isShaking && 'animate-shake',
         )}
       >
         {/* Large kana glyph display (Noto Sans JP Bold) */}
-        <div className="font-kana text-text text-center text-5xl font-bold tracking-wide md:text-6xl">
+        <div
+          data-testid="prompt-text"
+          className="font-kana text-text text-center text-5xl font-bold tracking-wide md:text-6xl"
+        >
           {currentPrompt ? currentPrompt.text : '...'}
         </div>
 
