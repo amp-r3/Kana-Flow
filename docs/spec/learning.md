@@ -1,6 +1,6 @@
 # Learning mode
 
-The learning mode (`/learn`) introduces kana in groups and reinforces them with a Leitner system. It uses the same engine and input field as speed mode, with a separate session instance and no timer. A new group unlocks as soon as every kana of the previous group is in box 1 or higher; spaced reviews then run on a daily schedule.
+The learning mode (`/learn`) introduces kana in groups and reinforces them with a Leitner system. It uses the same engine and romaji buffer as speed mode, with a separate session instance and no timer. A new group unlocks as soon as every kana of the previous group is in box 1 or higher; spaced reviews then run on a daily schedule.
 
 ## Groups
 

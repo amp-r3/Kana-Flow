@@ -11,6 +11,7 @@ The baseline budgets are retained and extended with latency and lazy-chunk budge
 | Initial CSS (gzip)                                                  | ≤ 10 KB                     | 5.0 KB       | `check-budget.mjs`                                               |
 | Noto Sans JP (kana only)                                            | ≤ 45 KB                     | 16.4 KB      | `check-budget.mjs`                                               |
 | JetBrains Mono                                                      | ≤ 45 KB                     | 14.9 KB      | `check-budget.mjs`                                               |
+| Golos Text                                                          | ≤ 45 KB                     | —            | `check-budget.mjs`                                               |
 | Total first load                                                    | ≤ 160 KB                    | 60.6 KB      | `check-budget.mjs`                                               |
 | Lazy route chunk (gzip)                                             | ≤ 25 KB                     | —            | `check-budget.mjs`                                               |
 | Content chunk (gzip)                                                | ≤ 40 KB                     | —            | `check-budget.mjs`                                               |
@@ -27,7 +28,7 @@ Sign-in and sync do not count toward the initial budget: the sync client and acc
 
 The Event Timing API is not used: by default it reports only events longer than 16 ms and rounds durations to 8 ms. A test build exposes a probe that records two values per keystroke:
 
-1. **Work:** `performance.now()` on handler entry, and again after all state updates followed by a forced style and layout read (`getBoundingClientRect()` on the input field). The difference is the time the application spends on the keystroke and does not include waiting for a frame.
+1. **Work:** `performance.now()` on handler entry, and again after all state updates followed by a forced style and layout read (`getBoundingClientRect()` on the romaji buffer). The difference is the time the application spends on the keystroke and does not include waiting for a frame.
 2. **Next frame:** the time from handler entry to a `MessageChannel` task posted from the next `requestAnimationFrame` callback. It includes the wait for the next frame, which alone ranges from 0 to one frame interval, hence the 2-frame budget.
 
 The Playwright test enables 4× CPU throttling via the Chrome DevTools Protocol and types 200 keystrokes in a timed test. It runs 3 times; the median of the three p95 values is compared with each budget. The probe is excluded from the production build.

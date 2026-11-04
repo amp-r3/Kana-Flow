@@ -34,7 +34,7 @@ Append-only log of architectural decisions, one file per decision.
 | [007](007-choonpu-dual-tier-matching.md)                                             | Chōonpu (ー) Dual-Tier Matching                                                              | In force             |
 | [008](008-n-contextual-lookahead.md)                                                 | ん/ン Contextual Lookahead                                                                   | Superseded           |
 | [009](009-extended-katakana-and-ambiguous-romaji-tier-placement.md)                  | Extended Katakana and Ambiguous Romaji Tier Placement                                        | In force             |
-| [010](010-font-subsets-and-included-weights.md)                                      | Font Subsets and Included Weights                                                            | In force             |
+| [010](010-font-subsets-and-included-weights.md)                                      | Font Subsets and Included Weights                                                            | Superseded by 032    |
 | [011](011-state-division-and-storage-isolation-entities-kana-vs.md)                  | State Division and Storage Isolation (entities/kana vs entities/session)                     | Superseded           |
 | [012](012-pure-weight-decay-and-mistake-based-kana-mastery.md)                       | Pure Weight Decay and Mistake-Based Kana Mastery Model (entities/progress)                   | Superseded           |
 | [013](013-trailing-extension-absorption-and-desktop-input-normalization-features.md) | Trailing Extension Absorption and Desktop Input Normalization (features/type-prompt)         | Superseded           |
@@ -55,3 +55,5 @@ Append-only log of architectural decisions, one file per decision.
 | [028](028-empty-pool-falls-back-to-basic-rows.md)                                    | Empty Kana Pool Falls Back to the Basic Rows                                                 | In force             |
 | [029](029-stream-engine-with-spelling-constraints.md)                                | Stream Engine with Spelling Constraints                                                      | In force             |
 | [030](030-observers-and-compaction-of-the-stream-matcher.md)                         | Observers and Compaction of the Stream Matcher                                               | In force             |
+| [031](031-adopt-the-nekotype-design-system.md)                                       | Adopt the Nekotype Design System from P2                                                     | In force             |
+| [032](032-font-weights-for-the-design-system.md)                                     | Font Weights for the Design System                                                           | In force             |

@@ -161,7 +161,7 @@ Other extended combinations (ツァ, クァ, イェ, スィ, フュ and similar)
 
 ## Errors
 
-- A rejected key does not enter the buffer, the state is unchanged, and a 280 ms shake is played.
+- A rejected key does not enter the buffer, the state is unchanged, and the caret flashes (see [Frontend](frontend.md)).
 - The error is recorded on token `errorTarget()` (D10): the minimum `tokenIndex` among active positions, but never before the first token that needs input of the prompt on display (A34). Relaxed ほん → ねこ after `hon`: ねこ is on display, so a wrong key is charged to ね, not to ん; relaxed こんな after `kon`: the prompt has not changed, so it is charged to ん. On the token: `mistakes += 1`, `errored = true`, and the pair "expected kana → typed character" is stored for the confusion matrix.
 - Any character other than a latin letter, `-` or `'`, as well as Space, Enter and Backspace, is `ignore`, not an error (D15). Only a non-latin letter shows the layout notice.
 - Esc (hint) keeps the baseline behaviour: shows `canonical` for the active prompt, counts one error, and the prompt must still be typed in full. The error is recorded on token `errorTarget()`, as for a rejected key.
