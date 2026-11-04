@@ -65,7 +65,7 @@ export function ModePanel(): JSX.Element {
   const divider = <span aria-hidden="true" className="border-line hidden h-4 border-l sm:block" />;
 
   return (
-    <div className="flex w-full flex-col items-center gap-2 py-3 select-none">
+    <div data-chrome className="flex w-full flex-col items-center gap-2 py-3 select-none">
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         <Segmented<ScriptMode>
           options={[

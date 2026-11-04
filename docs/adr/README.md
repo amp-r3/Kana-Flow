@@ -65,3 +65,4 @@ Append-only log of architectural decisions, one file per decision.
 | [038](038-hybrid-input-source.md)                                                    | Hybrid Input Source                                                                          | In force             |
 | [039](039-redirects-rewrite-to-root.md)                                              | `_redirects` Rewrites to `/`                                                                 | In force             |
 | [040](040-text-stream-window-and-dom-writer.md)                                      | Text Stream Window and DOM Writer                                                            | In force             |
+| [041](041-test-screen-cutover.md)                                                    | The Test Screen on the Text Stream                                                           | In force             |

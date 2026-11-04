@@ -32,7 +32,10 @@ export function Nav({
   trailing,
 }: NavProps): JSX.Element {
   return (
-    <header className="border-line flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b py-4 select-none">
+    <header
+      data-chrome
+      className="border-line flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b py-4 select-none"
+    >
       <Link href={brandHref} onNavigate={onNavigate} className="order-1 flex items-center">
         {brand}
       </Link>

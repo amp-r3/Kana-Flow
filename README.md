@@ -32,6 +32,7 @@
 - **⌨️ Keyboard-First Ergonomics:**
   - Hidden input sink auto-focuses on mount and upon clicking the arena.
   - Typing any letter while a button has focus immediately refocuses and processes the key (Plan 6.2).
+  - A text stream of three lines (two on a phone) with a caret and a romaji buffer at it; the interface fades out while a test runs and a wrong key flashes the caret (ADR 041).
   - Hybrid input: `keydown` on a desktop, `beforeinput` and an `input` fallback for mobile keyboards (Gboard composition), so a phone types too (ADR 038).
   - A non-Latin layout is not translated by the physical key: typing a Cyrillic letter shows "Switch your keyboard layout to English" and counts no mistake.
   - "Turn off the Japanese IME" appears only when the composition holds kana or kanji; Latin composition does not trigger it.

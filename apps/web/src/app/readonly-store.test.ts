@@ -31,15 +31,16 @@ export type _CheckProgressStats = AssertFalse<IsWritable<typeof progressStats, '
 export type _CheckLocale = AssertFalse<IsWritable<typeof locale, 'value'>>;
 
 // Controller signal checks:
-export type _CheckCtrlTypedBuffer = AssertFalse<IsWritable<Session['typedBuffer'], 'value'>>;
-export type _CheckCtrlIsShaking = AssertFalse<IsWritable<Session['isShaking'], 'value'>>;
 export type _CheckCtrlIsAssisted = AssertFalse<IsWritable<Session['isAssisted'], 'value'>>;
 export type _CheckCtrlCurrentPrompt = AssertFalse<IsWritable<Session['currentPrompt'], 'value'>>;
-export type _CheckCtrlActiveTokenIdx = AssertFalse<IsWritable<Session['activeTokenIdx'], 'value'>>;
 export type _CheckCtrlCanonicalRomaji = AssertFalse<
   IsWritable<Session['canonicalRomaji'], 'value'>
 >;
 export type _CheckCtrlTickerNow = AssertFalse<IsWritable<Session['tickerNow'], 'value'>>;
+export type _CheckStream = AssertFalse<IsWritable<Session['stream'], 'value'>>;
+export type _CheckCaret = AssertFalse<IsWritable<Session['caret'], 'value'>>;
+export type _CheckRomajiBuffer = AssertFalse<IsWritable<Session['romajiBuffer'], 'value'>>;
+export type _CheckMistake = AssertFalse<IsWritable<Session['mistake'], 'value'>>;
 export type _CheckPhase = AssertFalse<IsWritable<Session['phase'], 'value'>>;
 export type _CheckMetrics = AssertFalse<IsWritable<Session['metrics'], 'value'>>;
 export type _CheckPromptResults = AssertFalse<IsWritable<Session['promptResults'], 'value'>>;
@@ -67,11 +68,12 @@ describe('store state: ReadonlySignal guarantees', () => {
       nextPrompt: () => ({ key: 'basic:a', text: 'あ' }),
       config: () => testConfig.value,
     });
-    expect(dummyController.typedBuffer.value).toBeDefined();
-    expect(dummyController.isShaking.value).toBeDefined();
+    expect(dummyController.stream.value.prompts).toEqual([]);
+    expect(dummyController.caret.value).toBe(0);
+    expect(dummyController.romajiBuffer.value).toBe('');
+    expect(dummyController.mistake.value).toBeNull();
     expect(dummyController.isAssisted.value).toBeDefined();
     expect(dummyController.currentPrompt.value).toBeNull();
-    expect(dummyController.activeTokenIdx.value).toBeDefined();
     expect(dummyController.canonicalRomaji.value).toBeDefined();
     expect(dummyController.tickerNow.value).toBeDefined();
     expect(dummyController.phase.value).toBe('idle');

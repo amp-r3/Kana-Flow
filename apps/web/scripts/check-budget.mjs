@@ -155,6 +155,32 @@ export function checkBudget(distDir) {
     }
   }
 
+  // 5. The kana font is preloaded. A preload that is missing makes the first frame wait to find
+  // out that it needs the font; one that names a file that is not there, or lacks `crossorigin`
+  // (a font is fetched in CORS mode, so without it the file is requested twice), is worse.
+  if (existsSync(htmlPath)) {
+    const markup = readFileSync(htmlPath, 'utf-8');
+    const preloads = [...markup.matchAll(/<link\b[^>]*>/g)]
+      .map((match) => match[0])
+      .filter((tag) => /\brel="preload"/.test(tag) && /\bas="font"/.test(tag));
+    const kana = preloads.filter((tag) => /NotoSansJP/.test(tag));
+    if (kana.length === 0) {
+      failures.push('index.html does not preload the kana font (Noto Sans JP)');
+    }
+    for (const tag of preloads) {
+      const href = /\bhref="([^"]+)"/.exec(tag)?.[1];
+      const file = href === undefined ? undefined : href.slice(href.indexOf('assets/'));
+      if (file === undefined || !existsSync(join(distDir, file))) {
+        failures.push(`The font preload ${href ?? '(no href)'} names a file that is not in dist`);
+      } else {
+        log(`[preload] ${file}`);
+      }
+      if (!/\bcrossorigin\b/.test(tag)) {
+        failures.push(`The font preload ${href ?? ''} has no crossorigin attribute`);
+      }
+    }
+  }
+
   const totalFirstLoad = html.gzip + jsGzip + cssGzip + svgGzip + firstLoadFontBytes;
 
   log('\n--- Size Budget Summary ---');

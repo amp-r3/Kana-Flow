@@ -1,5 +1,6 @@
 import type { JSX } from 'preact';
 import { useState, useLayoutEffect } from 'preact/hooks';
+import { useComputed } from '@preact/signals';
 import { t } from '@/shared/i18n';
 import { createTrainer } from '@/features/training';
 import type { Trainer } from '@/features/training';
@@ -15,6 +16,9 @@ export type TrainerPageProps = {
 export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
   const [trainer] = useState(() => props.trainer ?? createTrainer());
   const { session } = trainer;
+  // Only the end of the test switches the screen. The start of it (idle to running) must not render
+  // the page, so this is a computed value that does not change then.
+  const finished = useComputed(() => session.phase.value === 'finished');
 
   // A layout effect: the first frame already shows a prompt, and unmounting stops the trainer at once.
   useLayoutEffect(() => trainer.start(), [trainer]);
@@ -44,7 +48,7 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
         </div>
       )}
 
-      {session.phase.value === 'finished' ? (
+      {finished.value ? (
         <ResultsPanel session={session} onNextTest={trainer.restart} />
       ) : (
         <TestStage session={session} onRestart={trainer.restart} />

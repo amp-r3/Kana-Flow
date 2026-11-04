@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nekotype</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- The kana font draws the stream; without this the first frame has to find out that it needs it. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/src/assets/fonts/NotoSansJP-400.woff2"
+      crossorigin
+    />
   </head>
   <body>
     <div id="app"></div>

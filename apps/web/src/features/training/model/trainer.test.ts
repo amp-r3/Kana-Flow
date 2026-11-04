@@ -62,7 +62,7 @@ describe('trainer: prompt source, restarts and content loading', () => {
 
     trainer.restart();
     expect(trainer.session.phase.value).toBe('idle');
-    expect(trainer.session.typedBuffer.value).toBe('');
+    expect(trainer.session.romajiBuffer.value).toBe('');
     expect(trainer.session.currentPrompt.value?.text).toBe('ねこ');
     stop();
   });

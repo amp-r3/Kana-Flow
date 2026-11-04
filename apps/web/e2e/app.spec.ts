@@ -11,7 +11,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await page.keyboard.press('KeyA');
 
     // The test must have started (live stats strip shows the kpm counter)
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
   });
 
   test('(b) click a ConfigBar button, press a letter: focus is on the input AND the letter was processed (also with a wrong letter: mistake counted)', async ({
@@ -32,7 +32,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(input).toBeFocused();
 
     // Test starts and records mistake (arena is marked rejected)
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
     await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-rejected', 'true');
   });
 
@@ -55,7 +55,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     // Type a key: focus returns to input and test starts
     await page.keyboard.press('KeyA');
     await expect(input).toBeFocused();
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
   });
 
   test('(d) set words mode, reload: the first prompt is a word/phrase, never a single kana', async ({
@@ -93,7 +93,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
 
     // Start typing to enter running phase
     await page.keyboard.press('KeyA');
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
 
     // Tab moves focus naturally to the restart button
     await page.keyboard.press('Tab');
@@ -102,11 +102,11 @@ test.describe('focus redirection and keyboard-first typing', () => {
 
     // Enter on the focused restart button resets the test back to idle
     await page.keyboard.press('Enter');
-    await expect(page.getByTestId('live-kpm')).toHaveCount(0);
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
 
     // Typing again immediately starts a fresh test
     await page.keyboard.press('KeyA');
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
   });
 
   test('(f) a full count test (10 prompts, type canonical answers) ends on results screen, "Next test" via Enter starts a new idle test', async ({
@@ -159,7 +159,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     // Results screen closes, returns to idle test stage with input focused
     await expect(nextTestBtn).toHaveCount(0);
     await expect(input).toBeFocused();
-    await expect(page.getByTestId('live-kpm')).toHaveCount(0);
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
   });
 
   test('(i) a count test over words (ん at the end of prompts, next prompt shown early) ends on the results screen', async ({
@@ -247,7 +247,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await page.keyboard.press('Space');
 
     // Space is ignored: does not start test, does not reveal, does not count mistake
-    await expect(page.getByTestId('live-kpm')).toHaveCount(0);
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
     await expect(page.locator('text=Revealed:')).toHaveCount(0);
 
     // Press Escape inside the input sink
@@ -266,7 +266,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
 
     // Prompt advances, test starts and reflects accuracy < 100% due to the reveal mistake
     await expect(page.getByTestId('prompt-text')).not.toHaveText(firstGlyph, { timeout: 2000 });
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
     await expect(page.locator('text=100%')).toHaveCount(0);
   });
 });

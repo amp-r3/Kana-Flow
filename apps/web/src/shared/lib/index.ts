@@ -7,6 +7,8 @@ export { defaultScheduler } from './scheduler';
 
 export { cx } from './cx';
 
+export { useMediaQuery } from './use-media-query';
+
 export { currentPath, navigate, startRouter, isPlainLeftClick } from './router';
 
 export { DEFAULT_BASIC_ROWS } from './default-rows';
