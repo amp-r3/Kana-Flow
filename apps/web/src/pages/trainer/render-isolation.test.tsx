@@ -159,3 +159,104 @@ describe('render isolation: the hot path renders nothing', () => {
     expect(document.documentElement.hasAttribute('data-testing')).toBe(true);
   });
 });
+
+describe('render isolation: a zen test', () => {
+  const neko: PromptItem = { key: 'word:neko', text: 'ねこ' };
+
+  let container: HTMLDivElement;
+  let trainer: Trainer;
+  let input: HTMLInputElement;
+  let prevDiffed: ((vnode: VNode) => void) | undefined;
+
+  beforeEach(async () => {
+    setTestConfig({ kind: 'zen' });
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    trainer = createTrainer({ nextPrompt: () => neko });
+    render(<TrainerPage trainer={trainer} />, container);
+    await settle();
+    const found = container.querySelector('input');
+    if (found === null) throw new Error('no input field');
+    input = found;
+    prevDiffed = options.diffed?.bind(options);
+  });
+
+  afterEach(() => {
+    if (prevDiffed) {
+      options.diffed = prevDiffed;
+    } else {
+      delete options.diffed;
+    }
+    render(null, container);
+    container.remove();
+    document.documentElement.removeAttribute('data-testing');
+    setTestConfig({ kind: 'time', seconds: 30 });
+  });
+
+  const finishButton = (): HTMLButtonElement | undefined =>
+    Array.from(container.querySelectorAll('button')).find((b) => b.textContent.includes('Finish'));
+
+  async function press(key: string): Promise<string[]> {
+    const rendered: string[] = [];
+    options.diffed = (vnode: VNode) => {
+      if (typeof vnode.type === 'function' && vnode.type !== Fragment) {
+        rendered.push(vnode.type.name);
+      }
+      if (prevDiffed) prevDiffed(vnode);
+    };
+    input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    await tick();
+    if (prevDiffed) {
+      options.diffed = prevDiffed;
+    } else {
+      delete options.diffed;
+    }
+    return rendered;
+  }
+
+  it('shows a Finish button with its shortcut, disabled until the test starts, and a counter of prompts', () => {
+    const button = finishButton();
+    expect(button?.disabled).toBe(true);
+    expect(button?.textContent).toContain('ctrl + enter');
+    expect(container.querySelector('[data-testid="live-counter"]')?.textContent).toBe('0');
+  });
+
+  it('the first key enables Finish without rendering anything, and the rule still holds', async () => {
+    expect(await press('n')).toEqual([]);
+    expect(finishButton()?.disabled).toBe(false);
+    expect(await press('e')).toEqual([]);
+    expect(await press('k')).toEqual([]);
+    expect(await press('o')).toEqual(['TextStream']);
+    // The counter follows the completed prompts, as a text node.
+    expect(container.querySelector('[data-testid="live-counter"]')?.textContent).toBe('1');
+  });
+
+  it('Ctrl+Enter ends the test and the page shows the results', async () => {
+    await press('n');
+    await press('e');
+    await press('k');
+    await press('o');
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    await settle();
+    expect(trainer.session.phase.value).toBe('finished');
+    expect(container.querySelector('[data-testid="results-panel"]')).not.toBeNull();
+  });
+
+  it('the Finish button ends the test too', async () => {
+    await press('n');
+    await press('e');
+    await press('k');
+    await press('o');
+    finishButton()?.click();
+    await settle();
+    expect(trainer.session.phase.value).toBe('finished');
+    expect(container.querySelector('[data-testid="results-panel"]')).not.toBeNull();
+  });
+});

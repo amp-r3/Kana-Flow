@@ -54,6 +54,9 @@ export type SessionDeps = {
   readonly config: () => TestConfig;
   readonly clock?: Clock;
   readonly scheduler?: Scheduler;
+  // Called when a test is ended by hand with nothing to keep (no prompt completed, or no time
+  // passed): it is dropped like a restart, and this starts the next one. Defaults to `reset()`.
+  readonly onDiscard?: () => void;
 };
 
 /** What a view may read and call. Everything a session holds is private to this instance (D17). */
@@ -85,6 +88,10 @@ export type Session = {
   loadPrompt(prompt: PromptItem, strictness: Strictness): void;
   handleIntent(intent: KeyIntent): void;
   finishSession(): void;
+  // Ends a zen test by hand (the Finish button, Ctrl/Cmd+Enter). It keeps the test when a prompt is
+  // completed and time has passed, and drops it like a restart otherwise (metrics.md, "Test end").
+  // Any other kind of test, and a test that has not started, ignore it.
+  finish(): void;
   reset(): void;
 };
 
@@ -94,6 +101,7 @@ export function createSession(deps: SessionDeps): Session {
     deps.config,
     deps.clock ?? defaultClock,
     deps.scheduler ?? defaultScheduler,
+    deps.onDiscard,
   );
 }
 
@@ -194,6 +202,7 @@ class TrainingSession implements Session {
     private readonly config: () => TestConfig,
     private readonly clock: Clock,
     private readonly scheduler: Scheduler,
+    private readonly onDiscard: (() => void) | undefined,
   ) {}
 
   loadPrompt(prompt: PromptItem, strictness: Strictness): void {
@@ -226,6 +235,10 @@ class TrainingSession implements Session {
 
   handleIntent(intent: KeyIntent): void {
     if (this._phase.value === 'finished' || intent.kind === 'ignore') {
+      return;
+    }
+    if (intent.kind === 'finish') {
+      this.finish();
       return;
     }
     const matcher = this.matcher;
@@ -280,6 +293,28 @@ class TrainingSession implements Session {
     this.clearTimers();
     this.finishTest(this.clock.now());
     flushProgress();
+  }
+
+  finish(): void {
+    const matcher = this.matcher;
+    const state = this.matchState;
+    if (this.config().kind !== 'zen' || this._phase.value !== 'running') return;
+    if (matcher === null || state === null) return;
+
+    const now = this.clock.now();
+    const completed = this.promptBase + committedPrompts(matcher, state);
+    const elapsed = now - (this.keyTally.snapshot.firstAt ?? now);
+    if (completed >= 1 && elapsed > 0) {
+      this.finishSession();
+      return;
+    }
+    // Nothing worth keeping: back to a new test, without a results screen.
+    this.clearTimers();
+    if (this.onDiscard) {
+      this.onDiscard();
+    } else {
+      this.reset();
+    }
   }
 
   reset(): void {

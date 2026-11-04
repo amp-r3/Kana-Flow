@@ -1,5 +1,7 @@
 # ADR 022: Key Intent Semantics: Reveal Strictly via Escape
 
+- **Status:** In force. Amended by [ADR 042](042-zen-test-and-finish-key.md): Ctrl/Cmd+Enter is the one modifier combination the application takes (it ends a zen test); every other browser hotkey is still left alone.
+
 - **Context:** Clarify behavior of non-character keys (`Escape`, `Space`, `Enter`, `Backspace`) during prompt typing.
 - **Decision:** Strictly adhere to Plan Section 6.2:
   1. Only `Escape` pressed while focused on the active input sink triggers answer reveal (`kind: 'reveal'`), displaying canonical romaji, marking the prompt as assisted (`isAssisted = true`), and penalizing with 1 mistake.

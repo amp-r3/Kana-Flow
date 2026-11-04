@@ -216,18 +216,14 @@ The session keeps the displayed prompt and, after it, 60 tokens of prompts in th
 3. Pick the dictionary for it in `apps/web/src/shared/i18n/translate.ts` (today `t()` chooses between `ru` and `en`).
 4. Add the language toggle option in `apps/web/src/app/App.tsx` (the `Segmented` in the navigation).
 
-### Recipe D: Adding a Test Mode (e.g. Zen Mode, Sudden Death)
+### Recipe D: Adding a Test Mode (e.g. Sudden Death)
 
-1. Expand `TestConfig` in `apps/web/src/entities/settings/model/types.ts` (it derives from `ValidTestConfig` in `packages/shared`, which gains the same member):
-   ```ts
-   export type TestConfig =
-     | { readonly kind: 'time'; readonly seconds: number }
-     | { readonly kind: 'count'; readonly prompts: number }
-     | { readonly kind: 'zen' };
-   ```
-2. Update `ValidTestConfig` in `packages/shared/src/types.ts` and `isTestConfig` in `packages/shared/src/runtime.ts`; stored settings are validated with them, so an unlisted mode is discarded on load.
-3. Update `createSession` in `apps/web/src/features/training/model/session.ts` to skip deadline timers when `kind === 'zen'`.
-4. Add UI segmented selector in `apps/web/src/pages/trainer/ui/mode-panel.tsx`.
+Zen (ADR 042) is the worked example: a test with no length that is ended by hand.
+
+1. Add the member to `ValidTestConfig` in `packages/shared/src/types.ts` and to `isTestConfig` in `packages/shared/src/runtime.ts`. `TestConfig` in `apps/web/src/entities/settings/model/types.ts` derives from it. Stored settings are validated with the guard, so an unlisted mode is discarded on load; adding a member keeps what was saved before valid, so no migration is needed. Test it with a settings value from before the change.
+2. Let the compiler list the places that switch on `kind`. In the session (`features/training/model/session.ts`) a mode decides whether a deadline timer is armed (`time`), whether the stream has an end (`count`) and how the test can end (zen: `finish()`); `LiveLine` (counter) and `ModePanel` (selector, length group) follow.
+3. If the mode ends in a new way, add a key intent (`finish` in `lib/input-adapter.ts`), let the input source pass it (`lib/input-source.ts`) and handle it in `handleIntent`. Decide what a test that ends with nothing to keep does, and say it in `docs/spec/metrics.md` ("Test end").
+4. Add tests at each level: the guard, the session (without rendering), the key, and an e2e of the whole flow.
 
 ---
 

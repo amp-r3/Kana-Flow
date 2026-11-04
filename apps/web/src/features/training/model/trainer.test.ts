@@ -9,6 +9,7 @@ import {
   selectAllRows,
   setContent,
   setScript,
+  setTestConfig,
   strictnessSetting,
 } from '@/entities/settings';
 import { MemoryKeyValueStore } from '@/shared/lib';
@@ -151,5 +152,38 @@ describe('trainer: prompt source, restarts and content loading', () => {
     expect(strictnessSetting.value).toBe('learner');
     trainer.restart();
     expect(trainer.session.currentPrompt.value?.text).toBe('パン');
+  });
+
+  it('a zen test ended with nothing to keep starts a fresh one, with no result', () => {
+    setTestConfig({ kind: 'zen' });
+    const next = vi.fn((): PromptItem => ({ key: 'word:pan', text: 'パン' }));
+    const trainer = createTrainer({ nextPrompt: next });
+    const stop = trainer.start();
+    trainer.session.handleIntent({ kind: 'char', char: 'p' });
+    expect(trainer.session.phase.value).toBe('running');
+    const asked = next.mock.calls.length;
+
+    trainer.session.handleIntent({ kind: 'finish' });
+
+    expect(trainer.session.phase.value).toBe('idle');
+    expect(trainer.session.metrics.value).toBeNull();
+    expect(next.mock.calls.length).toBeGreaterThan(asked);
+    expect(trainer.session.currentPrompt.value?.text).toBe('パン');
+    stop();
+  });
+
+  it('a zen test with a completed prompt shows its result', () => {
+    setTestConfig({ kind: 'zen' });
+    const clock = { now: vi.fn(() => 1000) };
+    const trainer = createTrainer({ nextPrompt: () => ({ key: 'basic:a', text: 'あ' }), clock });
+    const stop = trainer.start();
+    trainer.session.handleIntent({ kind: 'char', char: 'a' });
+    clock.now.mockReturnValue(2500);
+    trainer.session.handleIntent({ kind: 'char', char: 'a' });
+    trainer.session.handleIntent({ kind: 'finish' });
+
+    expect(trainer.session.phase.value).toBe('finished');
+    expect(trainer.session.metrics.value?.promptsCompleted).toBe(2);
+    stop();
   });
 });

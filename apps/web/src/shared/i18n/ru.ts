@@ -46,6 +46,7 @@ export const ru = {
   'config.weakFocus': 'Фокус на слабых',
   'config.test.time': 'Время',
   'config.test.count': 'Количество',
+  'config.test.zen': 'Дзен',
 
   // Test stage
   'stage.typePlaceholder': 'введите ромадзи...',
@@ -57,9 +58,12 @@ export const ru = {
   'stage.turnImeOff': 'Отключите японский IME',
   'stage.switchLayout': 'Переключите раскладку на английскую',
   'key.esc': 'Esc',
+  'key.ctrlEnter': 'ctrl + enter',
+  'key.cmdEnter': '⌘ + enter',
   'stage.escHint': 'Esc чтобы показать правильный ответ',
   'stage.tabHint': 'Tab затем Enter для перезапуска',
   'stage.blur': 'Вернитесь в окно, чтобы продолжить',
+  'stage.finish': 'Завершить',
   'stage.revealed': 'Ответ: {answer}',
   'stage.contentLoading': 'Загрузка словаря...',
   'stage.contentLoadError': 'Не удалось загрузить словарь, возврат к одиночным канам',

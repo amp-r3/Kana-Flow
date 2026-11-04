@@ -77,6 +77,10 @@ export function createTrainer(deps: TrainerDeps = {}): Trainer {
     config: () => testConfig.value,
     clock: deps.clock ?? defaultClock,
     scheduler: deps.scheduler ?? defaultScheduler,
+    // A zen test ended with nothing to keep: a fresh prompt, as after a restart.
+    onDiscard: () => {
+      restart();
+    },
   });
 
   const restart = (): void => {

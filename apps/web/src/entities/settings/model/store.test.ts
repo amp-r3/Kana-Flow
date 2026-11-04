@@ -165,4 +165,27 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
     initSettings(store);
     expect(testConfig.value).toEqual(DEFAULT_TEST_CONFIG);
   });
+
+  it('a zen test is saved and restored, and settings saved before it existed still load', () => {
+    setTestConfig({ kind: 'zen' });
+    flushSettings();
+    initSettings(store);
+    expect(testConfig.value).toEqual({ kind: 'zen' });
+
+    store.set(
+      STORAGE_KEYS.SETTINGS,
+      JSON.stringify({
+        v: 1,
+        script: 'hiragana',
+        content: 'words',
+        strictness: 'ime',
+        rowIds: ['vowels'],
+        weakFocus: false,
+        test: { kind: 'count', prompts: 25 },
+      }),
+    );
+    initSettings(store);
+    expect(testConfig.value).toEqual({ kind: 'count', prompts: 25 });
+    expect(contentSetting.value).toBe('words');
+  });
 });

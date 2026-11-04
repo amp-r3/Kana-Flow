@@ -16,6 +16,7 @@ export type LiveLineProps = {
 export function LiveLine({ session }: LiveLineProps): JSX.Element {
   const counter = useComputed(() => {
     const config = testConfig.value;
+    if (config.kind === 'zen') return String(session.promptResults.value.length);
     if (config.kind === 'count') {
       return `${session.promptResults.value.length} / ${config.prompts}`;
     }

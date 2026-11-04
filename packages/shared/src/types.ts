@@ -21,7 +21,9 @@ export interface Scheduler {
 
 export type ValidTestConfig =
   | { readonly kind: 'time'; readonly seconds: 15 | 30 | 60 | 120 }
-  | { readonly kind: 'count'; readonly prompts: 10 | 25 | 50 | 100 };
+  | { readonly kind: 'count'; readonly prompts: 10 | 25 | 50 | 100 }
+  // No length: the test goes on until it is ended by hand (spec metrics.md, "Test end").
+  | { readonly kind: 'zen' };
 
 export type ValidSettings = {
   readonly v: 1;

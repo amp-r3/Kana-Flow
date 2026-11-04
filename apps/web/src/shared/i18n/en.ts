@@ -44,6 +44,7 @@ export const en = {
   'config.weakFocus': 'Focus Weak Kana',
   'config.test.time': 'Time',
   'config.test.count': 'Count',
+  'config.test.zen': 'Zen',
 
   // Test stage
   'stage.typePlaceholder': 'type romaji...',
@@ -55,9 +56,12 @@ export const en = {
   'stage.turnImeOff': 'Turn off the Japanese IME',
   'stage.switchLayout': 'Switch your keyboard layout to English',
   'key.esc': 'Esc',
+  'key.ctrlEnter': 'ctrl + enter',
+  'key.cmdEnter': '⌘ + enter',
   'stage.escHint': 'Esc to reveal canonical romaji',
   'stage.tabHint': 'Tab then Enter to restart',
   'stage.blur': 'Return to the window to continue',
+  'stage.finish': 'Finish',
   'stage.revealed': 'Revealed: {answer}',
   'stage.contentLoading': 'Loading vocabulary...',
   'stage.contentLoadError': 'Failed to load content, reverted to Single Kana',

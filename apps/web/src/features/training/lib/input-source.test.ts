@@ -92,6 +92,27 @@ describe('input source: the hybrid of keydown, beforeinput and input', () => {
       expect(onIntent).not.toHaveBeenCalled();
     });
 
+    it('Ctrl+Enter and Cmd+Enter are the finish intent, and are cancelled', () => {
+      const ctrl = keydown(input, 'Enter', { ctrlKey: true });
+      const meta = keydown(input, 'Enter', { metaKey: true });
+      expect(ctrl.defaultPrevented).toBe(true);
+      expect(meta.defaultPrevented).toBe(true);
+      expect(intents()).toEqual([{ kind: 'finish' }, { kind: 'finish' }]);
+    });
+
+    it('Ctrl+Enter pressed on a button is also the finish intent', () => {
+      button.focus();
+      const event = keydown(button, 'Enter', { ctrlKey: true });
+      expect(event.defaultPrevented).toBe(true);
+      expect(intents()).toEqual([{ kind: 'finish' }]);
+    });
+
+    it('Alt+Enter and Ctrl+Alt+Enter are not ours', () => {
+      expect(keydown(input, 'Enter', { altKey: true }).defaultPrevented).toBe(false);
+      expect(keydown(input, 'Enter', { ctrlKey: true, altKey: true }).defaultPrevented).toBe(false);
+      expect(onIntent).not.toHaveBeenCalled();
+    });
+
     it('Space, Enter and Backspace do nothing and are not cancelled', () => {
       for (const key of [' ', 'Enter', 'Backspace']) {
         expect(keydown(input, key).defaultPrevented).toBe(false);
@@ -134,6 +155,20 @@ describe('input source: the hybrid of keydown, beforeinput and input', () => {
       expect(keydown(button, 'Tab').defaultPrevented).toBe(false);
       expect(keydown(button, 'Enter').defaultPrevented).toBe(false);
       expect(document.activeElement).toBe(button);
+    });
+
+    it('Ctrl+Enter in another text field or with a dialog open is not intercepted', () => {
+      const other = document.createElement('textarea');
+      document.body.append(other);
+      other.focus();
+      expect(keydown(other, 'Enter', { ctrlKey: true }).defaultPrevented).toBe(false);
+      other.remove();
+
+      const dialog = document.createElement('dialog');
+      dialog.setAttribute('open', '');
+      document.body.append(dialog);
+      expect(keydown(button, 'Enter', { ctrlKey: true }).defaultPrevented).toBe(false);
+      expect(onIntent).not.toHaveBeenCalled();
     });
 
     it('keys in another text field are not intercepted', () => {

@@ -77,20 +77,20 @@ export function createInputSource(deps: InputSourceDeps): InputSource {
 
     const onKeyDown = (event: Event): void => {
       if (!(event instanceof KeyboardEvent)) return;
-      // Never intercept with modifiers (Ctrl, Meta, Alt): browser shortcuts must keep working.
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      // Never intercept with modifiers (Ctrl, Meta, Alt): browser shortcuts must keep working. The
+      // classification lets only Ctrl/Cmd+Enter through, which ends a zen test.
+      const cls = classifyKeyDown(event);
+      if (cls.kind === 'ignore') return;
       if (dialogOpen()) return;
       if (isOtherTextField(event.target, input)) return;
 
       // Esc on a button outside the input only brings the focus back; it is not a hint.
-      if (event.key === 'Escape' && event.target !== input) {
+      if (cls.kind === 'reveal' && event.target !== input) {
         event.preventDefault();
         input.focus();
         return;
       }
 
-      const cls = classifyKeyDown(event);
-      if (cls.kind === 'ignore') return;
       event.preventDefault();
       if (event.target !== input) input.focus();
       dispatch(cls, true);
