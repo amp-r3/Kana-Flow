@@ -30,23 +30,19 @@ export function Button({
   buttonRef,
 }: ButtonProps): JSX.Element {
   const base =
-    'inline-flex items-center justify-center gap-1.5 rounded font-normal transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 select-none outline-none focus-visible:ring-2';
+    'text-ui-label pointer-coarse:min-h-touch-min inline-flex items-center justify-center gap-1.5 rounded-sm transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-fur-faint select-none';
 
   const sizeClasses =
-    size === 'sm'
-      ? 'px-2 py-1 text-xs'
-      : size === 'lg'
-        ? 'px-5 py-2.5 text-base'
-        : 'px-3 py-1.5 text-sm';
+    size === 'sm' ? 'h-control-sm px-2' : size === 'lg' ? 'h-control px-5' : 'h-control px-3';
 
   const variantClasses =
     variant === 'primary'
-      ? 'bg-accent text-bg font-normal hover:brightness-110 focus-visible:ring-accent'
+      ? 'bg-fur text-on-fur hover:bg-fur-bright disabled:bg-bg-raised'
       : variant === 'ghost'
-        ? 'bg-transparent text-text-dim hover:text-text hover:bg-surface-2 focus-visible:ring-accent'
+        ? 'bg-transparent text-fur-dim hover:text-fur hover:bg-bg-hover'
         : variant === 'danger'
-          ? 'bg-error/15 text-error border border-error/30 hover:bg-error/25 focus-visible:ring-error'
-          : 'bg-surface-2 text-text border border-border hover:border-border-strong focus-visible:ring-accent';
+          ? 'text-miss border border-miss hover:bg-bg-hover disabled:border-fur-faint'
+          : 'text-fur border border-line-strong hover:bg-bg-hover disabled:border-line';
 
   if (buttonRef !== undefined) {
     return (

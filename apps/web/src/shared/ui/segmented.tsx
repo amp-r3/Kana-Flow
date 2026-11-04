@@ -23,13 +23,13 @@ export function Segmented<T extends string | number>({
   disabled = false,
   size = 'sm',
 }: SegmentedProps<T>): JSX.Element {
-  const padClass = size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm';
+  const sizeClass = size === 'sm' ? 'h-control-sm px-2' : 'h-control px-3';
 
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="bg-surface border-border inline-flex gap-0.5 rounded border p-0.5 select-none"
+      className="inline-flex flex-wrap gap-1 select-none"
     >
       {options.map((opt) => {
         const isSelected = opt.value === value;
@@ -41,15 +41,16 @@ export function Segmented<T extends string | number>({
             aria-checked={isSelected}
             disabled={disabled}
             onClick={() => {
-              console.log('Segmented button onClick, opt =', opt.value);
               if (opt.value !== value) {
                 onChange(opt.value);
               }
             }}
             className={cx(
-              'focus-visible:ring-accent cursor-pointer rounded font-normal transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50',
-              padClass,
-              isSelected ? 'bg-accent text-bg' : 'text-text-dim hover:text-text hover:bg-surface-2',
+              'text-ui-label pointer-coarse:min-h-touch-min disabled:text-fur-faint relative cursor-pointer rounded-sm whitespace-nowrap transition-colors disabled:cursor-not-allowed',
+              sizeClass,
+              isSelected
+                ? 'text-fur after:bg-eye after:absolute after:inset-x-2 after:bottom-0 after:h-0.5'
+                : 'text-fur-dim hover:text-fur hover:bg-bg-hover',
             )}
           >
             {opt.label}

@@ -12,8 +12,8 @@ export function Toggle({ checked, onChange, label, disabled = false }: TogglePro
   return (
     <label
       className={cx(
-        'text-text-dim hover:text-text inline-flex cursor-pointer items-center gap-2 text-xs font-normal transition-colors select-none',
-        disabled && 'cursor-not-allowed opacity-50',
+        'text-ui-label text-fur-dim hover:text-fur pointer-coarse:min-h-touch-min inline-flex cursor-pointer items-center gap-2 transition-colors select-none',
+        disabled && 'text-fur-faint hover:text-fur-faint cursor-not-allowed',
       )}
     >
       <button
@@ -25,14 +25,14 @@ export function Toggle({ checked, onChange, label, disabled = false }: TogglePro
           onChange(!checked);
         }}
         className={cx(
-          'border-border focus-visible:ring-accent relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full border transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed',
-          checked ? 'bg-accent border-accent' : 'bg-surface-2',
+          'border-line-strong bg-bg-raised relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-sm border transition-colors disabled:cursor-not-allowed',
         )}
       >
         <span
           className={cx(
-            'bg-bg pointer-events-none my-auto mt-[1px] inline-block h-3 w-3 transform rounded-full shadow-sm transition-transform',
-            checked ? 'translate-x-4' : 'translate-x-0.5',
+            'pointer-events-none my-auto inline-block h-3 w-3 transform rounded-xs transition-transform',
+            checked ? 'bg-eye translate-x-4' : 'bg-fur-dim translate-x-0.5',
+            disabled && 'bg-fur-faint',
           )}
         />
       </button>
