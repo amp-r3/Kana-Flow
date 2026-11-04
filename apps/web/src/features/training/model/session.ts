@@ -56,7 +56,6 @@ export type Session = {
   readonly typedBuffer: ReadonlySignal<string>;
   readonly isShaking: ReadonlySignal<boolean>;
   readonly isAssisted: ReadonlySignal<boolean>;
-  readonly imeNotice: ReadonlySignal<boolean>;
   readonly currentPrompt: ReadonlySignal<PromptItem | null>;
   readonly activeTokenIdx: ReadonlySignal<number>;
   readonly canonicalRomaji: ReadonlySignal<string>;
@@ -72,8 +71,6 @@ export type Session = {
   readonly liveAccuracy: ReadonlySignal<number>;
   loadPrompt(prompt: PromptItem, strictness: Strictness): void;
   handleIntent(intent: KeyIntent): void;
-  handleCompositionStart(): void;
-  handleCompositionEnd(): void;
   finishSession(): void;
   reset(): void;
 };
@@ -99,7 +96,6 @@ class TrainingSession implements Session {
   private readonly _typedBuffer = signal<string>('');
   private readonly _isShaking = signal<boolean>(false);
   private readonly _isAssisted = signal<boolean>(false);
-  private readonly _imeNotice = signal<boolean>(false);
   private readonly _currentPrompt = signal<PromptItem | null>(null);
   private readonly _activeTokenIdx = signal<number>(0);
   private readonly _canonicalRomaji = signal<string>('');
@@ -116,7 +112,6 @@ class TrainingSession implements Session {
   readonly typedBuffer: ReadonlySignal<string> = this._typedBuffer;
   readonly isShaking: ReadonlySignal<boolean> = this._isShaking;
   readonly isAssisted: ReadonlySignal<boolean> = this._isAssisted;
-  readonly imeNotice: ReadonlySignal<boolean> = this._imeNotice;
   readonly currentPrompt: ReadonlySignal<PromptItem | null> = this._currentPrompt;
   readonly activeTokenIdx: ReadonlySignal<number> = this._activeTokenIdx;
   readonly canonicalRomaji: ReadonlySignal<string> = this._canonicalRomaji;
@@ -201,14 +196,6 @@ class TrainingSession implements Session {
     this.showPrompt(view(matcher, state));
   }
 
-  handleCompositionStart(): void {
-    this._imeNotice.value = true;
-  }
-
-  handleCompositionEnd(): void {
-    this._imeNotice.value = false;
-  }
-
   handleIntent(intent: KeyIntent): void {
     if (this._phase.value === 'finished' || intent.kind === 'ignore') {
       return;
@@ -272,7 +259,6 @@ class TrainingSession implements Session {
     this._typedBuffer.value = '';
     this._isShaking.value = false;
     this._isAssisted.value = false;
-    this._imeNotice.value = false;
     this._activeTokenIdx.value = 0;
     this._canonicalRomaji.value = '';
     this.resetState();

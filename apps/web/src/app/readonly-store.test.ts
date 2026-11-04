@@ -34,7 +34,6 @@ export type _CheckLocale = AssertFalse<IsWritable<typeof locale, 'value'>>;
 export type _CheckCtrlTypedBuffer = AssertFalse<IsWritable<Session['typedBuffer'], 'value'>>;
 export type _CheckCtrlIsShaking = AssertFalse<IsWritable<Session['isShaking'], 'value'>>;
 export type _CheckCtrlIsAssisted = AssertFalse<IsWritable<Session['isAssisted'], 'value'>>;
-export type _CheckCtrlImeNotice = AssertFalse<IsWritable<Session['imeNotice'], 'value'>>;
 export type _CheckCtrlCurrentPrompt = AssertFalse<IsWritable<Session['currentPrompt'], 'value'>>;
 export type _CheckCtrlActiveTokenIdx = AssertFalse<IsWritable<Session['activeTokenIdx'], 'value'>>;
 export type _CheckCtrlCanonicalRomaji = AssertFalse<
@@ -71,7 +70,6 @@ describe('store state: ReadonlySignal guarantees', () => {
     expect(dummyController.typedBuffer.value).toBeDefined();
     expect(dummyController.isShaking.value).toBeDefined();
     expect(dummyController.isAssisted.value).toBeDefined();
-    expect(dummyController.imeNotice.value).toBeDefined();
     expect(dummyController.currentPrompt.value).toBeNull();
     expect(dummyController.activeTokenIdx.value).toBeDefined();
     expect(dummyController.canonicalRomaji.value).toBeDefined();

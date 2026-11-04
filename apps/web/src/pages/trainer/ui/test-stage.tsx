@@ -1,10 +1,10 @@
 import type { JSX } from 'preact';
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef, useLayoutEffect, useMemo } from 'preact/hooks';
 import { t, locale } from '@/shared/i18n';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
 import { cx } from '@/shared/lib';
 import type { Session } from '@/features/training';
-import { bindKeyboard } from '@/features/training';
+import { createInputSource } from '@/features/training';
 import { strictnessSetting } from '@/entities/settings';
 import { LiveStatsStrip } from './live-stats-strip';
 
@@ -21,25 +21,30 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
   const typed = session.typedBuffer.value;
   const isShaking = session.isShaking.value;
   const isAssisted = session.isAssisted.value;
-  const imeNotice = session.imeNotice.value;
   const canonicalRomaji = session.canonicalRomaji.value;
   const currentStrictness = strictnessSetting.value;
   const activeLocale = locale.value;
 
-  // Auto-focus the input on mount
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  const source = useMemo(
+    () =>
+      createInputSource({
+        onIntent: (intent) => {
+          session.handleIntent(intent);
+        },
+      }),
+    [session],
+  );
+  const imeNotice = source.imeNotice.value;
+  const layoutNotice = source.layoutNotice.value;
 
-  // Global keyboard binding managing focus redirection and intent handling (Plan 6.2)
-  useEffect(() => {
-    return bindKeyboard({
-      onIntent: (intent) => {
-        session.handleIntent(intent);
-      },
-      getInputElement: () => inputRef.current,
-    });
-  }, [session]);
+  // Focus the field and listen to the keyboard from the first frame, so a key pressed at once is
+  // not lost.
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (!input) return undefined;
+    input.focus();
+    return source.bind(input);
+  }, [source]);
 
   const handleArenaClick = () => {
     inputRef.current?.focus();
@@ -54,13 +59,6 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
       <input
         ref={inputRef}
         type="text"
-        value=""
-        onCompositionStart={() => {
-          session.handleCompositionStart();
-        }}
-        onCompositionEnd={() => {
-          session.handleCompositionEnd();
-        }}
         onFocus={() => {
           setIsFocused(true);
         }}
@@ -79,10 +77,15 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
       {/* Live stats strip */}
       <LiveStatsStrip session={session} strictness={currentStrictness} />
 
-      {/* Japanese IME warning notice */}
+      {/* Notices: Japanese IME on, or a non-Latin layout */}
       {imeNotice && (
-        <div className="text-fur-dim text-ui-label w-full p-2.5 text-center">
+        <div role="status" className="text-fur-dim text-ui-label w-full p-2.5 text-center">
           {t('stage.turnImeOff')}
+        </div>
+      )}
+      {layoutNotice && (
+        <div role="status" className="text-fur-dim text-ui-label w-full p-2.5 text-center">
+          {t('stage.switchLayout')}
         </div>
       )}
 

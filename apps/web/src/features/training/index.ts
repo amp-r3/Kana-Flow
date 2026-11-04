@@ -1,8 +1,7 @@
-export type { KeyIntent, KeyDownEventLike } from './lib/input-adapter';
-export { handleKeyDown } from './lib/input-adapter';
+export type { KeyIntent } from './lib/input-adapter';
 
-export type { KeyboardBindingOptions } from './lib/keyboard';
-export { bindKeyboard } from './lib/keyboard';
+export type { InputSource, InputSourceDeps } from './lib/input-source';
+export { createInputSource } from './lib/input-source';
 
 export type { Session, SessionDeps } from './model/session';
 export { createSession } from './model/session';
