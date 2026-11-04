@@ -33,7 +33,7 @@ export const ru = {
   'stage.inputLabel': 'Поле ввода каны',
   'stage.restartLabel': 'Перезапустить тест',
   'stage.restart': 'Заново',
-  'stage.liveWpm': 'wpm',
+  'stage.liveKpm': 'kpm',
   'stage.clickToFocus': 'Нажмите для фокусировки',
   'stage.turnImeOff': 'Пожалуйста, переключите раскладку на английский / отключите японский IME',
   'key.esc': 'Esc',

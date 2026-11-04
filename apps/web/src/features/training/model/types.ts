@@ -1,10 +1,5 @@
 export type Phase = 'idle' | 'running' | 'finished';
 
-export type KeystrokeEvent = {
-  readonly at: number;
-  readonly accepted: boolean;
-};
-
 export type TokenOutcome = {
   readonly kanaKey: string | null;
   readonly mistakes: number;

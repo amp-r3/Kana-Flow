@@ -31,7 +31,7 @@ export const en = {
   'stage.inputLabel': 'Kana input sink',
   'stage.restartLabel': 'Restart test',
   'stage.restart': 'Restart',
-  'stage.liveWpm': 'wpm',
+  'stage.liveKpm': 'kpm',
   'stage.clickToFocus': 'Click to focus',
   'stage.turnImeOff': 'Please switch keyboard to English / turn Japanese IME off',
   'key.esc': 'Esc',

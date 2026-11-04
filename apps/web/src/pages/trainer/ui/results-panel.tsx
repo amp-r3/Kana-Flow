@@ -3,19 +3,20 @@ import { useRef, useEffect } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
 import { canonicalFor, isKanaKey } from '@/entities/prompt';
-import { metrics, promptResults } from '@/entities/session';
+import type { Session } from '@/features/training';
 import { SpeedChart } from './speed-chart';
 import { WeakestKanaList } from './weakest-kana-list';
 import type { WeakKanaItem } from './weakest-kana-list';
 
 export type ResultsPanelProps = {
+  readonly session: Session;
   readonly onNextTest: () => void;
 };
 
-export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
+export function ResultsPanel({ session, onNextTest }: ResultsPanelProps): JSX.Element {
   const nextBtnRef = useRef<HTMLButtonElement | null>(null);
-  const m = metrics.value;
-  const results = promptResults.value;
+  const m = session.metrics.value;
+  const results = session.promptResults.value;
 
   useEffect(() => {
     nextBtnRef.current?.focus();

@@ -1,10 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { computeMetrics } from './metrics';
-import type { KeystrokeEvent, PromptResult } from '../model/types';
+import { createKeyTally } from './key-tally';
+import type { KeyTally } from './key-tally';
+import type { PromptResult } from '../model/types';
+
+type KeystrokeEvent = { readonly at: number; readonly accepted: boolean };
+
+function tallyOf(events: readonly KeystrokeEvent[]): KeyTally {
+  const tally = createKeyTally();
+  for (const e of events) tally.record(e.at, e.accepted);
+  return tally.snapshot;
+}
 
 describe('metrics: pure calculation', () => {
   it('guards elapsedMs = 0 when no keystrokes or elapsed = 0', () => {
-    const emptyMetrics = computeMetrics([], []);
+    const emptyMetrics = computeMetrics(tallyOf([]), []);
     expect(emptyMetrics.elapsedMs).toBe(0);
     expect(emptyMetrics.wpm).toBe(0);
     expect(emptyMetrics.rawWpm).toBe(0);
@@ -18,7 +28,7 @@ describe('metrics: pure calculation', () => {
       { at: 1000, accepted: true },
       { at: 1000, accepted: true },
     ];
-    const zeroMetrics = computeMetrics(zeroTimeKeystrokes, [], 1000);
+    const zeroMetrics = computeMetrics(tallyOf(zeroTimeKeystrokes), [], 1000);
     expect(zeroMetrics.elapsedMs).toBe(0);
     expect(zeroMetrics.wpm).toBe(0);
     expect(zeroMetrics.accuracy).toBe(1.0);
@@ -61,7 +71,7 @@ describe('metrics: pure calculation', () => {
       },
     ];
 
-    const m = computeMetrics(keystrokes, promptResults, 61000);
+    const m = computeMetrics(tallyOf(keystrokes), promptResults, 61000);
 
     expect(m.elapsedMs).toBe(60000);
     expect(m.correct).toBe(50);

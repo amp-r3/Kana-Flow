@@ -1,15 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TypingController } from './controller';
+import { createSession } from './session';
+import type { Session } from './session';
 import { setupSettingsResetWatcher } from './settings-watcher';
-import {
-  phase,
-  metrics,
-  resetSession,
-  correctKeystrokes,
-  mistakeCount,
-  promptResults,
-} from '@/entities/session';
-import { setTestConfig } from '@/entities/settings';
+import { setTestConfig, testConfig } from '@/entities/settings';
+import type { TestConfig } from '@/entities/settings';
 import type { PromptItem } from '@/entities/prompt';
 import type { Clock, Scheduler, TimeoutHandle } from '@/shared/lib';
 
@@ -77,12 +71,11 @@ class FakeScheduler implements Scheduler {
   }
 }
 
-describe('controller: timing, lifecycle and scripted typing sessions', () => {
+describe('session: timing, lifecycle and scripted typing sessions', () => {
   let clock: FakeClock;
   let scheduler: FakeScheduler;
 
   beforeEach(() => {
-    resetSession();
     clock = new FakeClock();
     scheduler = new FakeScheduler();
   });
@@ -91,34 +84,39 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
   // is final only once the next key settles it; the absorption window of the baseline is gone.
   it('runs scripted session yielding exact metrics with rejected key, reveal, and ん resolved by the next prompt', () => {
     setTestConfig({ kind: 'count', prompts: 10 });
-    expect(phase.value).toBe('idle');
 
     const prompt1: PromptItem = { key: 'word:pan', text: 'パン' };
     const prompt2: PromptItem = { key: 'word:neko', text: 'ねこ' };
 
-    const controller = new TypingController(() => prompt2, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => prompt2,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(prompt1, 'learner');
+    expect(controller.phase.value).toBe('idle');
     expect(controller.currentPrompt.value?.text).toBe('パン');
 
     // 1. First key 'p' at time 1000 -> starts test, advances phase to running
     clock.currentTime = 1000;
     controller.handleIntent({ kind: 'char', char: 'p' });
-    expect(phase.value).toBe('running');
+    expect(controller.phase.value).toBe('running');
     expect(controller.typedBuffer.value).toBe('p');
-    expect(correctKeystrokes.value).toBe(1);
+    expect(controller.correctKeystrokes.value).toBe(1);
 
     // 2. Key 'a' at time 1200
     clock.advance(200); // 1200
     controller.handleIntent({ kind: 'char', char: 'a' });
     expect(controller.typedBuffer.value).toBe('pa');
-    expect(correctKeystrokes.value).toBe(2);
+    expect(controller.correctKeystrokes.value).toBe(2);
 
     // 3. Rejected key 'x' at time 1400 -> shake flag, buffer unchanged
     clock.advance(200); // 1400
     controller.handleIntent({ kind: 'char', char: 'x' });
     expect(controller.isShaking.value).toBe(true);
     expect(controller.typedBuffer.value).toBe('pa');
-    expect(mistakeCount.value).toBe(1);
+    expect(controller.mistakeCount.value).toBe(1);
 
     // Shake flag clears after 280 ms
     scheduler.advance(280);
@@ -130,29 +128,29 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     controller.handleIntent({ kind: 'char', char: 'n' });
     expect(controller.currentPrompt.value?.text).toBe('ねこ');
     expect(controller.typedBuffer.value).toBe('');
-    expect(promptResults.value).toHaveLength(0);
-    expect(phase.value).toBe('running');
+    expect(controller.promptResults.value).toHaveLength(0);
+    expect(controller.phase.value).toBe('running');
 
     // 5. Second n at time 1700: accepted both as the end of `nn` and as the start of ね. The
     // prompt is now committed in every reading, but the two readings disagree on the keys of ん.
     clock.advance(100); // 1700
     controller.handleIntent({ kind: 'char', char: 'n' });
     expect(controller.typedBuffer.value).toBe('n');
-    expect(correctKeystrokes.value).toBe(4);
-    expect(promptResults.value).toHaveLength(0);
+    expect(controller.correctKeystrokes.value).toBe(4);
+    expect(controller.promptResults.value).toHaveLength(0);
 
     // 6. User presses Esc (reveal) at time 2000: charged to the prompt on screen
     clock.advance(300); // 2000
     controller.handleIntent({ kind: 'reveal' });
     expect(controller.isAssisted.value).toBe(true);
-    expect(mistakeCount.value).toBe(2); // 1 rejected + 1 reveal
+    expect(controller.mistakeCount.value).toBe(2); // 1 rejected + 1 reveal
 
     // 7. 'e' at time 2200 settles it: ん was a bare n. パン is recorded, ended by the key that
     // committed it (time 1700).
     clock.advance(200); // 2200
     controller.handleIntent({ kind: 'char', char: 'e' });
-    expect(promptResults.value).toHaveLength(1);
-    const first = promptResults.value[0];
+    expect(controller.promptResults.value).toHaveLength(1);
+    const first = controller.promptResults.value[0];
     expect(first?.key).toBe('word:pan');
     expect(first?.startedAt).toBe(1000);
     expect(first?.endedAt).toBe(1700);
@@ -171,8 +169,8 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     controller.handleIntent({ kind: 'char', char: 'k' });
     clock.advance(200); // 2600
     controller.handleIntent({ kind: 'char', char: 'o' });
-    expect(promptResults.value).toHaveLength(2);
-    expect(promptResults.value[1]?.assisted).toBe(true);
+    expect(controller.promptResults.value).toHaveLength(2);
+    expect(controller.promptResults.value[1]?.assisted).toBe(true);
 
     // Type prompts 3 through 10 to finish count test automatically:
     for (let p = 3; p <= 10; p++) {
@@ -183,9 +181,9 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     }
 
     // Automatically finished on the 10th prompt without calling finishSession()!
-    expect(phase.value).toBe('finished');
+    expect(controller.phase.value).toBe('finished');
 
-    const m = metrics.value;
+    const m = controller.metrics.value;
     expect(m).not.toBeNull();
     if (!m) return;
 
@@ -195,14 +193,19 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     // Mistakes: 1 rejected ('x') + 1 reveal = 2
     expect(m.mistakes).toBe(2);
     // Live counters match computeMetrics derived output
-    expect(correctKeystrokes.value).toBe(m.correct);
-    expect(mistakeCount.value).toBe(m.mistakes);
+    expect(controller.correctKeystrokes.value).toBe(m.correct);
+    expect(controller.mistakeCount.value).toBe(m.mistakes);
   });
 
   it('count test (10 prompts) auto-finishes on the last prompt without calling finishSession()', () => {
     setTestConfig({ kind: 'count', prompts: 10 });
     const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
-    const controller = new TypingController(() => prompt, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => prompt,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(prompt, 'learner');
 
     // Type 'a' 10 times to complete 10 prompts
@@ -212,14 +215,19 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     }
 
     // Must be finished automatically without calling finishSession()
-    expect(phase.value).toBe('finished');
-    expect(metrics.value).not.toBeNull();
-    expect(metrics.value?.promptsCompleted).toBe(10);
+    expect(controller.phase.value).toBe('finished');
+    expect(controller.metrics.value).not.toBeNull();
+    expect(controller.metrics.value?.promptsCompleted).toBe(10);
   });
 
   it('the shake flag clears after ~280 ms', () => {
     const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
-    const controller = new TypingController(() => prompt, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => prompt,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(prompt, 'learner');
 
     // Rejected keystroke 'z'
@@ -240,13 +248,18 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     const prompt1: PromptItem = { key: 'word:pan', text: 'パン' };
     const prompt2: PromptItem = { key: 'word:neko', text: 'ねこ' };
 
-    const controller = new TypingController(() => prompt2, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => prompt2,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(prompt1, 'learner');
 
     // Start at t = 1000
     clock.currentTime = 1000;
     controller.handleIntent({ kind: 'char', char: 'p' });
-    expect(phase.value).toBe('running');
+    expect(controller.phase.value).toBe('running');
 
     controller.handleIntent({ kind: 'char', char: 'a' });
     controller.handleIntent({ kind: 'char', char: 'n' });
@@ -263,9 +276,9 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     scheduler.advance(15000);
 
     // Test finishes mid-prompt!
-    expect(phase.value).toBe('finished');
+    expect(controller.phase.value).toBe('finished');
 
-    const m = metrics.value;
+    const m = controller.metrics.value;
     expect(m).not.toBeNull();
     if (!m) return;
 
@@ -278,33 +291,45 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
 
   it('resets everything on restart and changing a setting resets to idle', () => {
     const prompt: PromptItem = { key: 'word:pan', text: 'パン' };
-    const controller = new TypingController(() => prompt, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => prompt,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(prompt, 'learner');
 
     controller.handleIntent({ kind: 'char', char: 'p' });
-    expect(phase.value).toBe('running');
+    expect(controller.phase.value).toBe('running');
     expect(controller.typedBuffer.value).toBe('p');
 
     // Calling reset() on controller resets state and session to idle
     controller.reset();
-    expect(phase.value).toBe('idle');
+    expect(controller.phase.value).toBe('idle');
     expect(controller.typedBuffer.value).toBe('');
 
     // Changing testConfig also resets to idle: the settings slice cannot import the session slice,
-    // so the watcher (installed by the trainer page) does it.
-    const dispose = setupSettingsResetWatcher(() => {});
+    // so the watcher (installed by the trainer) does it.
+    const dispose = setupSettingsResetWatcher(() => {
+      controller.reset();
+    });
     controller.loadPrompt(prompt, 'learner');
     controller.handleIntent({ kind: 'char', char: 'p' });
-    expect(phase.value).toBe('running');
+    expect(controller.phase.value).toBe('running');
 
     setTestConfig({ kind: 'time', seconds: 60 });
-    expect(phase.value).toBe('idle');
+    expect(controller.phase.value).toBe('idle');
     dispose();
   });
 
   it('1 Hz ticker updates tickerNow while test is running', () => {
     const prompt: PromptItem = { key: 'word:pan', text: 'パン' };
-    const controller = new TypingController(() => prompt, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => prompt,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(prompt, 'learner');
 
     clock.currentTime = 5000;
@@ -323,12 +348,11 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
   });
 });
 
-describe('controller: prompt stream (spec D3, A15)', () => {
+describe('session: prompt stream (spec D3, A15)', () => {
   let clock: FakeClock;
   let scheduler: FakeScheduler;
 
   beforeEach(() => {
-    resetSession();
     clock = new FakeClock();
     scheduler = new FakeScheduler();
   });
@@ -336,7 +360,7 @@ describe('controller: prompt stream (spec D3, A15)', () => {
   const pan: PromptItem = { key: 'word:pan', text: 'パン' };
   const neko: PromptItem = { key: 'word:neko', text: 'ねこ' };
 
-  function type(controller: TypingController, keys: string): void {
+  function type(controller: Session, keys: string): void {
     for (const char of keys) {
       clock.advance(100);
       controller.handleIntent({ kind: 'char', char });
@@ -351,7 +375,12 @@ describe('controller: prompt stream (spec D3, A15)', () => {
     };
 
     setTestConfig({ kind: 'time', seconds: 30 });
-    const open = new TypingController(supply, clock, scheduler);
+    const open = createSession({
+      nextPrompt: supply,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     open.loadPrompt(neko, 'learner');
     expect(asked).toBe(2);
     type(open, 'neko');
@@ -359,35 +388,50 @@ describe('controller: prompt stream (spec D3, A15)', () => {
 
     setTestConfig({ kind: 'count', prompts: 10 });
     asked = 0;
-    const counted = new TypingController(supply, clock, scheduler);
+    const counted = createSession({
+      nextPrompt: supply,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     counted.loadPrompt(neko, 'learner');
     expect(asked).toBe(2);
     for (let i = 0; i < 10; i++) type(counted, 'neko');
-    expect(phase.value).toBe('finished');
+    expect(counted.phase.value).toBe('finished');
     expect(asked).toBe(9);
   });
 
   it('strict mode needs nn at the end of a prompt before an n: the prompt switches on the second n', () => {
-    const controller = new TypingController(() => neko, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => neko,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(pan, 'ime');
     type(controller, 'pan');
     expect(controller.currentPrompt.value?.text).toBe('パン');
     expect(controller.typedBuffer.value).toBe('pan');
     type(controller, 'n');
     expect(controller.currentPrompt.value?.text).toBe('ねこ');
-    expect(promptResults.value).toHaveLength(1);
+    expect(controller.promptResults.value).toHaveLength(1);
   });
 
   it('relaxed mode takes a single n before a vowel prompt: ほん → あめ is `honame`', () => {
     const ame: PromptItem = { key: 'word:ame', text: 'あめ' };
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
-    const controller = new TypingController(() => ame, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => ame,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(hon, 'learner');
     type(controller, 'hon');
     expect(controller.currentPrompt.value?.text).toBe('あめ');
     type(controller, 'a');
-    expect(promptResults.value).toHaveLength(1);
-    expect(promptResults.value[0]?.tokenOutcomes.map((t) => t.kanaKey)).toEqual([
+    expect(controller.promptResults.value).toHaveLength(1);
+    expect(controller.promptResults.value[0]?.tokenOutcomes.map((t) => t.kanaKey)).toEqual([
       'hiragana:ほ',
       'hiragana:ん',
     ]);
@@ -395,40 +439,55 @@ describe('controller: prompt stream (spec D3, A15)', () => {
 
   it('charges a rejected key to the prompt on screen, not to the undecided ん before it (A34)', () => {
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
-    const controller = new TypingController(() => neko, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => neko,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(hon, 'learner');
     type(controller, 'hon');
     type(controller, 'x');
-    expect(mistakeCount.value).toBe(1);
+    expect(controller.mistakeCount.value).toBe(1);
     type(controller, 'ne');
-    expect(promptResults.value).toHaveLength(1);
-    expect(promptResults.value[0]?.mistakes).toBe(0);
+    expect(controller.promptResults.value).toHaveLength(1);
+    expect(controller.promptResults.value[0]?.mistakes).toBe(0);
     type(controller, 'ko');
-    expect(promptResults.value[1]?.mistakes).toBe(1);
-    expect(promptResults.value[1]?.tokenOutcomes.map((t) => t.mistakes)).toEqual([1, 0]);
+    expect(controller.promptResults.value[1]?.mistakes).toBe(1);
+    expect(controller.promptResults.value[1]?.tokenOutcomes.map((t) => t.mistakes)).toEqual([1, 0]);
   });
 
   it('an Esc before the first key still counts once the test starts', () => {
-    const controller = new TypingController(() => neko, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => neko,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(neko, 'learner');
     controller.handleIntent({ kind: 'reveal' });
-    expect(phase.value).toBe('idle');
-    expect(mistakeCount.value).toBe(1);
+    expect(controller.phase.value).toBe('idle');
+    expect(controller.mistakeCount.value).toBe(1);
     type(controller, 'n');
-    expect(phase.value).toBe('running');
-    expect(mistakeCount.value).toBe(1);
+    expect(controller.phase.value).toBe('running');
+    expect(controller.mistakeCount.value).toBe(1);
   });
 
   it('an Esc while the ん of the previous prompt is undecided is charged to the prompt on screen', () => {
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
-    const controller = new TypingController(() => neko, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => neko,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(hon, 'learner');
     type(controller, 'hon');
     expect(controller.currentPrompt.value?.text).toBe('ねこ');
     controller.handleIntent({ kind: 'reveal' });
-    expect(mistakeCount.value).toBe(1);
+    expect(controller.mistakeCount.value).toBe(1);
     type(controller, 'neko');
-    const [first, second] = promptResults.value;
+    const [first, second] = controller.promptResults.value;
     expect(first?.mistakes).toBe(0);
     expect(first?.assisted).toBe(false);
     expect(second?.mistakes).toBe(1);
@@ -438,11 +497,16 @@ describe('controller: prompt stream (spec D3, A15)', () => {
 
   it('an Esc skips the leading skip token of the prompt on screen', () => {
     const quoted: PromptItem = { key: 'phrase:q', text: '「ねこ' };
-    const controller = new TypingController(() => neko, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => neko,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(quoted, 'learner');
     controller.handleIntent({ kind: 'reveal' });
     type(controller, 'neko');
-    expect(promptResults.value[0]?.mistakes).toBe(1);
+    expect(controller.promptResults.value[0]?.mistakes).toBe(1);
   });
 
   it('a single-kana ん that ends a count test is timed from the previous token, not 1 ms', () => {
@@ -450,13 +514,18 @@ describe('controller: prompt stream (spec D3, A15)', () => {
     const a: PromptItem = { key: 'basic:a', text: 'あ' };
     const n: PromptItem = { key: 'basic:n', text: 'ん' };
     let asked = 0;
-    const controller = new TypingController(() => (++asked < 9 ? a : n), clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => (++asked < 9 ? a : n),
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(a, 'learner');
     type(controller, 'aaaaaaaaa');
     clock.advance(500);
     type(controller, 'n');
-    expect(phase.value).toBe('finished');
-    const last = promptResults.value[9];
+    expect(controller.phase.value).toBe('finished');
+    const last = controller.promptResults.value[9];
     expect(last?.key).toBe('basic:n');
     expect(last?.tokenOutcomes[0]?.ms).toBe(600);
     expect(last?.endedAt).toBe(clock.currentTime);
@@ -465,21 +534,31 @@ describe('controller: prompt stream (spec D3, A15)', () => {
   it('the first token of a test gets no reaction time, even when its timing is ambiguous', () => {
     setTestConfig({ kind: 'time', seconds: 15 });
     const n: PromptItem = { key: 'basic:n', text: 'ん' };
-    const controller = new TypingController(() => neko, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => neko,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(n, 'learner');
     type(controller, 'nn');
     controller.finishSession();
-    expect(promptResults.value[0]?.tokenOutcomes[0]?.ms).toBe(0);
+    expect(controller.promptResults.value[0]?.tokenOutcomes[0]?.ms).toBe(0);
   });
 
   it('records every prompt before compaction drops it, in order and exactly once', () => {
     setTestConfig({ kind: 'time', seconds: 120 });
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
     let i = 0;
-    const controller = new TypingController(() => (i++ % 2 === 0 ? neko : hon), clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => (i++ % 2 === 0 ? neko : hon),
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(hon, 'learner');
     for (let k = 0; k < 30; k++) type(controller, 'honneko');
-    const keys = promptResults.value.map((r) => r.key);
+    const keys = controller.promptResults.value.map((r) => r.key);
     expect(keys).toHaveLength(60);
     expect(keys.every((key, k) => key === (k % 2 === 0 ? 'word:hon' : 'word:neko'))).toBe(true);
   });
@@ -488,17 +567,22 @@ describe('controller: prompt stream (spec D3, A15)', () => {
     setTestConfig({ kind: 'count', prompts: 100 });
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
     let i = 0;
-    const controller = new TypingController(() => (i++ % 2 === 0 ? neko : hon), clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => (i++ % 2 === 0 ? neko : hon),
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(hon, 'learner');
     let guard = 0;
-    while (phase.value !== 'finished' && guard++ < 1000) {
+    while (controller.phase.value !== 'finished' && guard++ < 1000) {
       type(controller, controller.canonicalRomaji.value);
     }
-    expect(phase.value).toBe('finished');
-    expect(promptResults.value).toHaveLength(100);
-    expect(metrics.value?.promptsCompleted).toBe(100);
-    const measured = promptResults.value.flatMap((r) => r.tokenOutcomes).slice(1);
-    for (const result of promptResults.value) {
+    expect(controller.phase.value).toBe('finished');
+    expect(controller.promptResults.value).toHaveLength(100);
+    expect(controller.metrics.value?.promptsCompleted).toBe(100);
+    const measured = controller.promptResults.value.flatMap((r) => r.tokenOutcomes).slice(1);
+    for (const result of controller.promptResults.value) {
       expect(result.mistakes).toBe(0);
       expect(result.tokenOutcomes.length).toBe(2);
     }
@@ -508,12 +592,153 @@ describe('controller: prompt stream (spec D3, A15)', () => {
   it('a count test ends on the last prompt even when it ends in ん', () => {
     setTestConfig({ kind: 'count', prompts: 10 });
     const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
-    const controller = new TypingController(() => hon, clock, scheduler);
+    const controller = createSession({
+      nextPrompt: () => hon,
+      config: () => testConfig.value,
+      clock,
+      scheduler,
+    });
     controller.loadPrompt(hon, 'learner');
     for (let i = 0; i < 9; i++) type(controller, 'honn');
-    expect(phase.value).toBe('running');
+    expect(controller.phase.value).toBe('running');
     type(controller, 'hon');
-    expect(phase.value).toBe('finished');
-    expect(promptResults.value).toHaveLength(10);
+    expect(controller.phase.value).toBe('finished');
+    expect(controller.promptResults.value).toHaveLength(10);
+  });
+});
+
+describe('session: live indicators and independence (D17)', () => {
+  let clock: FakeClock;
+  let scheduler: FakeScheduler;
+
+  const a: PromptItem = { key: 'basic:a', text: 'あ' };
+  const neko: PromptItem = { key: 'word:neko', text: 'ねこ' };
+
+  const make = (
+    nextPrompt: () => PromptItem,
+    config: () => TestConfig = () => ({ kind: 'time', seconds: 60 }),
+  ): Session => createSession({ nextPrompt, config, clock, scheduler });
+
+  function typeAt(session: Session, char: string, at: number): void {
+    clock.currentTime = at;
+    session.handleIntent({ kind: 'char', char });
+  }
+
+  beforeEach(() => {
+    clock = new FakeClock();
+    scheduler = new FakeScheduler();
+  });
+
+  it('kana per minute counts committed tokens and stays 0 during the first second', () => {
+    const session = make(() => a);
+    session.loadPrompt(a, 'learner');
+    expect(session.liveKpm.value).toBe(0);
+
+    typeAt(session, 'a', 1000);
+    typeAt(session, 'a', 1500);
+    // Two tokens committed, but only half a second has passed.
+    expect(session.liveKpm.value).toBe(0);
+
+    typeAt(session, 'a', 3000);
+    // Three committed tokens in 2 s: 90 per minute.
+    expect(session.liveKpm.value).toBe(90);
+  });
+
+  it('kana accuracy counts committed tokens without errors, and a wrong key errors the token typed', () => {
+    const session = make(() => neko);
+    session.loadPrompt(neko, 'learner');
+    expect(session.liveAccuracy.value).toBe(100);
+
+    typeAt(session, 'x', 1000); // rejected, charged to ね
+    typeAt(session, 'n', 1100);
+    expect(session.liveAccuracy.value).toBe(100); // ね is not committed yet
+    typeAt(session, 'e', 1200);
+    expect(session.liveAccuracy.value).toBe(0); // ね committed with an error
+    typeAt(session, 'k', 1300);
+    typeAt(session, 'o', 1400);
+    expect(session.liveAccuracy.value).toBe(50); // こ committed clean
+  });
+
+  it('a hint (Esc) errors the token that was waiting', () => {
+    const session = make(() => a);
+    session.loadPrompt(a, 'learner');
+    session.handleIntent({ kind: 'reveal' });
+    typeAt(session, 'a', 1000);
+    expect(session.liveAccuracy.value).toBe(0);
+  });
+
+  it('counters survive compact() over a long run', () => {
+    const session = make(
+      () => a,
+      () => ({ kind: 'count', prompts: 100 }),
+    );
+    session.loadPrompt(a, 'learner');
+    // 60 prompts, 100 ms apart: compact() drops committed prompts several times on the way.
+    for (let i = 0; i < 60; i++) typeAt(session, 'a', 1000 + i * 100);
+    expect(session.promptResults.value).toHaveLength(60);
+    // 60 tokens in 5.9 s.
+    expect(session.liveKpm.value).toBe(Math.round(60 / (5900 / 60000)));
+    expect(session.liveAccuracy.value).toBe(100);
+  });
+
+  it('two sessions share no state', () => {
+    const first = make(() => a);
+    const second = make(
+      () => neko,
+      () => ({ kind: 'count', prompts: 10 }),
+    );
+    first.loadPrompt(a, 'learner');
+    second.loadPrompt(neko, 'learner');
+
+    typeAt(first, 'a', 1000);
+    typeAt(first, 'x', 1100);
+
+    expect(first.phase.value).toBe('running');
+    expect(first.correctKeystrokes.value).toBe(1);
+    expect(first.mistakeCount.value).toBe(1);
+    expect(second.phase.value).toBe('idle');
+    expect(second.correctKeystrokes.value).toBe(0);
+    expect(second.mistakeCount.value).toBe(0);
+    expect(second.currentPrompt.value?.text).toBe('ねこ');
+
+    typeAt(second, 'n', 1200);
+    expect(second.phase.value).toBe('running');
+    first.reset();
+    expect(first.phase.value).toBe('idle');
+    expect(second.phase.value).toBe('running');
+    expect(second.typedBuffer.value).toBe('n');
+  });
+
+  it('each session reads its own test config: one ends on a timer, the other does not', () => {
+    const timed = make(
+      () => a,
+      () => ({ kind: 'time', seconds: 15 }),
+    );
+    const counted = make(
+      () => a,
+      () => ({ kind: 'count', prompts: 100 }),
+    );
+    timed.loadPrompt(a, 'learner');
+    counted.loadPrompt(a, 'learner');
+    typeAt(timed, 'a', 1000);
+    typeAt(counted, 'a', 1000);
+
+    scheduler.advance(15000);
+    expect(timed.phase.value).toBe('finished');
+    expect(counted.phase.value).toBe('running');
+  });
+
+  it('a restarted test starts its counters from zero', () => {
+    const session = make(() => a);
+    session.loadPrompt(a, 'learner');
+    typeAt(session, 'a', 1000);
+    typeAt(session, 'x', 1100);
+    session.reset();
+    session.loadPrompt(a, 'learner');
+    expect(session.correctKeystrokes.value).toBe(0);
+    expect(session.mistakeCount.value).toBe(0);
+    expect(session.liveKpm.value).toBe(0);
+    expect(session.liveAccuracy.value).toBe(100);
+    expect(session.metrics.value).toBeNull();
   });
 });

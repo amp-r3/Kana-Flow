@@ -2,11 +2,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { TrainerPage } from './ui/trainer-page';
-import { TypingController } from '@/features/training';
-import { defaultClock, defaultScheduler } from '@/shared/lib';
+import { createTrainer } from '@/features/training';
 import type { PromptItem } from '@/entities/prompt';
 import { contentSetting, setContent } from '@/entities/settings';
-import { resetSession, correctKeystrokes } from '@/entities/session';
 import * as kanaModule from '@/entities/prompt';
 import { t } from '@/shared/i18n';
 
@@ -14,7 +12,6 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
   let container: HTMLDivElement;
 
   beforeEach(() => {
-    resetSession();
     setContent('single');
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -28,9 +25,10 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
 
   it('letter key pressed while a button has focus moves focus to input and is processed (Plan 6.2)', async () => {
     const prompt: PromptItem = { key: 'basic:ka', text: 'か' };
-    const controller = new TypingController(() => prompt, defaultClock, defaultScheduler);
+    const trainer = createTrainer({ nextPrompt: () => prompt });
+    const controller = trainer.session;
 
-    render(<TrainerPage controller={controller} />, container);
+    render(<TrainerPage trainer={trainer} />, container);
 
     // Wait for Preact mount effects to complete
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -58,7 +56,7 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
     expect(document.activeElement).toBe(input);
     // Buffer must have processed 'k'
     expect(controller.typedBuffer.value).toBe('k');
-    expect(correctKeystrokes.value).toBe(1);
+    expect(controller.correctKeystrokes.value).toBe(1);
 
     // Focus button again and press 'Escape'
     button.focus();
@@ -79,9 +77,9 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
       .mockRejectedValue(new Error('Failed to fetch dynamically imported module'));
 
     const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
-    const controller = new TypingController(() => prompt, defaultClock, defaultScheduler);
+    const trainer = createTrainer({ nextPrompt: () => prompt });
 
-    render(<TrainerPage controller={controller} />, container);
+    render(<TrainerPage trainer={trainer} />, container);
 
     // Switch content to 'words'
     setContent('words');

@@ -1,20 +1,13 @@
-import type { KeystrokeEvent, PromptResult, SessionMetrics } from '../model/types';
+import type { KeyTally } from './key-tally';
+import type { PromptResult, SessionMetrics } from '../model/types';
 
 export function computeMetrics(
-  keystrokes: readonly KeystrokeEvent[],
+  keys: KeyTally,
   promptResults: readonly PromptResult[],
   endTimeMs?: number,
 ): SessionMetrics {
-  let correct = 0;
-  let rejected = 0;
-
-  for (const k of keystrokes) {
-    if (k.accepted) {
-      correct += 1;
-    } else {
-      rejected += 1;
-    }
-  }
+  const correct = keys.correct;
+  const rejected = keys.rejected;
 
   // 1 mistake per reveal / assisted prompt (Section 6.2 & 7.2)
   let assistedMistakes = 0;
@@ -26,20 +19,17 @@ export function computeMetrics(
 
   const mistakes = rejected + assistedMistakes;
 
-  const firstKeystroke = keystrokes[0];
-  const lastKeystroke = keystrokes[keystrokes.length - 1];
-
   let endTimestamp = endTimeMs;
   if (endTimestamp === undefined) {
     if (promptResults.length > 0) {
       const lastPrompt = promptResults[promptResults.length - 1];
-      endTimestamp = lastPrompt ? lastPrompt.endedAt : lastKeystroke?.at;
+      endTimestamp = lastPrompt ? lastPrompt.endedAt : keys.lastAt;
     } else {
-      endTimestamp = lastKeystroke?.at;
+      endTimestamp = keys.lastAt;
     }
   }
 
-  const startTimestamp = firstKeystroke?.at;
+  const startTimestamp = keys.firstAt;
   const elapsedMs =
     startTimestamp !== undefined && endTimestamp !== undefined && endTimestamp > startTimestamp
       ? endTimestamp - startTimestamp
@@ -82,14 +72,9 @@ export function computeMetrics(
   const wpmSeries: number[] = [];
   if (elapsedMs > 0 && startTimestamp !== undefined) {
     const durationSeconds = Math.max(1, Math.floor(elapsedMs / 1000));
+    let cumCorrect = 0;
     for (let sec = 1; sec <= durationSeconds; sec++) {
-      const cutoff = startTimestamp + sec * 1000;
-      let cumCorrect = 0;
-      for (const k of keystrokes) {
-        if (k.at <= cutoff && k.accepted) {
-          cumCorrect += 1;
-        }
-      }
+      cumCorrect += keys.perSecond[sec - 1] ?? 0;
       const minuteFraction = sec / 60;
       const secWpm = Math.round((cumCorrect / 5 / minuteFraction) * 10) / 10;
       wpmSeries.push(secWpm);

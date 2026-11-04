@@ -6,10 +6,8 @@ import { TrainerPage } from './ui/trainer-page';
 import { TopBar } from './ui/top-bar';
 import { ConfigBar } from './ui/config-bar';
 import { RowsDialog } from './ui/rows-dialog';
-import { TypingController } from '@/features/training';
-import { defaultClock, defaultScheduler } from '@/shared/lib';
+import { createTrainer } from '@/features/training';
 import type { PromptItem } from '@/entities/prompt';
-import { resetSession } from '@/entities/session';
 
 describe('render isolation: TypingController keystrokes do not re-render static controls', () => {
   let container: HTMLDivElement;
@@ -20,7 +18,6 @@ describe('render isolation: TypingController keystrokes do not re-render static 
   let rowsDialogRenders = 0;
 
   beforeEach(() => {
-    resetSession();
     container = document.createElement('div');
     document.body.appendChild(container);
     topBarRenders = 0;
@@ -41,10 +38,11 @@ describe('render isolation: TypingController keystrokes do not re-render static 
 
   it('renders trainer page and dispatches 20 keystrokes with 0 renders of TopBar, ConfigBar, RowsDialog', () => {
     const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
-    const controller = new TypingController(() => prompt, defaultClock, defaultScheduler);
+    const trainer = createTrainer({ nextPrompt: () => prompt });
+    const controller = trainer.session;
 
     // Initial render of page
-    render(<TrainerPage controller={controller} />, container);
+    render(<TrainerPage trainer={trainer} />, container);
 
     // Load initial prompt
     controller.loadPrompt(prompt, 'learner');
