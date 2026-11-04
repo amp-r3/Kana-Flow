@@ -57,6 +57,7 @@ export const en = {
   'key.esc': 'Esc',
   'stage.escHint': 'Esc to reveal canonical romaji',
   'stage.tabHint': 'Tab then Enter to restart',
+  'stage.blur': 'Return to the window to continue',
   'stage.revealed': 'Revealed: {answer}',
   'stage.contentLoading': 'Loading vocabulary...',
   'stage.contentLoadError': 'Failed to load content, reverted to Single Kana',

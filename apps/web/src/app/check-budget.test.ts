@@ -28,6 +28,9 @@ type Fixture = {
   sharedJsKb?: number;
   lazy?: { src: string; kb: number }[];
   manifest?: boolean;
+  // The font preload in index.html: right (default), absent, naming a missing file, or without
+  // crossorigin.
+  preload?: 'ok' | 'absent' | 'dangling' | 'no-crossorigin';
 };
 
 const dirs: string[] = [];
@@ -45,7 +48,18 @@ function makeDist(f: Fixture): string {
   const manifest: Record<string, ManifestChunk> = {};
   const fonts = (f.fontsKb ?? [10, 10]).map((size, i) => ({ file: `assets/font${i}.woff2`, size }));
 
-  write(root, 'index.html', blob(f.htmlKb ?? 0.3));
+  const preload = f.preload ?? 'ok';
+  const kanaFont = 'assets/NotoSansJP-400-test.woff2';
+  const tag =
+    preload === 'absent'
+      ? ''
+      : `<link rel="preload" as="font" type="font/woff2" href="/${
+          preload === 'dangling' ? 'assets/NotoSansJP-400-gone.woff2' : kanaFont
+        }"${preload === 'no-crossorigin' ? '' : ' crossorigin'} />`;
+  // The padding is random, so the HTML is about `htmlKb` after gzip as well.
+  const padding = blob(f.htmlKb ?? 0.3).toString('base64');
+  write(root, 'index.html', `<!doctype html><head>${tag}</head><!-- ${padding} -->`);
+  write(root, kanaFont, blob(10));
   write(root, 'assets/index.js', blob(f.jsKb ?? 10));
   write(root, 'assets/index.css', blob(f.cssKb ?? 3));
   for (const font of fonts) write(root, font.file, blob(font.size));
@@ -102,6 +116,29 @@ describe('check-budget', () => {
     expect(text).toMatch(/assets\/index\.js: .*\(gzip\), .*\(brotli\)/);
     expect(text).toMatch(/assets\/index\.css: .*\(gzip\), .*\(brotli\)/);
     expect(text).toMatch(/Initial JS \(gzip\).*brotli/);
+  });
+
+  it('passes with the kana font preloaded and reports it', () => {
+    const { failures, lines } = checkBudget(makeDist({}));
+    expect(failures).toEqual([]);
+    expect(lines.join('\n')).toContain('[preload] assets/NotoSansJP-400-test.woff2');
+  });
+
+  it('fails when the kana font is not preloaded', () => {
+    expect(failuresFor({ preload: 'absent' })).toEqual([
+      expect.stringContaining('does not preload the kana font'),
+    ]);
+  });
+
+  it('fails when the preload names a file that is not in dist', () => {
+    const failures = failuresFor({ preload: 'dangling' });
+    expect(failures.some((f) => f.includes('not in dist'))).toBe(true);
+  });
+
+  it('fails when the font preload has no crossorigin', () => {
+    expect(failuresFor({ preload: 'no-crossorigin' })).toEqual([
+      expect.stringContaining('no crossorigin'),
+    ]);
   });
 
   it('fails when the HTML is over 5 KB', () => {

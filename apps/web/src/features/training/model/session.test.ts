@@ -104,32 +104,30 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     clock.currentTime = 1000;
     controller.handleIntent({ kind: 'char', char: 'p' });
     expect(controller.phase.value).toBe('running');
-    expect(controller.typedBuffer.value).toBe('p');
+    expect(controller.romajiBuffer.value).toBe('p');
     expect(controller.correctKeystrokes.value).toBe(1);
 
-    // 2. Key 'a' at time 1200
+    // 2. Key 'a' at time 1200: パ is complete, the caret stands before ン
     clock.advance(200); // 1200
     controller.handleIntent({ kind: 'char', char: 'a' });
-    expect(controller.typedBuffer.value).toBe('pa');
+    expect(controller.romajiBuffer.value).toBe('');
+    expect(controller.caret.value).toBe(1);
     expect(controller.correctKeystrokes.value).toBe(2);
 
-    // 3. Rejected key 'x' at time 1400 -> shake flag, buffer unchanged
+    // 3. Rejected key 'x' at time 1400 -> a mistake event on ン, buffer and caret unchanged
     clock.advance(200); // 1400
     controller.handleIntent({ kind: 'char', char: 'x' });
-    expect(controller.isShaking.value).toBe(true);
-    expect(controller.typedBuffer.value).toBe('pa');
+    expect(controller.mistake.value).toMatchObject({ kind: 'rejected', token: 1 });
+    expect(controller.romajiBuffer.value).toBe('');
+    expect(controller.caret.value).toBe(1);
     expect(controller.mistakeCount.value).toBe(1);
-
-    // Shake flag clears after 280 ms
-    scheduler.advance(280);
-    expect(controller.isShaking.value).toBe(false);
 
     // 4. Key 'n' at time 1600: a bare n reaches the end of パン, so ねこ is shown, but the prompt
     // is not committed yet: the n may still turn out to be the first half of `nn`.
     clock.advance(200); // 1600
     controller.handleIntent({ kind: 'char', char: 'n' });
     expect(controller.currentPrompt.value?.text).toBe('ねこ');
-    expect(controller.typedBuffer.value).toBe('');
+    expect(controller.romajiBuffer.value).toBe('');
     expect(controller.promptResults.value).toHaveLength(0);
     expect(controller.phase.value).toBe('running');
 
@@ -137,7 +135,10 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     // prompt is now committed in every reading, but the two readings disagree on the keys of ん.
     clock.advance(100); // 1700
     controller.handleIntent({ kind: 'char', char: 'n' });
-    expect(controller.typedBuffer.value).toBe('n');
+    // Two readings are alive (ン = n and the start of ね, or ン = nn); the display takes the one with
+    // the shortest pending Latin, ン = nn, so the buffer is empty and the caret stands before ね.
+    expect(controller.romajiBuffer.value).toBe('');
+    expect(controller.caret.value).toBe(2);
     expect(controller.correctKeystrokes.value).toBe(4);
     expect(controller.promptResults.value).toHaveLength(0);
 
@@ -232,17 +233,16 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     });
     controller.loadPrompt(prompt, 'learner');
 
-    // Rejected keystroke 'z'
+    // Each rejected keystroke is its own mistake event: the view flashes the caret for each, with
+    // no timer of the session involved, even twice on the same token.
     controller.handleIntent({ kind: 'char', char: 'z' });
-    expect(controller.isShaking.value).toBe(true);
-
-    // After 200 ms, still shaking
-    scheduler.advance(200);
-    expect(controller.isShaking.value).toBe(true);
-
-    // After 80 more ms (total 280 ms), shake flag clears
-    scheduler.advance(80);
-    expect(controller.isShaking.value).toBe(false);
+    const first = controller.mistake.value;
+    expect(first).toMatchObject({ kind: 'rejected', token: 0 });
+    controller.handleIntent({ kind: 'char', char: 'z' });
+    const second = controller.mistake.value;
+    expect(second).toMatchObject({ kind: 'rejected', token: 0 });
+    expect(second?.seq).toBeGreaterThan(first?.seq ?? 0);
+    expect(controller.mistakeCount.value).toBe(2);
   });
 
   it('time test ends mid-prompt at deadline with partial prompt keystrokes counted', () => {
@@ -271,7 +271,8 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     clock.advance(2000);
     controller.handleIntent({ kind: 'char', char: 'n' });
     controller.handleIntent({ kind: 'char', char: 'e' });
-    expect(controller.typedBuffer.value).toBe('ne');
+    // パン is tokens 0-1, so ね is token 2 and the caret now stands before こ.
+    expect(controller.caret.value).toBe(3);
 
     // Now advance scheduler by 15000 ms -> deadline fires!
     clock.advance(13000); // reaches 15000 ms total test duration
@@ -303,12 +304,12 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
 
     controller.handleIntent({ kind: 'char', char: 'p' });
     expect(controller.phase.value).toBe('running');
-    expect(controller.typedBuffer.value).toBe('p');
+    expect(controller.romajiBuffer.value).toBe('p');
 
     // Calling reset() on controller resets state and session to idle
     controller.reset();
     expect(controller.phase.value).toBe('idle');
-    expect(controller.typedBuffer.value).toBe('');
+    expect(controller.romajiBuffer.value).toBe('');
 
     // Changing testConfig also resets to idle: the settings slice cannot import the session slice,
     // so the watcher (installed by the trainer) does it.
@@ -416,8 +417,9 @@ describe('session: prompt stream (spec D3, A15)', () => {
     });
     controller.loadPrompt(pan, 'ime');
     type(controller, 'pan');
+    // The ン still waits for its second n.
     expect(controller.currentPrompt.value?.text).toBe('パン');
-    expect(controller.typedBuffer.value).toBe('pan');
+    expect(controller.romajiBuffer.value).toBe('n');
     type(controller, 'n');
     expect(controller.currentPrompt.value?.text).toBe('ねこ');
     expect(controller.promptResults.value).toHaveLength(1);
@@ -712,7 +714,7 @@ describe('session: live indicators and independence (D17)', () => {
     first.reset();
     expect(first.phase.value).toBe('idle');
     expect(second.phase.value).toBe('running');
-    expect(second.typedBuffer.value).toBe('n');
+    expect(second.romajiBuffer.value).toBe('n');
   });
 
   it('each session reads its own test config: one ends on a timer, the other does not', () => {

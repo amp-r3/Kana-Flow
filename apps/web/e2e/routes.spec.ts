@@ -49,14 +49,14 @@ test.describe('routes: direct visits, navigation without a reload, settings', ()
     // The trainer works after coming back: focus is on the input and a key starts the test.
     await expect(page.locator('input[aria-label="Kana input sink"]')).toBeFocused();
     await page.keyboard.press('KeyA');
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
   });
 
   test('typing on another screen does not start a test', async ({ page }) => {
     await page.goto('/learn');
     await page.keyboard.press('KeyA');
     await page.getByRole('link', { name: 'test' }).click();
-    await expect(page.getByTestId('live-kpm')).toHaveCount(0);
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
   });
 
   test('settings: Reset progress asks for confirmation and can be cancelled', async ({ page }) => {

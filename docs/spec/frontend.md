@@ -18,20 +18,20 @@ The training screen consists of a Japanese text stream with a romaji buffer at t
 - **Stream:** 2–3 lines of prompts; the current line is in focus and completed lines scroll up. Prompts are separated by a gap. The engine window is extended as described in [Input engine rules](engine.md); it holds the prompts the stream draws after the displayed one, about 60 tokens (ADR 040).
 - **Token states:** upcoming (`untyped`), completed (`fur`), current (`eye` caret before the token), errored (`miss` with a `miss-dim` underline). Skip tokens are rendered; the caret passes over them.
 - **Romaji buffer** next to the caret renders the remainder from `engine.view()` as latin; displayed tokens are already marked in the stream. It does not shift the text. Example for きて: `k` → buffer "k"; `ki` → き is marked and the buffer is empty; `kit` → buffer "t".
-- **Translation** of the current word or phrase is shown on one line below the stream; controlled by `showTranslation` in settings, on by default.
+- **Translation** of the current word or phrase is shown below the stream; its height is reserved for two lines, since a translation wraps on a narrow screen and the stream must not move (the design's rule); controlled by `showTranslation` in settings, on by default.
 - **Live indicators:** the counter (time left or prompts completed), KPM and kana accuracy, on one line above the stream.
 - **Repeat mark:** during a repeat ([Metrics](metrics.md)) the same line shows "repeat" in `fur-dim` with a `stroke-hair` outline. It is rendered once per test and does not change on a keystroke.
-- **While a test runs,** the navigation and the config bar are hidden and leave the tab order, so the first Tab reaches Restart. The translation line with its actions, the hint, notices and the zen "Finish" button stay available. Space for them is reserved, so the text does not move.
+- **While a test runs,** the navigation and the config bar are hidden and leave the tab order, so the first Tab reaches Restart. They fade out and then leave the tab order; a mouse movement of more than 8 px shows them until the next key (ADR 041). The translation line with its actions, the hint, notices and the zen "Finish" button stay available. Space for them is reserved, so the text does not move.
 
 ## Keyboard
 
-| Key                         | Action                                                                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tab, then Enter             | Restart: Tab moves focus to the Restart button, Enter activates it (baseline behaviour). Tab is never intercepted, so keyboard navigation is unaffected |
-| Esc                         | Hint for the active prompt                                                                                                                              |
-| Ctrl/Cmd+Enter              | Finish a zen test                                                                                                                                       |
-| Enter on the results screen | Next test                                                                                                                                               |
-| 1–4                         | Choose an option in learning-mode recognition                                                                                                           |
+| Key                         | Action                                                                                                                                                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tab, then Enter             | Restart: Tab moves focus to the Restart button, Enter activates it (baseline behaviour). The button shows when it has the focus, and always on a touch screen, which has no Tab. Tab is never intercepted, so keyboard navigation is unaffected |
+| Esc                         | Hint for the active prompt                                                                                                                                                                                                                      |
+| Ctrl/Cmd+Enter              | Finish a zen test                                                                                                                                                                                                                               |
+| Enter on the results screen | Next test                                                                                                                                                                                                                                       |
+| 1–4                         | Choose an option in learning-mode recognition                                                                                                                                                                                                   |
 
 ## Hot path (D16)
 

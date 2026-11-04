@@ -20,7 +20,8 @@ describe('animation classes', () => {
 
   it('finds the animation classes in use', () => {
     expect(used.has('fadeIn')).toBe(true);
-    expect(used.has('shake')).toBe(true);
+    // A rejected key flashes the caret now (ADR 031); there is no shake any more.
+    expect(used.has('shake')).toBe(false);
   });
 
   it('every custom animate-* class used in components is defined in the stylesheet', () => {
@@ -34,5 +35,6 @@ describe('animation classes', () => {
   it('prefers-reduced-motion switches off the fade-in', () => {
     const reduced = css.slice(css.indexOf('prefers-reduced-motion'));
     expect(reduced).toContain('.animate-fadeIn');
+    expect(reduced).toContain('.nk-caret.is-idle');
   });
 });

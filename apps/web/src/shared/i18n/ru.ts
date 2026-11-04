@@ -59,6 +59,7 @@ export const ru = {
   'key.esc': 'Esc',
   'stage.escHint': 'Esc чтобы показать правильный ответ',
   'stage.tabHint': 'Tab затем Enter для перезапуска',
+  'stage.blur': 'Вернитесь в окно, чтобы продолжить',
   'stage.revealed': 'Ответ: {answer}',
   'stage.contentLoading': 'Загрузка словаря...',
   'stage.contentLoadError': 'Не удалось загрузить словарь, возврат к одиночным канам',

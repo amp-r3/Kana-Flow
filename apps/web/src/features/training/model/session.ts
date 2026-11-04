@@ -58,11 +58,8 @@ export type SessionDeps = {
 
 /** What a view may read and call. Everything a session holds is private to this instance (D17). */
 export type Session = {
-  readonly typedBuffer: ReadonlySignal<string>;
-  readonly isShaking: ReadonlySignal<boolean>;
   readonly isAssisted: ReadonlySignal<boolean>;
   readonly currentPrompt: ReadonlySignal<PromptItem | null>;
-  readonly activeTokenIdx: ReadonlySignal<number>;
   readonly canonicalRomaji: ReadonlySignal<string>;
   readonly tickerNow: ReadonlySignal<number>;
   readonly phase: ReadonlySignal<Phase>;
@@ -109,11 +106,8 @@ export function createSession(deps: SessionDeps): Session {
  * first prompt of its window ("local"), which moves when `compact()` drops committed prompts.
  */
 class TrainingSession implements Session {
-  private readonly _typedBuffer = signal<string>('');
-  private readonly _isShaking = signal<boolean>(false);
   private readonly _isAssisted = signal<boolean>(false);
   private readonly _currentPrompt = signal<PromptItem | null>(null);
-  private readonly _activeTokenIdx = signal<number>(0);
   private readonly _canonicalRomaji = signal<string>('');
   private readonly _tickerNow = signal<number>(0);
   private readonly _phase = signal<Phase>('idle');
@@ -129,11 +123,8 @@ class TrainingSession implements Session {
   private readonly _committedTokens = signal<number>(0);
   private readonly _erroredTokens = signal<number>(0);
 
-  readonly typedBuffer: ReadonlySignal<string> = this._typedBuffer;
-  readonly isShaking: ReadonlySignal<boolean> = this._isShaking;
   readonly isAssisted: ReadonlySignal<boolean> = this._isAssisted;
   readonly currentPrompt: ReadonlySignal<PromptItem | null> = this._currentPrompt;
-  readonly activeTokenIdx: ReadonlySignal<number> = this._activeTokenIdx;
   readonly canonicalRomaji: ReadonlySignal<string> = this._canonicalRomaji;
   readonly tickerNow: ReadonlySignal<number> = this._tickerNow;
   readonly phase: ReadonlySignal<Phase> = this._phase;
@@ -197,7 +188,6 @@ class TrainingSession implements Session {
 
   private deadlineTimeoutHandle: TimeoutHandle | null = null;
   private tickerIntervalHandle: TimeoutHandle | null = null;
-  private shakeTimeoutHandle: TimeoutHandle | null = null;
 
   constructor(
     private readonly nextPrompt: () => PromptItem,
@@ -227,7 +217,6 @@ class TrainingSession implements Session {
     this.matcher = matcher;
     this.matchState = state;
     this.streamPrompts = streamPromptsOf(matcher, 0, this.promptBase, this.tokenBase);
-    this._isShaking.value = false;
     this._mistake.value = null;
     this.fillWindow();
     const v = view(matcher, state);
@@ -280,7 +269,6 @@ class TrainingSession implements Session {
       this._correctKeystrokes.value += 1;
       this.keyTimes.push(now);
       this.matchState = next;
-      this._typedBuffer.value += intent.char;
       this.afterAccepted(matcher, next, now);
     });
   }
@@ -302,10 +290,7 @@ class TrainingSession implements Session {
     this.keyTimes = [];
     this.committedAt.clear();
     this.assisted.clear();
-    this._typedBuffer.value = '';
-    this._isShaking.value = false;
     this._isAssisted.value = false;
-    this._activeTokenIdx.value = 0;
     this._canonicalRomaji.value = '';
     this.streamPrompts = [];
     this.tokenBase = 0;
@@ -343,22 +328,13 @@ class TrainingSession implements Session {
     }, 1000);
   }
 
-  // Rejected: does not enter the buffer, triggers a shake, is charged to errorTarget() (D10, A34).
+  // Rejected: the view flashes the caret (`mistake`), and the key is charged to errorTarget() (D10, A34).
   private reject(matcher: Matcher, state: MatchState, char: string, now: number): void {
     this.keyTally.record(now, false);
     this._mistakeCount.value += 1;
     const target = errorTarget(matcher, state);
     this.errorLog.record(target, matcher.tokens[target]?.kanaKey ?? null, char);
     this.noteMistake(target, 'rejected');
-
-    this._isShaking.value = true;
-    if (this.shakeTimeoutHandle) {
-      this.scheduler.clearTimeout(this.shakeTimeoutHandle);
-    }
-    this.shakeTimeoutHandle = this.scheduler.setTimeout(() => {
-      this._isShaking.value = false;
-      this.shakeTimeoutHandle = null;
-    }, 280);
   }
 
   private afterAccepted(matcher: Matcher, state: MatchState, now: number): void {
@@ -393,8 +369,6 @@ class TrainingSession implements Session {
       this.displayed = this.promptBase + local;
       this.fillWindow();
       this.showPrompt(v);
-    } else {
-      this.updateActiveToken(v);
     }
 
     this.compactIfDue(localCommitted);
@@ -489,8 +463,6 @@ class TrainingSession implements Session {
     this._currentPrompt.value = this.prompts[local] ?? null;
     this._canonicalRomaji.value = matcher === null ? '' : canonical(matcher, local);
     this._isAssisted.value = this.assisted.has(this.displayed);
-    this._typedBuffer.value = '';
-    this.updateActiveToken(v);
     this.publishStream(this.tokenBase + v.displayedTokens);
   }
 
@@ -520,11 +492,6 @@ class TrainingSession implements Session {
     this.erroredAbs.add(token);
     this.mistakeSeq += 1;
     this._mistake.value = { seq: this.mistakeSeq, token, kind };
-  }
-
-  private updateActiveToken(v: EngineView): void {
-    const first = this.matcher?.promptStarts[this.displayed - this.promptBase] ?? 0;
-    this._activeTokenIdx.value = Math.max(0, v.activeToken - first);
   }
 
   /**
@@ -624,10 +591,6 @@ class TrainingSession implements Session {
     if (this.tickerIntervalHandle) {
       this.scheduler.clearInterval(this.tickerIntervalHandle);
       this.tickerIntervalHandle = null;
-    }
-    if (this.shakeTimeoutHandle) {
-      this.scheduler.clearTimeout(this.shakeTimeoutHandle);
-      this.shakeTimeoutHandle = null;
     }
   }
 }

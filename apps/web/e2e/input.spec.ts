@@ -21,13 +21,13 @@ test.describe('input: layouts', () => {
     await pressCyrillic(page.locator(FIELD), 'ф');
     await expect(page.getByText(LAYOUT_NOTICE)).toBeVisible();
     // The test did not start and the prompt was not marked as rejected.
-    await expect(page.getByTestId('live-kpm')).toHaveCount(0);
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
     expect(await page.getByTestId('prompt-arena').getAttribute('data-rejected')).toBeNull();
 
     // The notice goes away at the next Latin key, which starts the test.
     await page.keyboard.press('KeyA');
     await expect(page.getByText(LAYOUT_NOTICE)).toHaveCount(0);
-    await expect(page.getByTestId('live-kpm')).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
   });
 
   test('text inserted without a key press is handled the same way (beforeinput)', async ({
@@ -36,7 +36,7 @@ test.describe('input: layouts', () => {
     await page.goto('/');
     await page.keyboard.insertText('ы');
     await expect(page.getByText(LAYOUT_NOTICE)).toBeVisible();
-    await expect(page.getByTestId('live-kpm')).toHaveCount(0);
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
   });
 
   test('a Cyrillic key pressed on a button is not typed either, and the field gets the focus', async ({

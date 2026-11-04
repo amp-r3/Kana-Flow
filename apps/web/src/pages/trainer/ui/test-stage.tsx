@@ -1,29 +1,27 @@
 import type { JSX } from 'preact';
-import { useState, useRef, useLayoutEffect, useMemo } from 'preact/hooks';
+import { useRef, useLayoutEffect, useMemo } from 'preact/hooks';
+import { useComputed } from '@preact/signals';
 import { t, locale } from '@/shared/i18n';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
-import { cx } from '@/shared/lib';
 import type { Session } from '@/features/training';
-import { createInputSource } from '@/features/training';
-import { strictnessSetting } from '@/entities/settings';
-import { LiveStatsStrip } from './live-stats-strip';
+import { createInputSource, TextStream, useTestChrome } from '@/features/training';
+import { LiveLine } from './live-line';
 
 export type TestStageProps = {
   readonly session: Session;
   readonly onRestart: () => void;
 };
 
+/**
+ * The test screen: a hidden field that takes the keyboard, the live line, the stream, one line for
+ * notices, the translation and the hints. Nothing here reads a signal that a keystroke changes
+ * while rendering: the lines of text below are signals passed as text nodes, and the stream writes
+ * itself (docs/spec/frontend.md, "Hot path"). So a keystroke renders no component, and a completed
+ * prompt renders only the stream.
+ */
 export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
-  const [isFocused, setIsFocused] = useState(true);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  const currentPrompt = session.currentPrompt.value;
-  const typed = session.typedBuffer.value;
-  const isShaking = session.isShaking.value;
-  const isAssisted = session.isAssisted.value;
-  const canonicalRomaji = session.canonicalRomaji.value;
-  const currentStrictness = strictnessSetting.value;
-  const activeLocale = locale.value;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   const source = useMemo(
     () =>
@@ -34,8 +32,6 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
       }),
     [session],
   );
-  const imeNotice = source.imeNotice.value;
-  const layoutNotice = source.layoutNotice.value;
 
   // Focus the field and listen to the keyboard from the first frame, so a key pressed at once is
   // not lost.
@@ -46,24 +42,49 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
     return source.bind(input);
   }, [source]);
 
-  const handleArenaClick = () => {
-    inputRef.current?.focus();
+  useTestChrome(session);
+
+  // These lines take their place before they have text, so the stream does not move when they get
+  // some.
+  const notice = useComputed(() =>
+    source.layoutNotice.value
+      ? t('stage.switchLayout')
+      : source.imeNotice.value
+        ? t('stage.turnImeOff')
+        : '',
+  );
+  const revealed = useComputed(() =>
+    session.isAssisted.value ? t('stage.revealed', { answer: session.canonicalRomaji.value }) : '',
+  );
+  const translation = useComputed(() => {
+    const meaning = session.currentPrompt.value?.meaning;
+    if (meaning === undefined) return '';
+    return locale.value === 'ru' ? meaning.ru : meaning.en;
+  });
+
+  // Written to the DOM, not kept in state: a focus change must not render the screen.
+  const markFocus = (focused: boolean): void => {
+    stageRef.current?.setAttribute('data-input-focused', String(focused));
   };
 
   return (
     <div
-      onClick={handleArenaClick}
-      className="max-w-layout-test relative mx-auto flex w-full cursor-text flex-col items-center gap-8 py-8 outline-none select-none"
+      ref={stageRef}
+      data-input-focused="true"
+      onClick={() => {
+        inputRef.current?.focus();
+      }}
+      className="nk-stage max-w-layout-test mx-auto flex w-full cursor-text flex-col gap-4 py-8 outline-none select-none"
     >
-      {/* Hidden input sink */}
+      {/* The field that takes the keyboard; the stream is only a picture of what it receives. */}
       <input
         ref={inputRef}
         type="text"
         onFocus={() => {
-          setIsFocused(true);
+          markFocus(true);
         }}
         onBlur={() => {
-          setIsFocused(false);
+          markFocus(false);
         }}
         autoComplete="off"
         autoCapitalize="off"
@@ -74,78 +95,33 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
         className="sr-only"
       />
 
-      {/* Live stats strip */}
-      <LiveStatsStrip session={session} strictness={currentStrictness} />
+      <LiveLine session={session} />
 
-      {/* Notices: Japanese IME on, or a non-Latin layout */}
-      {imeNotice && (
-        <div role="status" className="text-fur-dim text-ui-label w-full p-2.5 text-center">
-          {t('stage.turnImeOff')}
-        </div>
-      )}
-      {layoutNotice && (
-        <div role="status" className="text-fur-dim text-ui-label w-full p-2.5 text-center">
-          {t('stage.switchLayout')}
-        </div>
-      )}
+      <TextStream session={session} />
 
-      {/* Main prompt arena */}
-      <div
-        data-testid="prompt-arena"
-        data-canonical={canonicalRomaji}
-        data-rejected={isShaking ? 'true' : undefined}
-        className={cx(
-          'flex min-h-56 w-full flex-col items-center justify-center gap-4 px-4 py-10 transition-transform',
-          isShaking && 'animate-shake',
-        )}
-      >
-        {/* Large kana glyph display (Noto Sans JP Bold) */}
-        <div
-          data-testid="prompt-text"
-          className="font-jp text-fur text-jp-test-sm sm:text-jp-test text-center"
-        >
-          {currentPrompt ? currentPrompt.text : '...'}
-        </div>
-
-        {/* Translation / reading hint */}
-        {currentPrompt?.meaning && (
-          <div className="text-fur-dim text-ui-body text-center">
-            {activeLocale === 'ru' ? currentPrompt.meaning.ru : currentPrompt.meaning.en}
-          </div>
-        )}
-
-        {/* Revealed canonical romaji */}
-        {isAssisted && (
-          <div className="text-eye text-mono-romaji px-3 py-1 font-mono">
-            {t('stage.revealed', { answer: canonicalRomaji })}
-          </div>
-        )}
-
-        {/* Typed romaji mirror (JetBrains Mono Regular 400) */}
-        <div className="text-eye text-mono-romaji flex min-h-7 items-center justify-center font-mono">
-          {typed}
-          <span className="bg-eye animate-blink ml-0.5 inline-block h-5 w-0.5" />
-        </div>
+      <div className="flex min-h-7 w-full items-center justify-center gap-3 text-center">
+        <span role="status" className="text-fur-dim text-ui-label">
+          {notice}
+        </span>
+        <span className="text-eye text-mono-romaji font-mono">{revealed}</span>
       </div>
 
-      {/* Unfocused "Click to focus" indicator (fixed height to prevent layout shift on blur) */}
-      <div className="-mt-4 flex h-6 items-center justify-center">
-        {!isFocused && (
-          <div
-            className="text-fur-dim text-ui-caption pointer-events-none px-3 py-1"
-            aria-hidden="true"
-          >
-            {t('stage.clickToFocus')}
-          </div>
-        )}
-      </div>
+      <p data-testid="translation" className="text-fur-dim text-ui-body min-h-12 text-center">
+        {translation}
+      </p>
 
-      {/* Bottom hints & restart button */}
       <div className="text-fur-dim text-ui-caption flex w-full flex-wrap items-center justify-between gap-3 pt-2">
         <div className="flex items-center gap-2">
           <Kbd>{t('key.esc')}</Kbd>
           <span>{t('stage.escHint')}</span>
         </div>
+
+        <span
+          aria-hidden="true"
+          className="nk-focus-hint text-ui-caption pointer-events-none px-3 py-1"
+        >
+          {t('stage.clickToFocus')}
+        </span>
 
         <Button
           variant="ghost"
@@ -154,7 +130,7 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
             e.stopPropagation();
             onRestart();
           }}
-          className="flex items-center gap-1.5"
+          className="nk-on-focus flex items-center gap-1.5"
           ariaLabel={t('stage.restartLabel')}
         >
           <RefreshIcon size={13} />

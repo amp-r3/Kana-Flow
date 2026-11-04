@@ -55,7 +55,7 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
     // Focus must move to input
     expect(document.activeElement).toBe(input);
     // Buffer must have processed 'k'
-    expect(controller.typedBuffer.value).toBe('k');
+    expect(controller.romajiBuffer.value).toBe('k');
     expect(controller.correctKeystrokes.value).toBe(1);
 
     // Focus button again and press 'Escape'

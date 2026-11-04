@@ -48,6 +48,13 @@ Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks.
 > [!NOTE]
 > **When to Extract Widgets:** If a second full-page view is introduced (such as a historical stats dashboard, custom word list editor, or flashcard review page) that reuses these UI blocks, extract them back into `apps/web/src/widgets/<widget-name>/` with their own public APIs.
 
+### The test screen (ADR 041)
+
+- `pages/trainer/ui/test-stage.tsx` is the screen: a hidden field that takes the keyboard (`createInputSource`), `LiveLine` (counter, kana per minute, kana accuracy), `TextStream`, one line for notices (layout, IME, the revealed romaji), the translation (two lines reserved) and the hints. Every line whose text a keystroke changes is a signal passed as a text node, so the screen renders once.
+- `features/training/ui/text-stream.tsx` renders the tokens of `session.stream` and has no child component; `lib/use-stream-binding.ts` gives the elements to the writer (`lib/stream-dom.ts`) and writes the rest to the DOM through signal effects.
+- While a test runs `useTestChrome` sets `data-testing` on the document; the stylesheet turns it into `opacity` and `visibility` for everything marked `data-chrome` (navigation, mode panel, footer). Restart has `nk-on-focus`: it shows when focused, and always on a touch screen.
+- The page switches to the results on a `finished` computed value, so the start of a test (idle to running) does not render it. The render test counts every component render of the page from the first key: none for a key inside a prompt, the stream for a key that completes one.
+
 ### Routing and the application shell (ADR 037)
 
 - `shared/lib/router.ts` is a router on the History API: `currentPath` (a signal), `navigate()`, `startRouter()` for the back button. It knows paths only.
@@ -60,7 +67,7 @@ Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks.
 
 - `shared/styles/tokens.css` holds the design-system tokens by hand (colours under `[data-theme='dark']`, scales and text styles in `@theme`); `tokens.test.ts` compares it with `docs/design/source/tokens.json`. The Tailwind default scales are cleared, so only token-based classes (`text-fur`, `text-ui-label`, `font-jp`, `h-control`, …) produce CSS.
 - `shared/styles/fonts.css` declares the five faces (Golos Text 400/500, JetBrains Mono 400/500, Noto Sans JP 400); `font-synthesis: none`.
-- E2E and DOM tests select the prompt and its rejected state by `data-testid` (`prompt-text`, `prompt-arena`, `data-rejected`), not by class.
+- E2E and DOM tests select by `data-testid` and by the attributes the stream keeps on `prompt-arena` (`data-phase`, `data-canonical`, `data-rejected`), not by class. `prompt-text` is a visually hidden element with the text of the prompt on display, which is also what assistive technology reads.
 
 ---
 
@@ -161,7 +168,7 @@ type Engine = {
 
 ### `createSession()` and `createTrainer()` (`features/training`)
 
-`createSession({ nextPrompt, config, clock?, scheduler? })` returns a `Session`: the signals a view reads (`currentPrompt`, `typedBuffer`, `phase`, `metrics`, `promptResults`, the keystroke counters, `liveKpm`, `liveAccuracy`, …) and the actions `loadPrompt`, `handleIntent`, `finishSession`, `reset`. Everything is held by the instance, so two sessions share no state (D17). `config` is read when a test starts. `createTrainer()` composes one session with the prompt source (pool, weights, `Rng`) and the loading of vocabulary content; the trainer page creates it, calls `start()` (first prompt, following the settings, content loading) and reads its signals. Keystrokes are counted by `lib/key-tally.ts` (totals plus accepted keys per second), never stored; `lib/metrics.ts` computes `SessionMetrics` from it when a test ends. `liveKpm` and `liveAccuracy` count the tokens before `view().activeToken`, which are committed in every position, once each.
+`createSession({ nextPrompt, config, clock?, scheduler? })` returns a `Session`: the signals a view reads (`currentPrompt`, `stream`, `caret`, `romajiBuffer`, `mistake`, `phase`, `metrics`, `promptResults`, the keystroke counters, `liveKpm`, `liveAccuracy`, …) and the actions `loadPrompt`, `handleIntent`, `finishSession`, `reset`. Everything is held by the instance, so two sessions share no state (D17). `config` is read when a test starts. `createTrainer()` composes one session with the prompt source (pool, weights, `Rng`) and the loading of vocabulary content; the trainer page creates it, calls `start()` (first prompt, following the settings, content loading) and reads its signals. Keystrokes are counted by `lib/key-tally.ts` (totals plus accepted keys per second), never stored; `lib/metrics.ts` computes `SessionMetrics` from it when a test ends. `liveKpm` and `liveAccuracy` count the tokens before `view().activeToken`, which are committed in every position, once each.
 
 The session keeps the displayed prompt and, after it, 60 tokens of prompts in the matcher (`extend` in batches as the caret moves on, no more than a count test needs), so the stream can draw the lines ahead and the context of a non-final ん is known long before it is typed. The stream the view draws is a separate window (ADR 040): `stream` lists the prompts around the caret with their tokens and changes once per completed prompt; `caret`, `romajiBuffer` and `mistake` change on a keystroke and are meant to be written to the DOM without a render by `lib/stream-dom.ts`. Tokens are numbered from the start of the test, so `compact()` renumbers nothing the view holds. The next prompt is shown as soon as `view()` reaches its first token; a prompt's result (`recordPromptResult`, `recordTokenOutcomes`) is recorded when `settledPrompts()` includes it, with `endedAt` the time of the keystroke that committed it. Token times come from `committedTimings` and the times of accepted keystrokes; the first token of a test has no preceding keystroke and reports `ms` 0, which `updateKanaStats` treats as no measurement. A rejected key and Esc are charged to `errorTarget()`. `handleIntent(intent)` takes no strictness: it is fixed by `loadPrompt`, and a settings change makes the trainer restart the session.
 

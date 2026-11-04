@@ -1,11 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, options } from 'preact';
+import { render, options, Fragment } from 'preact';
 import type { VNode } from 'preact';
 import { App } from './App';
-import { RouteView } from './route-view';
 import { currentPath, navigate, startRouter } from '@/shared/lib';
-import { Nav } from '@/shared/ui';
 import { setLocale, t } from '@/shared/i18n';
 
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 30));
@@ -119,7 +117,7 @@ describe('App shell: navigation, lazy screens and the unknown path', () => {
   });
 });
 
-describe('App shell: a keystroke renders nothing outside the trainer', () => {
+describe('App shell: a keystroke renders nothing but the stream', () => {
   let container: HTMLDivElement;
   let stopRouter: () => void;
   let prevDiffed: ((vnode: VNode) => void) | undefined;
@@ -144,22 +142,25 @@ describe('App shell: a keystroke renders nothing outside the trainer', () => {
     stopRouter();
   });
 
-  it('Nav and RouteView do not render while typing', async () => {
+  it('with the navigation, the mode panel and the route in the page, only the stream renders', async () => {
     render(<App />, container);
     await settle();
 
-    let navRenders = 0;
-    let routeRenders = 0;
+    const rendered = new Set<string>();
     options.diffed = (vnode: VNode) => {
-      if (vnode.type === Nav) navRenders++;
-      if (vnode.type === RouteView) routeRenders++;
+      // A Fragment wraps a list of children; it is Preact's, not a component of ours.
+      if (typeof vnode.type === 'function' && vnode.type !== Fragment) {
+        rendered.add(vnode.type.name);
+      }
       if (prevDiffed) prevDiffed(vnode);
     };
 
+    // Whatever the prompts are, some of these keys complete one and the stream renders.
+    const input = container.querySelector('input');
     for (const key of 'kakikukekokakikuke') {
-      document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      input?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    expect(navRenders).toBe(0);
-    expect(routeRenders).toBe(0);
+    expect([...rendered].filter((name) => name !== 'TextStream')).toEqual([]);
   });
 });

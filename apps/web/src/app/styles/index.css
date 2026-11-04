@@ -2,25 +2,6 @@
 @import '../../shared/styles/fonts.css';
 @import '../../shared/styles/tokens.css';
 
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20%,
-  60% {
-    transform: translateX(-6px);
-  }
-  40%,
-  80% {
-    transform: translateX(6px);
-  }
-}
-
-.animate-shake {
-  animation: shake 280ms ease-in-out;
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -74,9 +55,162 @@ html {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .animate-shake,
   .animate-blink,
-  .animate-fadeIn {
+  .animate-fadeIn,
+  .nk-caret.is-idle {
     animation: none !important;
   }
+}
+
+/* ---- The test screen ------------------------------------------------------------------------
+   The text stream, its caret and buffer, and the interface that steps aside while a test runs.
+   A state class switches a colour at once (no transition); only the caret moves, and only with
+   transform and opacity. The DOM contract is in features/training/lib/stream-dom.ts. */
+
+.nk-test {
+  position: relative;
+  width: 100%;
+}
+
+.nk-test__text {
+  position: relative;
+  overflow: hidden;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.nk-test__inner {
+  position: relative;
+  color: var(--untyped);
+  word-break: keep-all;
+  line-break: strict;
+  will-change: transform;
+}
+
+/* A prompt does not break across lines; the gap after it is where a line may end. */
+.nk-word {
+  white-space: nowrap;
+  margin-inline-end: 0.35em;
+}
+
+.nk-char {
+  display: inline-block;
+}
+
+.nk-char.is-untyped {
+  color: var(--untyped);
+}
+
+.nk-char.is-correct {
+  color: var(--fur);
+}
+
+.nk-char.is-miss {
+  color: var(--miss);
+  text-decoration: underline var(--stroke-mark) var(--miss-dim);
+  text-underline-offset: 0.18em;
+}
+
+/* A space or punctuation passed without input. */
+.nk-char.is-skip.is-done {
+  color: var(--fur-dim);
+}
+
+.nk-caret {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--stroke-mark);
+  height: var(--caret-h);
+  background: var(--eye);
+  border-radius: var(--radius-xs);
+  transition: transform var(--dur-caret) var(--ease-out);
+}
+
+/* The flash of a rejected key: its own layer, animated by opacity only. */
+.nk-caret__reject {
+  position: absolute;
+  inset: 0 -1px;
+  border-radius: inherit;
+  background: var(--miss);
+  opacity: 0;
+}
+
+.nk-caret.is-idle {
+  animation: blink var(--dur-blink) var(--ease-inout) infinite;
+}
+
+.nk-test__buffer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--eye);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: transform var(--dur-caret) var(--ease-out);
+}
+
+/* The text blurs only when the window loses focus; focus on Restart or a link does not. */
+.nk-test__blur {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fur);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.nk-test.is-blurred .nk-test__text {
+  opacity: 0.25;
+}
+
+.nk-test.is-blurred .nk-test__blur {
+  opacity: 1;
+}
+
+.nk-test.is-blurred .nk-caret {
+  opacity: 0;
+}
+
+/* "Click to focus": there from the start so the line does not change height. */
+.nk-focus-hint {
+  opacity: 0;
+  transition: opacity var(--dur-hover) var(--ease-out);
+}
+
+.nk-stage[data-input-focused='false'] .nk-focus-hint {
+  opacity: 1;
+}
+
+/* Restart shows when it has the focus (Tab), and always on a touch screen, which has no Tab. */
+.nk-on-focus {
+  transition: opacity var(--dur-hover) var(--ease-out);
+}
+
+.nk-on-focus:not(:focus-visible) {
+  opacity: 0;
+}
+
+@media (pointer: coarse) {
+  .nk-on-focus:not(:focus-visible) {
+    opacity: 1;
+  }
+}
+
+/* While a test runs the navigation, the mode panel and the footer fade out, then leave the tab
+   order (visibility), so the first Tab reaches Restart. They keep their place: nothing moves. */
+[data-chrome] {
+  transition:
+    opacity var(--dur-fade) var(--ease-out),
+    visibility 0s linear 0s;
+}
+
+html[data-testing] [data-chrome] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-fade) var(--ease-in),
+    visibility 0s linear var(--dur-fade);
 }
