@@ -15,31 +15,10 @@ export type {
   ReadingHint,
   PromptItem,
   Strictness,
-  PracticeSettings,
+  PoolSettings,
 } from './model/types';
 
 export { basicRows, dakutenRows, yoonRows, extendedRows, allKanaRows } from './model/data';
-
-export {
-  scriptSetting,
-  contentSetting,
-  strictnessSetting,
-  rowIdsSetting,
-  weakFocusSetting,
-  DEFAULT_BASIC_ROWS,
-  initPracticeSettings,
-  flushPracticeSettings,
-  getPracticeSettings,
-  setScript,
-  setContent,
-  setStrictness,
-  setWeakFocus,
-  toggleWeakFocus,
-  toggleRow,
-  selectAllRows,
-  clearRows,
-  presetBasic,
-} from './model/store';
 
 export type {
   Token,

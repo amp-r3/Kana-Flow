@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import type { PromptItem } from '@/entities/kana';
-import { allKanaRows, buildPool, getPracticeSettings } from '@/entities/kana';
-import type { KanaStats } from '@/entities/progress';
-import { computeWeight } from '@/entities/progress';
+import type { PromptItem } from '@/entities/prompt';
+import { allKanaRows, buildPool } from '@/entities/prompt';
+import { getPracticeSettings } from '@/entities/settings';
+import type { KanaStats } from '@/entities/stats';
+import { computeWeight } from '@/entities/stats';
 import { createPromptWeights } from './prompt-weights';
 
 const stat = (a: number, m: number): KanaStats => ({ a, m, t: 300 });

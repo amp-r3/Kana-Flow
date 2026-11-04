@@ -10,9 +10,11 @@ import {
   setContent,
   setStrictness,
   setWeakFocus,
-} from '@/entities/kana';
-import type { ScriptMode, ContentKind, Strictness } from '@/entities/kana';
-import { testConfig, setTestConfig } from '@/entities/session';
+  testConfig,
+  setTestConfig,
+} from '@/entities/settings';
+import type { ScriptMode, ContentKind } from '@/entities/settings';
+import type { Strictness } from '@/entities/prompt';
 
 export function ConfigBar(): JSX.Element {
   const currentScript = scriptSetting.value;

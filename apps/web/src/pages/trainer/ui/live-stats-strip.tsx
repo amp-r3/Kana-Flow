@@ -1,15 +1,15 @@
 import type { JSX } from 'preact';
 import { t } from '@/shared/i18n';
-import type { Strictness } from '@/entities/kana';
+import type { Strictness } from '@/entities/prompt';
 import {
   phase,
-  testConfig,
   promptResults,
   correctKeystrokes,
   mistakeCount,
   sessionStartedAt,
 } from '@/entities/session';
-import type { TypingController } from '@/features/type-prompt';
+import { testConfig } from '@/entities/settings';
+import type { TypingController } from '@/features/training';
 
 export type LiveStatsStripProps = {
   readonly controller: TypingController;

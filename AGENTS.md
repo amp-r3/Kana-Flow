@@ -79,7 +79,7 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
 
 ## Input engine
 
-- The engine (`packages/engine`; `apps/web/src/entities/kana/lib/engine.ts` only binds it to the kana table) is pure TypeScript: no DOM, signals, storage or app aliases. It must run in the browser and in a Worker.
+- The engine (`packages/engine`; `apps/web/src/entities/prompt/lib/engine.ts` only binds it to the kana table) is pure TypeScript: no DOM, signals, storage or app aliases. It must run in the browser and in a Worker.
 - Two strictness modes: relaxed (`learner`) and strict IME (`ime`). Invariant: relaxed accepts every input strict accepts. It is a property test; do not break it.
 - The accepted-input table in `docs/spec/engine.md` is normative. Every row is a golden test; change the spec and the test together.
 - The kana table format (`ime[]` + `learner[]` spellings per entry) is shared by the engine, the content build and the font subset.

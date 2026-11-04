@@ -1,7 +1,7 @@
-import type { PromptItem } from '@/entities/kana';
-import { compile } from '@/entities/kana';
-import type { ProgressMap } from '@/entities/progress';
-import { computeItemWeight, computeWeights } from '@/entities/progress';
+import type { PromptItem } from '@/entities/prompt';
+import { compile } from '@/entities/prompt';
+import type { ProgressMap } from '@/entities/stats';
+import { computeItemWeight, computeWeights } from '@/entities/stats';
 
 export type PromptWeights = (
   pool: readonly PromptItem[],

@@ -2,8 +2,8 @@ import type { JSX } from 'preact';
 import { useState } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Dialog, Button } from '@/shared/ui';
+import { allKanaRows } from '@/entities/prompt';
 import {
-  allKanaRows,
   rowIdsSetting,
   scriptSetting,
   contentSetting,
@@ -11,8 +11,8 @@ import {
   selectAllRows,
   clearRows,
   presetBasic,
-} from '@/entities/kana';
-import type { RowCategory, RowId } from '@/entities/kana';
+} from '@/entities/settings';
+import type { RowCategory, RowId } from '@/entities/prompt';
 
 export type RowsDialogProps = {
   readonly open: boolean;

@@ -1,13 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  initPracticeSettings,
-  flushPracticeSettings,
+  initSettings,
+  flushSettings,
   getPracticeSettings,
   scriptSetting,
   contentSetting,
   strictnessSetting,
   rowIdsSetting,
   weakFocusSetting,
+  testConfig,
+  DEFAULT_TEST_CONFIG,
+  setTestConfig,
   setScript,
   setContent,
   setStrictness,
@@ -25,7 +28,7 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
 
   beforeEach(() => {
     store = new MemoryKeyValueStore();
-    initPracticeSettings(store);
+    initSettings(store);
     presetBasic();
   });
 
@@ -98,14 +101,14 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
     setStrictness('ime');
     clearRows('s');
     setWeakFocus(false);
-    flushPracticeSettings();
+    flushSettings();
 
     // Verify stored JSON
     const raw = store.get(STORAGE_KEYS.SETTINGS);
     expect(raw).not.toBeNull();
 
     // Create fresh store instance and re-hydrate
-    initPracticeSettings(store);
+    initSettings(store);
     expect(scriptSetting.value).toBe('katakana');
     expect(contentSetting.value).toBe('phrases');
     expect(strictnessSetting.value).toBe('ime');
@@ -117,7 +120,7 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
     // 1. Corrupted JSON
     store.set(STORAGE_KEYS.SETTINGS, '{invalid json');
     presetBasic();
-    initPracticeSettings(store);
+    initSettings(store);
     expect(scriptSetting.value).toBe('both');
     expect(rowIdsSetting.value.length).toBe(10);
 
@@ -133,8 +136,33 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
     };
     store.set(STORAGE_KEYS.SETTINGS, JSON.stringify(wrongVersion));
     presetBasic();
-    initPracticeSettings(store);
+    initSettings(store);
     // Should retain valid defaults
     expect(scriptSetting.value).toBe('both');
+  });
+
+  it('setTestConfig updates the config and persists it together with the practice settings', () => {
+    setContent('words');
+    setTestConfig({ kind: 'count', prompts: 50 });
+    expect(testConfig.value).toEqual({ kind: 'count', prompts: 50 });
+    flushSettings();
+
+    const saved: unknown = JSON.parse(store.get(STORAGE_KEYS.SETTINGS) ?? 'null');
+    expect(saved).toMatchObject({
+      v: 1,
+      content: 'words',
+      test: { kind: 'count', prompts: 50 },
+    });
+
+    initSettings(store);
+    expect(testConfig.value).toEqual({ kind: 'count', prompts: 50 });
+    expect(contentSetting.value).toBe('words');
+  });
+
+  it('a corrupted settings value falls back to the default test config', () => {
+    setTestConfig({ kind: 'time', seconds: 120 });
+    store.set(STORAGE_KEYS.SETTINGS, '{invalid json');
+    initSettings(store);
+    expect(testConfig.value).toEqual(DEFAULT_TEST_CONFIG);
   });
 });

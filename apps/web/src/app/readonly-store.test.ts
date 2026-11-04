@@ -5,9 +5,9 @@ import {
   strictnessSetting,
   rowIdsSetting,
   weakFocusSetting,
-} from '@/entities/kana';
-import {
   testConfig,
+} from '@/entities/settings';
+import {
   phase,
   metrics,
   keystrokes,
@@ -16,8 +16,8 @@ import {
   mistakeCount,
   sessionStartedAt,
 } from '@/entities/session';
-import { progressStats } from '@/entities/progress';
-import { TypingController } from '@/features/type-prompt';
+import { progressStats } from '@/entities/stats';
+import { TypingController } from '@/features/training';
 import { locale } from '@/shared/i18n';
 
 // Compile-checked type helper: verifies property 'value' is readonly without @ts-expect-error

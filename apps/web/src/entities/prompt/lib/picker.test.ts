@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildPool, pickPrompt, rowsYieldKana } from './picker';
-import type { PracticeSettings, PromptItem, ContentItem } from '../model/types';
+import type { PoolSettings, PromptItem, ContentItem } from '../model/types';
 import type { Rng } from '@/shared/lib';
 
 class SeededRng implements Rng {
@@ -16,12 +16,10 @@ class SeededRng implements Rng {
 
 describe('picker: pool building', () => {
   it('builds single kana pool for basic rows in both scripts', () => {
-    const settings: PracticeSettings = {
+    const settings: PoolSettings = {
       script: 'both',
       content: 'single',
-      strictness: 'learner',
       rowIds: ['vowels'],
-      weakFocus: false,
     };
     const pool = buildPool(settings);
     // 5 vowels x 2 scripts = 10 prompts
@@ -31,12 +29,10 @@ describe('picker: pool building', () => {
   });
 
   it('excludes extended rows when script is hiragana-only', () => {
-    const settings: PracticeSettings = {
+    const settings: PoolSettings = {
       script: 'hiragana',
       content: 'single',
-      strictness: 'learner',
       rowIds: ['vowels', 'ext_fa'],
-      weakFocus: false,
     };
     const pool = buildPool(settings);
     // vowels has 5 hiragana, ext_fa has 0 hiragana
@@ -45,12 +41,10 @@ describe('picker: pool building', () => {
   });
 
   it('includes extended rows when script is katakana or both', () => {
-    const settings: PracticeSettings = {
+    const settings: PoolSettings = {
       script: 'katakana',
       content: 'single',
-      strictness: 'learner',
       rowIds: ['ext_fa'],
-      weakFocus: false,
     };
     const pool = buildPool(settings);
     expect(pool.length).toBe(4);
@@ -73,35 +67,29 @@ describe('picker: pool building', () => {
       },
     ];
 
-    const hSettings: PracticeSettings = {
+    const hSettings: PoolSettings = {
       script: 'hiragana',
       content: 'words',
-      strictness: 'learner',
       rowIds: ['vowels'],
-      weakFocus: false,
     };
     const hPool = buildPool(hSettings, sampleWords);
     expect(hPool.length).toBe(1);
     expect(hPool[0]?.key).toBe('word:neko');
 
-    const bothSettings: PracticeSettings = {
+    const bothSettings: PoolSettings = {
       script: 'both',
       content: 'words',
-      strictness: 'learner',
       rowIds: ['vowels'],
-      weakFocus: false,
     };
     const bothPool = buildPool(bothSettings, sampleWords);
     expect(bothPool.length).toBe(2);
   });
 
   it('falls back to single-kana pool when content is empty or has no script matches (plan 5.5)', () => {
-    const settings: PracticeSettings = {
+    const settings: PoolSettings = {
       script: 'hiragana',
       content: 'words',
-      strictness: 'learner',
       rowIds: ['vowels'],
-      weakFocus: false,
     };
     // Pass empty content array
     const fallbackPool = buildPool(settings, []);
@@ -191,12 +179,10 @@ describe('picker: prompt selection', () => {
   });
 
   describe('D20: rows that give no kana for the script', () => {
-    const base: PracticeSettings = {
+    const base: PoolSettings = {
       script: 'hiragana',
       content: 'single',
-      strictness: 'learner',
       rowIds: ['ext_fa'],
-      weakFocus: false,
     };
 
     it('buildPool falls back to the basic rows instead of returning an empty pool', () => {

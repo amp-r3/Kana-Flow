@@ -2,18 +2,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { TrainerPage } from './ui/trainer-page';
-import {
-  buildPool,
-  getPracticeSettings,
-  loadContent,
-  setContent,
-  setScript,
-  setWeakFocus,
-} from '@/entities/kana';
+import { buildPool, loadContent } from '@/entities/prompt';
+import { getPracticeSettings, setContent, setScript, setWeakFocus } from '@/entities/settings';
 import { resetSession } from '@/entities/session';
-import { initProgress, resetProgress } from '@/entities/progress';
+import { initProgress, resetProgress } from '@/entities/stats';
 import { MemoryKeyValueStore, STORAGE_KEYS } from '@/shared/lib';
-import { createPromptWeights } from '@/features/type-prompt';
+import { createPromptWeights } from '@/features/training';
 
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 30));
 

@@ -1,16 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TypingController } from './controller';
+import { setupSettingsResetWatcher } from './settings-watcher';
 import {
   phase,
-  setTestConfig,
   metrics,
   resetSession,
   correctKeystrokes,
   mistakeCount,
   promptResults,
 } from '@/entities/session';
+import { setTestConfig } from '@/entities/settings';
+import type { PromptItem } from '@/entities/prompt';
 import type { Clock, Scheduler, TimeoutHandle } from '@/shared/lib';
-import type { PromptItem } from '@/entities/kana';
 
 class FakeClock implements Clock {
   currentTime = 1000;
@@ -289,13 +290,16 @@ describe('controller: timing, lifecycle and scripted typing sessions', () => {
     expect(phase.value).toBe('idle');
     expect(controller.typedBuffer.value).toBe('');
 
-    // Changing testConfig also resets to idle
+    // Changing testConfig also resets to idle: the settings slice cannot import the session slice,
+    // so the watcher (installed by the trainer page) does it.
+    const dispose = setupSettingsResetWatcher(() => {});
     controller.loadPrompt(prompt, 'learner');
     controller.handleIntent({ kind: 'char', char: 'p' });
     expect(phase.value).toBe('running');
 
     setTestConfig({ kind: 'time', seconds: 60 });
     expect(phase.value).toBe('idle');
+    dispose();
   });
 
   it('1 Hz ticker updates tickerNow while test is running', () => {

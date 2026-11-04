@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { t, locale } from '@/shared/i18n';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
 import { cx } from '@/shared/lib';
-import type { TypingController } from '@/features/type-prompt';
-import { bindKeyboard } from '@/features/type-prompt';
-import { strictnessSetting } from '@/entities/kana';
+import type { TypingController } from '@/features/training';
+import { bindKeyboard } from '@/features/training';
+import { strictnessSetting } from '@/entities/settings';
 import { LiveStatsStrip } from './live-stats-strip';
 
 export type TestStageProps = {
