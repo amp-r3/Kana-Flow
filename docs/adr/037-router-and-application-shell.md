@@ -1,6 +1,6 @@
 # ADR 037: Router and Application Shell
 
-- **Status:** In force.
+- **Status:** In force. The rewrite destination of `_redirects` is amended by [ADR 039](039-redirects-rewrite-to-root.md).
 - **Context:** The P2 acceptance list asks for a dependency-free router with route stubs and `_redirects` entries ([Architecture](../spec/architecture.md), [Frontend](../spec/frontend.md)). The app was one screen: `TrainerPage` drew its own frame, top bar and dialogs, and "Reset progress" lived in the top bar, which the design system replaces by a navigation without it (ADR 031, A33).
 - **Decision:**
   - **Router.** A History API router in `shared/lib` with a `currentPath` signal, `navigate()` and a popstate listener. Paths only: no query, hash or parameters. A trailing slash is the same path. Modified clicks stay with the browser.
