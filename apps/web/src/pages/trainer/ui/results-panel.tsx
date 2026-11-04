@@ -23,7 +23,7 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
 
   if (!m) {
     return (
-      <div className="text-text-dim mx-auto w-full max-w-xl py-12 text-center">
+      <div className="text-fur-dim max-w-layout-test mx-auto w-full py-12 text-center">
         <Button variant="primary" buttonRef={nextBtnRef} autoFocus onClick={onNextTest}>
           {t('results.nextTest')}
         </Button>
@@ -62,7 +62,7 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
   return (
     <div
       data-testid="results-panel"
-      className="animate-fadeIn mx-auto flex w-full max-w-2xl flex-col gap-6 py-6 select-none"
+      className="animate-fadeIn max-w-layout-test mx-auto flex w-full flex-col gap-6 py-6 select-none"
     >
       {/* Polite live region for screen readers (Plan 11.3 & P5 A11y) */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
@@ -70,21 +70,17 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
       </div>
 
       {/* Header with primary WPM and Accuracy */}
-      <div className="border-border flex flex-wrap items-baseline justify-between gap-4 border-b pb-4">
+      <div className="border-line flex flex-wrap items-baseline justify-between gap-4 border-b pb-4">
         <div>
-          <span className="text-text-dim block text-xs font-normal tracking-wider uppercase">
-            {t('results.wpm')}
-          </span>
-          <span className="text-accent font-mono text-5xl font-normal tracking-tight md:text-6xl">
-            {m.wpm}
-          </span>
+          <span className="text-fur-dim text-ui-caption block">{t('results.wpm')}</span>
+          <span className="text-fur text-mono-hero-sm sm:text-mono-hero font-mono">{m.wpm}</span>
         </div>
 
         <div>
-          <span className="text-text-dim block text-right text-xs font-normal tracking-wider uppercase">
+          <span className="text-fur-dim text-ui-caption block text-right">
             {t('results.accuracy')}
           </span>
-          <span className="text-text text-right font-mono text-4xl font-normal md:text-5xl">
+          <span className="text-fur text-mono-stat text-right font-mono">
             {Math.round(m.accuracy * 100)}%
           </span>
         </div>
@@ -94,37 +90,35 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
       <SpeedChart series={m.wpmSeries} />
 
       {/* Secondary metrics grid */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
-        <div className="bg-surface border-border flex flex-col rounded border p-3">
-          <span className="text-text-dim text-[11px]">{t('results.rawWpm')}</span>
-          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.rawWpm}</span>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
+        <div className="flex flex-col">
+          <span className="text-fur-dim text-ui-caption">{t('results.rawWpm')}</span>
+          <span className="text-fur text-mono-counter font-mono">{m.rawWpm}</span>
         </div>
 
-        <div className="bg-surface border-border flex flex-col rounded border p-3">
-          <span className="text-text-dim text-[11px]">{t('results.kanaPerMin')}</span>
-          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.kanaPerMin}</span>
+        <div className="flex flex-col">
+          <span className="text-fur-dim text-ui-caption">{t('results.kanaPerMin')}</span>
+          <span className="text-fur text-mono-counter font-mono">{m.kanaPerMin}</span>
         </div>
 
-        <div className="bg-surface border-border flex flex-col rounded border p-3">
-          <span className="text-text-dim text-[11px]">{t('results.time')}</span>
-          <span className="text-text mt-0.5 font-mono text-lg font-normal">{elapsedSec}s</span>
+        <div className="flex flex-col">
+          <span className="text-fur-dim text-ui-caption">{t('results.time')}</span>
+          <span className="text-fur text-mono-counter font-mono">{elapsedSec}s</span>
         </div>
 
-        <div className="bg-surface border-border flex flex-col rounded border p-3">
-          <span className="text-text-dim text-[11px]">{t('results.completed')}</span>
-          <span className="text-text mt-0.5 font-mono text-lg font-normal">
-            {m.promptsCompleted}
-          </span>
+        <div className="flex flex-col">
+          <span className="text-fur-dim text-ui-caption">{t('results.completed')}</span>
+          <span className="text-fur text-mono-counter font-mono">{m.promptsCompleted}</span>
         </div>
 
-        <div className="bg-surface border-border flex flex-col rounded border p-3">
-          <span className="text-text-dim text-[11px]">{t('results.mistakes')}</span>
-          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.mistakes}</span>
+        <div className="flex flex-col">
+          <span className="text-fur-dim text-ui-caption">{t('results.mistakes')}</span>
+          <span className="text-fur text-mono-counter font-mono">{m.mistakes}</span>
         </div>
 
-        <div className="bg-surface border-border flex flex-col rounded border p-3">
-          <span className="text-text-dim text-[11px]">{t('results.streak')}</span>
-          <span className="text-text mt-0.5 font-mono text-lg font-normal">{m.bestStreak}</span>
+        <div className="flex flex-col">
+          <span className="text-fur-dim text-ui-caption">{t('results.streak')}</span>
+          <span className="text-fur text-mono-counter font-mono">{m.bestStreak}</span>
         </div>
       </div>
 

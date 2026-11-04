@@ -127,8 +127,8 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
   );
 
   return (
-    <div className="bg-bg text-text flex min-h-screen flex-col font-sans">
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 pb-12">
+    <div className="bg-bg text-fur flex min-h-screen flex-col">
+      <div className="max-w-layout-max mx-auto flex w-full flex-1 flex-col px-4 pb-12">
         <TopBar
           onOpenRows={() => {
             setRowsDialogOpen(true);
@@ -139,7 +139,7 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
           <ConfigBar />
 
           {contentError && (
-            <div className="bg-error/15 border-error/30 text-error mx-auto w-full max-w-2xl rounded border p-2.5 text-center text-xs">
+            <div className="text-miss text-ui-label max-w-layout-test mx-auto w-full p-2.5 text-center">
               {contentError}
             </div>
           )}
@@ -147,14 +147,14 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
           {noKanaForRows.value && (
             <div
               role="status"
-              className="bg-surface border-border text-text-dim mx-auto w-full max-w-2xl rounded border p-2.5 text-center text-xs"
+              className="text-fur-dim text-ui-label max-w-layout-test mx-auto w-full p-2.5 text-center"
             >
               {t('stage.noKanaForRows')}
             </div>
           )}
 
           {isLoadingContent && (
-            <div className="bg-surface border-border text-text-dim mx-auto w-full max-w-2xl animate-pulse rounded border p-2.5 text-center text-xs">
+            <div className="text-fur-dim text-ui-label animate-blink max-w-layout-test mx-auto w-full p-2.5 text-center">
               {t('stage.contentLoading')}
             </div>
           )}

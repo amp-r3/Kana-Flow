@@ -41,19 +41,19 @@ export function LiveStatsStrip({ controller, strictness }: LiveStatsStripProps):
   }
 
   return (
-    <div className="text-text-dim border-border/50 flex w-full items-center justify-between border-b px-2 pb-2 text-xs">
+    <div className="text-fur-dim border-line text-ui-caption flex w-full items-center justify-between border-b px-2 pb-2">
       <div className="flex items-center gap-4">
-        <span className="text-accent font-mono text-sm font-normal">{progressText}</span>
+        <span className="text-eye text-mono-small font-mono">{progressText}</span>
         {currentPhase === 'running' && (
           <>
-            <span className="font-mono font-normal">
-              {liveWpm} <span className="text-text-dim text-[10px] uppercase">wpm</span>
+            <span className="text-mono-small font-mono">
+              {liveWpm} <span className="text-mono-small font-mono">wpm</span>
             </span>
-            <span className="font-mono font-normal">{liveAccuracy}%</span>
+            <span className="text-mono-small font-mono">{liveAccuracy}%</span>
           </>
         )}
       </div>
-      <div className="text-text-dim text-[11px]">
+      <div className="text-ui-caption">
         {strictness === 'ime' ? t('config.strictness.ime') : t('config.strictness.learner')}
       </div>
     </div>

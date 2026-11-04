@@ -26,10 +26,8 @@ export function SpeedChart({ series }: SpeedChartProps): JSX.Element | null {
   const polylinePoints = pts.join(' ');
 
   return (
-    <div className="bg-surface border-border flex w-full flex-col gap-1 rounded-lg border p-3">
-      <span className="text-text-dim text-[11px] font-normal tracking-wider uppercase">
-        Speed Over Time (WPM)
-      </span>
+    <div className="flex w-full flex-col gap-1">
+      <span className="text-fur-dim text-ui-caption">Speed Over Time (WPM)</span>
       <svg
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         className="h-24 w-full overflow-visible"
@@ -40,13 +38,13 @@ export function SpeedChart({ series }: SpeedChartProps): JSX.Element | null {
           y1={svgHeight - paddingY}
           x2={svgWidth - paddingX}
           y2={svgHeight - paddingY}
-          stroke="var(--border)"
+          stroke="var(--chart-grid)"
           strokeWidth="1"
         />
         <polyline
           fill="none"
-          stroke="var(--accent)"
-          strokeWidth="2.5"
+          stroke="var(--chart-kpm)"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
           points={polylinePoints}

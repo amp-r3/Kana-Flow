@@ -25,12 +25,12 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
   };
 
   return (
-    <header className="border-border flex w-full flex-wrap items-center justify-between gap-4 border-b py-4 select-none">
+    <header className="border-line flex w-full flex-wrap items-center justify-between gap-4 border-b py-4 select-none">
       <div className="flex items-center gap-3">
-        <h1 className="text-accent flex items-center gap-2 text-xl font-normal tracking-tight">
+        <h1 className="text-ui-heading text-fur flex items-center gap-2">
           <span>{t('app.title')}</span>
         </h1>
-        <span className="text-text-dim border-border hidden border-l pl-3 text-xs sm:inline-block">
+        <span className="text-fur-dim border-line text-ui-caption hidden border-l pl-3 sm:inline-block">
           {t('app.tagline')}
         </span>
       </div>
@@ -61,7 +61,7 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
           ariaLabel={t('app.reset')}
         >
           <ResetIcon size={14} />
-          <span className="hidden md:inline">{t('app.reset')}</span>
+          <span className="hidden sm:inline">{t('app.reset')}</span>
         </Button>
       </div>
 
@@ -72,7 +72,7 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
         }}
         title={t('reset.title')}
       >
-        <p className="text-text-dim text-sm">{t('reset.confirm')}</p>
+        <p className="text-fur-dim text-ui-body">{t('reset.confirm')}</p>
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button
             variant="ghost"
