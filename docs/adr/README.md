@@ -62,4 +62,5 @@ Append-only log of architectural decisions, one file per decision.
 | [035](035-entities-slice-layout.md)                                                  | Entities Slice Layout                                                                        | In force             |
 | [036](036-session-factory-and-trainer.md)                                            | Session Factory and Trainer                                                                  | In force             |
 | [037](037-router-and-application-shell.md)                                           | Router and Application Shell                                                                 | In force             |
+| [038](038-hybrid-input-source.md)                                                    | Hybrid Input Source                                                                          | In force             |
 | [039](039-redirects-rewrite-to-root.md)                                              | `_redirects` Rewrites to `/`                                                                 | In force             |

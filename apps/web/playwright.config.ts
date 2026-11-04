@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// WebKit in mobile emulation runs next to Chromium (docs/spec/quality.md). It needs its own
+// system libraries (`playwright install --with-deps chromium webkit`); a machine without them
+// can set E2E_SKIP_WEBKIT=1. CI always runs it.
+const skipWebkit = process.env['E2E_SKIP_WEBKIT'] === '1' && process.env['CI'] === undefined;
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
@@ -17,6 +22,14 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    ...(skipWebkit
+      ? []
+      : [
+          {
+            name: 'webkit-mobile',
+            use: { ...devices['iPhone 13'] },
+          },
+        ]),
   ],
   webServer: {
     command: 'pnpm run dev',

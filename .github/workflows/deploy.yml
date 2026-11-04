@@ -35,7 +35,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # `verify` runs e2e, which needs Chromium. The browser download is cached by the lockfile;
+      # `verify` runs e2e, which needs Chromium and WebKit (mobile emulation). The browser downloads
+      # are cached by the lockfile;
       # system packages are installed on every run (cheap when already present).
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -43,8 +44,8 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Chromium for e2e
-        run: pnpm --filter @nekotype/web exec playwright install --with-deps chromium
+      - name: Install Chromium and WebKit for e2e
+        run: pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit
 
       # typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e.
       # `verify` already produces apps/web/dist, so no second build is needed.

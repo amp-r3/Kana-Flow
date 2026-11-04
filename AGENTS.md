@@ -36,7 +36,7 @@ pnpm test             # vitest run in every package (engine: with a coverage thr
 pnpm run build        # production build into apps/web/dist/
 pnpm run budget       # size budgets on apps/web/dist/
 pnpm run verify       # typecheck + lint + format:check + test (coverage) + build + budget + e2e (what CI runs)
-pnpm run e2e          # Playwright; one-time: pnpm --filter @nekotype/web exec playwright install chromium
+pnpm run e2e          # Playwright; one-time: pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit
 ```
 
 Run a single test file from its package: `cd apps/web && pnpm exec vitest run src/path/file.test.ts`.

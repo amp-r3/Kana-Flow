@@ -32,8 +32,9 @@
 - **⌨️ Keyboard-First Ergonomics:**
   - Hidden input sink auto-focuses on mount and upon clicking the arena.
   - Typing any letter while a button has focus immediately refocuses and processes the key (Plan 6.2).
-  - Automatic fallback for Russian Cyrillic keyboard layouts via physical `event.code` mapping.
-  - Japanese IME warning notice when full-width Japanese IME is accidentally left enabled.
+  - Hybrid input: `keydown` on a desktop, `beforeinput` and an `input` fallback for mobile keyboards (Gboard composition), so a phone types too (ADR 038).
+  - A non-Latin layout is not translated by the physical key: typing a Cyrillic letter shows "Switch your keyboard layout to English" and counts no mistake.
+  - "Turn off the Japanese IME" appears only when the composition holds kana or kanji; Latin composition does not trigger it.
 - **🎨 Design System:** Muted dark palette with a single eye-blue accent, Golos Text / JetBrains Mono / Noto Sans JP, a cat logo and favicon. Tokens live in `apps/web/src/shared/styles/tokens.css` and are checked against [`docs/design/source/tokens.json`](docs/design/source/tokens.json) (ADR 031, ADR 034).
 - **🌐 Localization:** Instant bilingual toggle between English and Russian (`en` / `ru`).
 - **♿ Accessible:**
@@ -100,19 +101,19 @@ pnpm run format:check # prettier --check .
 pnpm test             # vitest run in every package (engine with a coverage threshold)
 pnpm run build        # vite production build into apps/web/dist
 pnpm run budget       # check-budget.mjs (size budgets from the Vite manifest)
-pnpm run e2e          # Playwright (Chromium)
+pnpm run e2e          # Playwright (Chromium, and WebKit in mobile emulation)
 ```
 
 Fonts are subset by hand, not in CI: `pnpm --filter @nekotype/web run fonts` downloads the pinned sources into `apps/web/scripts/font-src/` (ignored by git), checks their SHA-256 and rewrites `glyphs.txt` and the `woff2` files in `apps/web/src/assets/fonts/` (ADR 034).
 
 ### End-to-End Testing (Playwright)
 
-End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify`, locally and in CI. They need Chromium once.
+End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify`, locally and in CI. They need Chromium and WebKit once; WebKit also needs its system libraries (`--with-deps`, which asks for `sudo` on Linux). Without them set `E2E_SKIP_WEBKIT=1` to run Chromium only (CI always runs both).
 
 To install the browser binary and run the E2E suite:
 
 ```bash
-pnpm --filter @nekotype/web exec playwright install chromium    # One-time install of Chromium browser
+pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit    # One-time install of the browsers
 pnpm run e2e                        # Run Playwright E2E suite against Vite dev server
 ```
 
@@ -120,10 +121,10 @@ pnpm run e2e                        # Run Playwright E2E suite against Vite dev 
 
 `pnpm install --frozen-lockfile` runs the `prepare` script, which points Git at the versioned hooks in `.githooks/`. No extra dependencies are involved.
 
-| Hook         | Runs                                                                                                               | Notes                                                                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                |
-| `pre-push`   | `pnpm run verify` (includes e2e)                                                                                   | Reuses a running `pnpm run dev` if there is one; needs `pnpm --filter @nekotype/web exec playwright install chromium` once |
+| Hook         | Runs                                                                                                               | Notes                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                                                            |
+| `pre-push`   | `pnpm run verify` (includes e2e)                                                                                   | Reuses a running `pnpm run dev` if there is one; needs `pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit` once (or `E2E_SKIP_WEBKIT=1`) |
 
 CI still runs `verify` on every push and pull request; the hooks catch the same failures earlier. In an emergency, `git commit --no-verify` / `git push --no-verify` skips them.
 
@@ -158,7 +159,7 @@ Nekotype is a fully static SPA (`apps/web/dist/`, no backend, state in `localSto
 
 `.github/workflows/deploy.yml` runs on every push to `main` and on every pull request:
 
-1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e on Chromium). Any failure blocks the deploy.
+1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e on Chromium and WebKit). Any failure blocks the deploy.
 2. `wrangler pages deploy apps/web/dist` — pushes to `main` go to production, PRs get a preview deployment. Fork PRs verify but never deploy, since they cannot read secrets.
 3. `scripts/smoke-deploy.mjs` requests the deployment that was just made (the address wrangler writes to `WRANGLER_OUTPUT_FILE_PATH`, else the branch alias): every route and its trailing-slash form must answer `200` with the application, a missing `/assets/*` file and an unknown path must answer `404` and not the application, and the bundle named by the entry page must load. These are behaviours of Cloudflare Pages that the dev server and the unit tests cannot show (ADR 039). Run it by hand against any address: `pnpm --filter @nekotype/web exec tsx scripts/smoke-deploy.mjs https://nekotype.pages.dev`.
 

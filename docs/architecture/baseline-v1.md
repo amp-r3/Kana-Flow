@@ -226,18 +226,23 @@ The session keeps a window of the displayed prompt and two more in the matcher (
 
 ## 5. Mobile & On-Screen Input Seam
 
-Nekotype is currently optimized for desktop physical keyboards. However, the input layer was deliberately decoupled to enable future mobile or touch adapters:
+The input layer feeds one stream of `KeyIntent`s from several sources (ADR 038, spec [Frontend](../spec/frontend.md)). `lib/input-adapter.ts` classifies a key or a character; `lib/input-source.ts` listens to the DOM:
 
 ```
-[ Physical Keyboard Event ] ──┐
-                              ▼
-                        [ inputAdapter ] ──► KeyIntent { kind: 'char', char: 'k' }
-                              ▲                                 │
-[ On-Screen Touch Pad ] ──────┘                                 ▼
-                                                       [ Session ]
-                                                                │
-                                                                ▼
-                                                       [ NFA Engine.step ]
+[ keydown (desktop) ]──────────┐
+[ beforeinput insertText ]─────┤
+[ input diff (Gboard) ]────────┼─► [ input-source ] ─► KeyIntent { kind: 'char', char: 'k' }
+[ On-Screen Touch Pad ]────────┘          │                              │
+                                  notices │ (IME, layout)                ▼
+                                          ▼                         [ Session ]
+                                   [ TestStage ]                         │
+                                                                         ▼
+                                                                 [ NFA Engine.step ]
+
+- `keydown` with a Latin letter, `-` or `'` is handled at once and cancelled. `Unidentified` (mobile) and `Process` (IME) are skipped.
+- `beforeinput` of type `insertText` is handled and cancelled; when it cannot be cancelled (Gboard composition), `input` compares the field with the last value and processes only the characters added at its end. The field is cleared when a composition ends and after every input that is not part of one.
+- A letter outside the Latin alphabet is not translated by `event.code`: it is dropped without a mistake and asks for the layout. Kana or kanji ask to turn the IME off.
+- Typing outside the field returns the focus to it, except in another text field or while a dialog is open.
 ```
 
 ### Implementing a Mobile / On-Screen Touch Keyboard
@@ -247,7 +252,7 @@ Nekotype is currently optimized for desktop physical keyboards. However, the inp
    ```ts
    controller.handleIntent({ kind: 'char', char: 'k' });
    ```
-3. No DOM `<input>` refocusing, composition hooks, or Cyrillic code translations are needed for virtual keys; the controller processes the intent directly.
+3. No DOM `<input>` refocusing or composition hooks are needed for virtual keys; the session processes the intent directly.
 
 ---
 
@@ -267,7 +272,7 @@ Every commit and pull request must satisfy `pnpm run verify`, which CI also runs
    - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 20.77 KB Noto Sans JP 400, 10.66 and 10.69 KB JetBrains Mono 400/500, 9.38 and 9.55 KB Golos Text 400/500)
    - Total first load: ≤ 160 KB, including the SVG of the initial chunk, the logo (actual 94.69 KB)
    - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; there are no route chunks yet)
-7. **`pnpm run e2e` (`playwright test`)**: Chromium against the Vite dev server (section 7).
+7. **`pnpm run e2e` (`playwright test`)**: Chromium and WebKit (iPhone 13 emulation) against the Vite dev server (section 7).
 
 Git hooks run the same checks earlier (`pre-commit`: staged formatting, typecheck, lint, unit tests; `pre-push`: `verify`).
 
@@ -294,5 +299,5 @@ Git hooks run the same checks earlier (`pre-commit`: staged formatting, typechec
 
 ### End-to-End Browser Certification (`e2e/`)
 
-- `@playwright/test` is a `devDependency` of `apps/web`, invoked via `pnpm run e2e` and run as the last step of `pnpm run verify`, locally and in CI (Chromium only; CI installs and caches the browser).
+- `@playwright/test` is a `devDependency` of `apps/web`, invoked via `pnpm run e2e` and run as the last step of `pnpm run verify`, locally and in CI (Chromium, and WebKit in mobile emulation; CI installs and caches the browser).
 - The tests in `apps/web/e2e/` cover browser-native focus restoration, click coordinate physics, cross-reload local storage synchronization and the results panel animation.
