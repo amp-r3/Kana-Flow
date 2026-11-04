@@ -105,5 +105,5 @@ type PersonalBests = Record<
 
 ## Screens
 
-- **Results:** KPM (large), kana accuracy, IPM for words and phrases, per-second chart, keystroke accuracy, mistakes, best streak, time, the five weakest kana of the test with mean reaction time and spellings from `spellingsFor`. Mistakes are `rejectedKeystrokes` + `assisted`. On a personal best: badge and confetti.
+- **Results:** KPM (large), kana accuracy, IPM for words and phrases, per-second chart, keystroke accuracy, mistakes, best streak, time, the five weakest kana of the test with mean reaction time and spellings from `spellingsFor`. Mistakes are `rejectedKeystrokes` + `assisted`. On a personal best: badge and the `content` cat.
 - **Statistics (`/stats`):** paginated test history (see "History" in [Storage and sync](storage-sync.md)); KPM-per-test chart; heatmap over the hiragana and katakana charts with an "errors / reaction time" toggle; top 10 confusions; started and finished counters per mode; personal bests from `PersonalBests`.

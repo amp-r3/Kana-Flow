@@ -1,6 +1,6 @@
 # Frontend
 
-The training screen consists of a Japanese text stream and a separate input field with live conversion. A keystroke MUST NOT trigger a component render.
+The training screen consists of a Japanese text stream with a romaji buffer at the caret. A keystroke MUST NOT trigger a component render.
 
 ## Input source (D14, D15)
 
@@ -13,12 +13,14 @@ The training screen consists of a Japanese text stream and a separate input fiel
 7. The "Turn off the Japanese IME" notice is shown only when composition data contains kana or kanji. Composition events with latin data (Gboard on Android) do not show it.
 8. The `handleIntent({kind:'char', char})` seam for an on-screen keyboard is retained.
 
-## Text stream and input field (D13)
+## Text stream and romaji buffer (D13)
 
 - **Stream:** 2–3 lines of prompts; the current line is in focus and completed lines scroll up. Prompts are separated by a gap. The engine window is extended as described in [Input engine rules](engine.md).
-- **Token states:** completed (dimmed), current (accent underline), errored (red tint), upcoming (default). Skip tokens are rendered; the cursor passes over them.
-- **Input field** below the stream renders the current prompt from `engine.view()`: displayed tokens as kana, the remainder as latin, then the caret. Example: `k` → "k", `ki` → "き", `kit` → "きt".
+- **Token states:** upcoming (`untyped`), completed (`fur`), current (`eye` caret before the token), errored (`miss` with a `miss-dim` underline). Skip tokens are rendered; the caret passes over them.
+- **Romaji buffer** next to the caret renders the remainder from `engine.view()` as latin; displayed tokens are already marked in the stream. It does not shift the text. Example for きて: `k` → buffer "k"; `ki` → き is marked and the buffer is empty; `kit` → buffer "t".
 - **Translation** of the current word or phrase is shown on one line below the stream; controlled by `showTranslation` in settings, on by default.
+- **Live indicators:** the counter (time left or prompts completed), KPM and kana accuracy, on one line above the stream.
+- **While a test runs,** the navigation and the config bar are hidden and leave the tab order, so the first Tab reaches Restart. The translation line with its actions, the hint, notices and the zen "Finish" button stay available. Space for them is reserved, so the text does not move.
 
 ## Keyboard
 
@@ -36,7 +38,7 @@ The training screen consists of a Japanese text stream and a separate input fiel
 - Keystrokes are tracked with counters; the keystroke array is no longer copied.
 - A keystroke that does not complete a prompt: **0** component renders. A keystroke that completes a prompt: at most **1** render (the stream line component). Verified by a test using `options.diffed`, following `render-isolation.test.tsx`.
 - Animations use `transform` and `opacity` only; `prefers-reduced-motion` disables them, as in the baseline.
-- Confetti is a canvas module loaded lazily on a personal best, at most 2 KB gzip.
+- A rejected key flashes the caret in `miss` for 120 ms through a separate layer animated with `opacity`. With `prefers-reduced-motion` the colour changes for 120 ms without a transition.
 - Noto Sans JP is loaded with `<link rel="preload">` (absent in the baseline).
 
 ## Loading
@@ -45,7 +47,7 @@ After the first render, on `requestIdleCallback`, the client prefetches all lazy
 
 ## UI architecture
 
-The MVP interface is deliberately basic and will be redesigned in full later (A31). The MVP MUST NOT build visual polish beyond what these requirements state; it MUST make the redesign possible without touching behaviour.
+From P2 the interface follows the Nekotype design system (A31, [ADR 031](../adr/031-adopt-the-nekotype-design-system.md)); no separate redesign is planned. Views stay separated from logic, so a later visual change does not touch behaviour.
 
 - **Logic stays out of components.** Components in `ui/` read `ReadonlySignal` state and call exported actions. They MUST NOT call the engine, `Clock`, `Scheduler`, storage or `fetch`, and hold only local presentation state such as an open dialog. Everything else lives in `model/` and `lib/`.
 - **One exception for the hot path:** DOM writes through refs and `useSignalEffect` stay in hooks in the slice's `lib/`, with a small interface the view binds to, so a new view reuses them and keeps the render budget.
@@ -64,15 +66,15 @@ Slices on one layer do not import each other, so a flow crossing features, such 
 
 **Screens in the MVP:**
 
-| Route       | Basic content                                                                                                                                                                                                                   |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`         | Baseline config bar, stream, input field, live strip, results                                                                                                                                                                   |
-| `/learn`    | See [Learning mode](learning.md)                                                                                                                                                                                                |
-| `/stats`    | See [Metrics and statistics](metrics.md)                                                                                                                                                                                        |
-| `/settings` | `showTranslation`, learning strictness. Account section: sign-in buttons (hidden on previews), profile, sync status (synced, pending, offline, session expired, blocked), sign-out, account deletion with a confirmation dialog |
-| `/about`    | See [Content pipeline](content.md) and P7                                                                                                                                                                                       |
+| Route       | Basic content                                                                                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/`         | Config bar, stream, romaji buffer, live indicators, results                                                                                                                                                                                                  |
+| `/learn`    | See [Learning mode](learning.md)                                                                                                                                                                                                                             |
+| `/stats`    | See [Metrics and statistics](metrics.md)                                                                                                                                                                                                                     |
+| `/settings` | `showTranslation`, learning strictness, "Reset progress" for guests. Account section: sign-in buttons (hidden on previews), profile, sync status (synced, pending, offline, session expired, blocked), sign-out, account deletion with a confirmation dialog |
+| `/about`    | See [Content pipeline](content.md) and P7                                                                                                                                                                                                                    |
 
-Speed-test options stay in the config bar on `/`. "Reset progress" stays in the top bar for guests only (A33). The report dialog has a `reason` select, an optional comment and the Turnstile widget.
+Speed-test options stay in the config bar on `/`. The navigation holds the logo, links to `/`, `/learn`, `/stats` and `/settings`, the `en`/`ru` switch and a sign-in link to `/settings`, hidden on previews; `/about` is linked from the page footer. "Reset progress" is on `/settings`, for guests only (A33). The report dialog has a `reason` select, an optional comment and the Turnstile widget.
 
 ## Interface
 
