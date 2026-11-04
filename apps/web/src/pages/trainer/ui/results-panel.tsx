@@ -1,5 +1,5 @@
 import type { JSX } from 'preact';
-import { useRef, useEffect } from 'preact/hooks';
+import { useRef, useLayoutEffect } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
 import { canonicalFor, isKanaKey } from '@/entities/prompt';
@@ -18,7 +18,9 @@ export function ResultsPanel({ session, onNextTest }: ResultsPanelProps): JSX.El
   const m = session.metrics.value;
   const results = session.promptResults.value;
 
-  useEffect(() => {
+  // A layout effect: the focus is on the button before the first frame, so Enter pressed as soon as
+  // the screen shows is never lost (a passive effect runs after the paint).
+  useLayoutEffect(() => {
     nextBtnRef.current?.focus();
   }, []);
 

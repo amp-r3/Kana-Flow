@@ -46,11 +46,13 @@ export function ModePanel(): JSX.Element {
     setWeakFocus(val);
   };
 
-  const handleTestKindChange = (kind: 'time' | 'count') => {
+  const handleTestKindChange = (kind: 'time' | 'count' | 'zen') => {
     if (kind === 'time') {
       setTestConfig({ kind: 'time', seconds: 30 });
-    } else {
+    } else if (kind === 'count') {
       setTestConfig({ kind: 'count', prompts: 25 });
+    } else {
+      setTestConfig({ kind: 'zen' });
     }
   };
 
@@ -101,40 +103,43 @@ export function ModePanel(): JSX.Element {
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-        <Segmented<'time' | 'count'>
+        <Segmented<'time' | 'count' | 'zen'>
           options={[
             { value: 'time', label: t('config.test.time') },
             { value: 'count', label: t('config.test.count') },
+            { value: 'zen', label: t('config.test.zen') },
           ]}
           value={currentTestConfig.kind}
           onChange={handleTestKindChange}
           ariaLabel={t('config.test.label')}
         />
-        {currentTestConfig.kind === 'time' ? (
-          <Segmented<15 | 30 | 60 | 120>
-            options={[
-              { value: 15, label: t('config.seconds.option', { n: 15 }) },
-              { value: 30, label: t('config.seconds.option', { n: 30 }) },
-              { value: 60, label: t('config.seconds.option', { n: 60 }) },
-              { value: 120, label: t('config.seconds.option', { n: 120 }) },
-            ]}
-            value={currentTestConfig.seconds}
-            onChange={handleTimeSecondsChange}
-            ariaLabel={t('config.seconds.label')}
-          />
-        ) : (
-          <Segmented<10 | 25 | 50 | 100>
-            options={[
-              { value: 10, label: '10' },
-              { value: 25, label: '25' },
-              { value: 50, label: '50' },
-              { value: 100, label: '100' },
-            ]}
-            value={currentTestConfig.prompts}
-            onChange={handleCountPromptsChange}
-            ariaLabel={t('config.prompts.label')}
-          />
-        )}
+        {
+          currentTestConfig.kind === 'time' ? (
+            <Segmented<15 | 30 | 60 | 120>
+              options={[
+                { value: 15, label: t('config.seconds.option', { n: 15 }) },
+                { value: 30, label: t('config.seconds.option', { n: 30 }) },
+                { value: 60, label: t('config.seconds.option', { n: 60 }) },
+                { value: 120, label: t('config.seconds.option', { n: 120 }) },
+              ]}
+              value={currentTestConfig.seconds}
+              onChange={handleTimeSecondsChange}
+              ariaLabel={t('config.seconds.label')}
+            />
+          ) : currentTestConfig.kind === 'count' ? (
+            <Segmented<10 | 25 | 50 | 100>
+              options={[
+                { value: 10, label: '10' },
+                { value: 25, label: '25' },
+                { value: 50, label: '50' },
+                { value: 100, label: '100' },
+              ]}
+              value={currentTestConfig.prompts}
+              onChange={handleCountPromptsChange}
+              ariaLabel={t('config.prompts.label')}
+            />
+          ) : null /* Zen has no length: it goes on until it is ended by hand. */
+        }
         {divider}
         <Toggle
           checked={currentWeakFocus}

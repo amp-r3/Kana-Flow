@@ -17,6 +17,8 @@ export function isTestConfig(value: unknown): value is ValidTestConfig {
     return p === 10 || p === 25 || p === 50 || p === 100;
   }
 
+  if (value['kind'] === 'zen') return true;
+
   return false;
 }
 

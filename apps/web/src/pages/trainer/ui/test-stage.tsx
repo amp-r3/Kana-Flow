@@ -1,7 +1,9 @@
 import type { JSX } from 'preact';
 import { useRef, useLayoutEffect, useMemo } from 'preact/hooks';
-import { useComputed } from '@preact/signals';
+import { useComputed, useSignalEffect } from '@preact/signals';
 import { t, locale } from '@/shared/i18n';
+import { isApplePlatform } from '@/shared/lib';
+import { testConfig } from '@/entities/settings';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
 import type { Session } from '@/features/training';
 import { createInputSource, TextStream, useTestChrome } from '@/features/training';
@@ -43,6 +45,18 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
   }, [source]);
 
   useTestChrome(session);
+
+  // The Finish button of a zen test works while the test runs. It is enabled through the DOM, not
+  // through a prop: the first key must not render this screen. A new button starts disabled, as a
+  // test that has not started.
+  const zen = testConfig.value.kind === 'zen';
+  const finishRef = useRef<HTMLButtonElement>(null);
+  useSignalEffect(() => {
+    // The phase is read first, always: an effect that reads nothing is never run again, and the
+    // button may not exist yet (it appears when the test is switched to zen).
+    const running = session.phase.value === 'running';
+    if (finishRef.current) finishRef.current.disabled = !running;
+  });
 
   // These lines take their place before they have text, so the stream does not move when they get
   // some.
@@ -123,20 +137,40 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
           {t('stage.clickToFocus')}
         </span>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRestart();
-          }}
-          className="nk-on-focus flex items-center gap-1.5"
-          ariaLabel={t('stage.restartLabel')}
-        >
-          <RefreshIcon size={13} />
-          <span className="hidden sm:inline">{t('stage.tabHint')}</span>
-          <span className="sm:hidden">{t('stage.restart')}</span>
-        </Button>
+        {/* Restart comes first in the tab order: the first Tab reaches it, also in a zen test. */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRestart();
+            }}
+            className="nk-on-focus flex items-center gap-1.5"
+            ariaLabel={t('stage.restartLabel')}
+          >
+            <RefreshIcon size={13} />
+            <span className="hidden sm:inline">{t('stage.tabHint')}</span>
+            <span className="sm:hidden">{t('stage.restart')}</span>
+          </Button>
+
+          {zen && (
+            <Button
+              variant="secondary"
+              size="sm"
+              buttonRef={finishRef}
+              disabled
+              onClick={(e) => {
+                e.stopPropagation();
+                session.finish();
+              }}
+              className="flex items-center gap-2"
+            >
+              {t('stage.finish')}
+              <Kbd>{isApplePlatform() ? t('key.cmdEnter') : t('key.ctrlEnter')}</Kbd>
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

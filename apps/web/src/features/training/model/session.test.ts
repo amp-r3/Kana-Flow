@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { createSession } from './session';
 import { AHEAD_TOKENS, BEHIND_TOKENS } from './stream';
@@ -941,5 +941,165 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
 
     expect(session.caret.value).toBe(0);
     expect(session.stream.value.prompts[0]).toMatchObject({ index: 0, firstToken: 0 });
+  });
+});
+
+describe('session: a zen test, and ending it by hand (metrics.md, Test end)', () => {
+  let clock: FakeClock;
+  let scheduler: FakeScheduler;
+
+  const a: PromptItem = { key: 'basic:a', text: 'あ' };
+  const pan: PromptItem = { key: 'word:pan', text: 'パン' };
+  const zen: TestConfig = { kind: 'zen' };
+
+  const make = (
+    config: TestConfig,
+    onDiscard?: () => void,
+    nextPrompt: () => PromptItem = () => a,
+  ): Session =>
+    createSession({
+      nextPrompt,
+      config: () => config,
+      clock,
+      scheduler,
+      ...(onDiscard === undefined ? {} : { onDiscard }),
+    });
+
+  const press = (session: Session, keys: string, stepMs = 100): void => {
+    for (const char of keys) {
+      clock.advance(stepMs);
+      session.handleIntent({ kind: 'char', char });
+    }
+  };
+
+  beforeEach(() => {
+    clock = new FakeClock();
+    scheduler = new FakeScheduler();
+  });
+
+  it('has no deadline and no limit: it goes on until it is ended by hand', () => {
+    const session = make(zen);
+    session.loadPrompt(a, 'learner');
+    press(session, 'a'.repeat(120));
+    scheduler.advance(60 * 60 * 1000);
+
+    expect(session.phase.value).toBe('running');
+    expect(session.promptResults.value).toHaveLength(120);
+  });
+
+  it('finish() keeps a test with a completed prompt and time behind it, and shows the result', () => {
+    const session = make(zen);
+    session.loadPrompt(a, 'learner');
+    press(session, 'aaaa');
+    session.finish();
+
+    expect(session.phase.value).toBe('finished');
+    expect(session.metrics.value?.promptsCompleted).toBe(4);
+    expect(session.metrics.value?.elapsedMs).toBeGreaterThan(0);
+  });
+
+  it('Ctrl/Cmd+Enter is the same thing as the button', () => {
+    const session = make(zen);
+    session.loadPrompt(a, 'learner');
+    press(session, 'aa');
+    session.handleIntent({ kind: 'finish' });
+    expect(session.phase.value).toBe('finished');
+  });
+
+  it('counts the prompts that are committed, and a partial one is not a completed prompt', () => {
+    const session = make(zen, undefined, () => pan);
+    session.loadPrompt(pan, 'learner');
+    press(session, 'pan'); // パ and the ん: the ん is still ambiguous, so the prompt is not committed
+    press(session, 'pa'); // the next prompt starts: the first is committed now
+    session.finish();
+
+    expect(session.phase.value).toBe('finished');
+    expect(session.metrics.value?.promptsCompleted).toBe(1);
+  });
+
+  it('drops a test in which no prompt is completed, like a restart, with no result', () => {
+    const onDiscard = vi.fn();
+    const session = make(zen, onDiscard);
+    session.loadPrompt(pan, 'learner');
+    press(session, 'p'); // a keystroke, but not a prompt
+    session.finish();
+
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    expect(session.phase.value).toBe('running');
+    expect(session.metrics.value).toBeNull();
+  });
+
+  it('drops a test in which no time has passed, though a prompt is completed', () => {
+    const onDiscard = vi.fn();
+    const session = make(zen, onDiscard);
+    session.loadPrompt(a, 'learner');
+    press(session, 'a', 0);
+    expect(session.promptResults.value).toHaveLength(1);
+    session.finish();
+
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    expect(session.phase.value).not.toBe('finished');
+  });
+
+  it('without a discard handler the session resets itself to idle', () => {
+    const session = make(zen);
+    session.loadPrompt(pan, 'learner');
+    press(session, 'p');
+    session.finish();
+
+    expect(session.phase.value).toBe('idle');
+    expect(session.correctKeystrokes.value).toBe(0);
+  });
+
+  it('does nothing before the test has started', () => {
+    const onDiscard = vi.fn();
+    const session = make(zen, onDiscard);
+    session.loadPrompt(a, 'learner');
+    session.finish();
+    session.handleIntent({ kind: 'finish' });
+
+    expect(onDiscard).not.toHaveBeenCalled();
+    expect(session.phase.value).toBe('idle');
+  });
+
+  it('is ignored in a time test and in a count test', () => {
+    for (const config of [
+      { kind: 'time', seconds: 60 },
+      { kind: 'count', prompts: 25 },
+    ] as const) {
+      const onDiscard = vi.fn();
+      const session = make(config, onDiscard);
+      session.loadPrompt(a, 'learner');
+      press(session, 'aa');
+      session.finish();
+      session.handleIntent({ kind: 'finish' });
+
+      expect(session.phase.value).toBe('running');
+      expect(onDiscard).not.toHaveBeenCalled();
+    }
+  });
+
+  it('a finished test ignores a second finish', () => {
+    const onDiscard = vi.fn();
+    const session = make(zen, onDiscard);
+    session.loadPrompt(a, 'learner');
+    press(session, 'aaa');
+    session.finish();
+    const metrics = session.metrics.value;
+    session.finish();
+    session.handleIntent({ kind: 'finish' });
+
+    expect(session.metrics.value).toBe(metrics);
+    expect(onDiscard).not.toHaveBeenCalled();
+  });
+
+  it('stops the ticker when it is ended, so the live line does not run on', () => {
+    const session = make(zen);
+    session.loadPrompt(a, 'learner');
+    press(session, 'aaa');
+    session.finish();
+    const at = session.tickerNow.value;
+    scheduler.advance(5000);
+    expect(session.tickerNow.value).toBe(at);
   });
 });

@@ -2,6 +2,8 @@
 export type KeyIntent =
   | { readonly kind: 'char'; readonly char: string }
   | { readonly kind: 'reveal' }
+  // Ctrl/Cmd+Enter: end a zen test by hand. A session that has no such test ignores it.
+  | { readonly kind: 'finish' }
   | { readonly kind: 'ignore' };
 
 /**
@@ -48,7 +50,14 @@ export function classifyChar(char: string): InputClass {
  * physical key (`event.code`) is not used: a Cyrillic layout is asked to switch, not translated.
  */
 export function classifyKeyDown(event: KeyDownEventLike): InputClass {
-  if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) {
+  if (event.isComposing) {
+    return { kind: 'ignore' };
+  }
+  // The one modifier combination that is ours; every other one belongs to the browser.
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key === 'Enter') {
+    return { kind: 'finish' };
+  }
+  if (event.ctrlKey || event.metaKey || event.altKey) {
     return { kind: 'ignore' };
   }
   if (event.key === 'Escape') {
