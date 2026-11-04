@@ -75,3 +75,26 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # wrangler writes the address of the new deployment here (one JSON object per line).
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
+
+      # Some behaviour exists only on Cloudflare Pages: a rewrite to /index.html is answered with a
+      # 308 (ADR 039), and a missing /assets file must be a real 404 (ADR 037). The dev server and the
+      # unit tests cannot show either, so request the deployment itself: every route answers 200
+      # with the application, a missing asset and an unknown path answer 404, the bundle loads.
+      # It waits for the new deployment to answer first. Falls back to the branch alias if wrangler
+      # wrote no address.
+      - name: Smoke-test the deployment
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
+        run: |
+          if [ "$BRANCH" = "main" ]; then
+            FALLBACK="https://${CLOUDFLARE_PROJECT_NAME}.pages.dev"
+          else
+            ALIAS=$(echo "$BRANCH" | tr 'A-Z/_.' 'a-z---')
+            FALLBACK="https://${ALIAS}.${CLOUDFLARE_PROJECT_NAME}.pages.dev"
+          fi
+          pnpm --filter @nekotype/web exec tsx scripts/smoke-deploy.mjs \
+            --wrangler-output "$WRANGLER_OUTPUT_FILE_PATH" --fallback "$FALLBACK"
