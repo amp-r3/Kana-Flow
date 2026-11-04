@@ -20,6 +20,7 @@ The training screen consists of a Japanese text stream with a romaji buffer at t
 - **Romaji buffer** next to the caret renders the remainder from `engine.view()` as latin; displayed tokens are already marked in the stream. It does not shift the text. Example for きて: `k` → buffer "k"; `ki` → き is marked and the buffer is empty; `kit` → buffer "t".
 - **Translation** of the current word or phrase is shown on one line below the stream; controlled by `showTranslation` in settings, on by default.
 - **Live indicators:** the counter (time left or prompts completed), KPM and kana accuracy, on one line above the stream.
+- **Repeat mark:** during a repeat ([Metrics](metrics.md)) the same line shows "repeat" in `fur-dim` with a `stroke-hair` outline. It is rendered once per test and does not change on a keystroke.
 - **While a test runs,** the navigation and the config bar are hidden and leave the tab order, so the first Tab reaches Restart. The translation line with its actions, the hint, notices and the zen "Finish" button stay available. Space for them is reserved, so the text does not move.
 
 ## Keyboard
@@ -47,7 +48,7 @@ After the first render, on `requestIdleCallback`, the client prefetches all lazy
 
 ## UI architecture
 
-From P2 the interface follows the Nekotype design system (A31, [ADR 031](../adr/031-adopt-the-nekotype-design-system.md)); no separate redesign is planned. Views stay separated from logic, so a later visual change does not touch behaviour.
+From P2 the interface follows the [Nekotype design system](../design/README.md) (A31, [ADR 031](../adr/031-adopt-the-nekotype-design-system.md)); no separate redesign is planned. Views stay separated from logic, so a later visual change does not touch behaviour.
 
 - **Logic stays out of components.** Components in `ui/` read `ReadonlySignal` state and call exported actions. They MUST NOT call the engine, `Clock`, `Scheduler`, storage or `fetch`, and hold only local presentation state such as an open dialog. Everything else lives in `model/` and `lib/`.
 - **One exception for the hot path:** DOM writes through refs and `useSignalEffect` stay in hooks in the slice's `lib/`, with a small interface the view binds to, so a new view reuses them and keeps the render budget.

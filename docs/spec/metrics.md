@@ -41,6 +41,8 @@ The primary metric is kana per minute (KPM); accuracy is measured per kana. The 
 
 **What a test writes (D23).** During a test all statistics stay in session memory. When the test is saved, its result and its statistics are written in one IndexedDB transaction: every committed token, including those of an unfinished prompt, with its errors, reaction times and confusions. When it is discarded, all of this is dropped and only the `started` counter is written. `weakFocus` therefore uses the statistics as they stood when the test began.
 
+**Repeat (ADR 033).** The results screen offers "Repeat" next to "Next test". A repeat runs the prompts of the finished test in the same order with the same settings; when a time or zen test runs out of them, new prompts follow. Its result is saved and counted like any other, with `repeated` = true, except that it gives no personal best and stays out of the KPM-per-test chart. History marks it in the mode column. The prompt list is held in memory until the results screen closes. Restart during a repeat starts an ordinary test with new prompts.
+
 ## Data model
 
 ```ts
@@ -65,6 +67,7 @@ type TestResult = {
   config: { kind: 'time'; seconds: number } | { kind: 'count'; prompts: number } | { kind: 'zen' };
   rowIds: string[] | null; // selected rows for content 'kana'; null for words and phrases
   endReason: 'complete' | 'manual' | 'idle' | 'hidden';
+  repeated: boolean; // started with "Repeat"; false for migrated results
   startedAt: number;
   endedAt: number;
   durationMs: number;
@@ -97,7 +100,7 @@ type PersonalBests = Record<
 - **Statistic keys:** a merged っX is recorded under the `KanaKey` of the following kana, as in the baseline. A standalone っ and ー have no `KanaKey`: they count in `tokens` and `erroredTokens` but not in `KanaStat`.
 - **Weakness:** `weakness = (erroredAttempts + 1) / (attempts + 2)`; weight `1 + 4 × weakness`, bounded to 1–5.
 - **Word or phrase weight** — mean of its kana weights via `computeItemWeight` (D20).
-- **Personal best** — maximum KPM per `personalBestKey`, for a test with `endReason` = `complete` and kana accuracy ≥ 80%. The eligibility rule and the key function live in `shared/runtime`, so the client and the server apply the same rule.
+- **Personal best** — maximum KPM per `personalBestKey`, for a test with `endReason` = `complete`, `repeated` = false and kana accuracy ≥ 80%. The eligibility rule and the key function live in `shared/runtime`, so the client and the server apply the same rule.
 - **`personalBestKey`** — `content|script|strictness|config|rows`. `config` is `time:60` or `count:25`. `rows` applies to content `kana` only: the selected row ids that yield at least one kana for the script, sorted alphabetically and joined by commas; it is `-` for words and phrases. Example: `kana|hiragana|learner|time:60|k,s,vowels`. `weakFocus` is not part of the key: it only makes a test harder.
 - **Personal best storage** is described in [Storage and sync](storage-sync.md). `celebratedPersonalBest` only records what was shown at completion.
 - **Learning mode** updates `LearnState`, `KanaStat.mixups` and the `learn` counters only; it does not change attempts, errors or reaction times.
@@ -105,5 +108,5 @@ type PersonalBests = Record<
 
 ## Screens
 
-- **Results:** KPM (large), kana accuracy, IPM for words and phrases, per-second chart, keystroke accuracy, mistakes, best streak, time, the five weakest kana of the test with mean reaction time and spellings from `spellingsFor`. Mistakes are `rejectedKeystrokes` + `assisted`. On a personal best: badge and the `content` cat.
+- **Results:** KPM (large), kana accuracy, IPM for words and phrases, per-second chart, keystroke accuracy, mistakes, best streak, time, the five weakest kana of the test with mean reaction time and spellings from `spellingsFor`. Mistakes are `rejectedKeystrokes` + `assisted`. On a personal best: badge and the `content` cat. Actions: "Next test" (Enter) and "Repeat".
 - **Statistics (`/stats`):** paginated test history (see "History" in [Storage and sync](storage-sync.md)); KPM-per-test chart; heatmap over the hiragana and katakana charts with an "errors / reaction time" toggle; top 10 confusions; started and finished counters per mode; personal bests from `PersonalBests`.
