@@ -48,6 +48,12 @@ Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks.
 > [!NOTE]
 > **When to Extract Widgets:** If a second full-page view is introduced (such as a historical stats dashboard, custom word list editor, or flashcard review page) that reuses these UI blocks, extract them back into `apps/web/src/widgets/<widget-name>/` with their own public APIs.
 
+### Styles and design tokens (ADR 034)
+
+- `shared/styles/tokens.css` holds the design-system tokens by hand (colours under `[data-theme='dark']`, scales and text styles in `@theme`); `tokens.test.ts` compares it with `docs/design/source/tokens.json`. The Tailwind default scales are cleared, so only token-based classes (`text-fur`, `text-ui-label`, `font-jp`, `h-control`, …) produce CSS.
+- `shared/styles/fonts.css` declares the five faces (Golos Text 400/500, JetBrains Mono 400/500, Noto Sans JP 400); `font-synthesis: none`.
+- E2E and DOM tests select the prompt and its rejected state by `data-testid` (`prompt-text`, `prompt-arena`, `data-rejected`), not by class.
+
 ---
 
 ## 2. Two-Tier Romaji Spelling Model
@@ -165,7 +171,7 @@ The controller keeps a window of the displayed prompt and two more in the matche
    export const customRows: readonly KanaRow[] = [ ... ];
    ```
 3. Re-export it in `packages/engine/src/data/index.ts`, include it in `allKanaRows`, and export a new group from `packages/engine/src/index.ts` and `apps/web/src/entities/kana/model/data/index.ts` if the app needs it.
-4. Run `pnpm --filter @nekotype/web run fonts` so `glyphs.txt` and the font subset include the new glyphs (a test fails while `glyphs.txt` is out of sync).
+4. Run `pnpm --filter @nekotype/web run fonts` (downloads the pinned sources, ADR 034) so `glyphs.txt` and the font subset include the new glyphs (a test fails while `glyphs.txt` is out of sync).
 5. Run `pnpm test`: the row-count and `RowId` tests in `packages/engine/src/data.test.ts` need updating, and the property tests cover the new entries in both strictness modes.
 
 ### Recipe B: Adding Vocabulary Words or Phrases
@@ -244,12 +250,12 @@ Every commit and pull request must satisfy `pnpm run verify`, which CI also runs
 3. **`pnpm run format:check` (`prettier --check .`)**: Formatting of the whole repository.
 4. **`pnpm run test` (`vitest run`)**: Unit, integration, property and render-isolation tests. `packages/engine` runs with a v8 coverage threshold of 95% for statements, branches, functions and lines (the spec target; the package measures 100%).
 5. **`pnpm run build` (`vite build`)**: Production client bundle into `apps/web/dist`, with the Vite manifest.
-6. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Reads the manifest and enforces hard budget limits (gzip unless stated; brotli is reported next to it). Figures from the P0 build:
-   - Initial HTML: ≤ 5 KB (actual 0.27 KB)
-   - Initial JS, the entry and its static imports: ≤ 35 KB (actual 26.77 KB)
-   - Initial CSS: ≤ 10 KB (actual 4.94 KB)
-   - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 14.95 KB JetBrains Mono, 16.45 KB Noto Sans JP)
-   - Total first load: ≤ 160 KB (actual 63.39 KB)
+6. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Reads the manifest and enforces hard budget limits (gzip unless stated; brotli is reported next to it). Figures from the design-foundation build (ADR 034):
+   - Initial HTML: ≤ 5 KB (actual 0.30 KB)
+   - Initial JS, the entry and its static imports: ≤ 35 KB (actual 26.71 KB)
+   - Initial CSS: ≤ 10 KB (actual 5.19 KB)
+   - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 20.77 KB Noto Sans JP 400, 10.66 and 10.69 KB JetBrains Mono 400/500, 9.38 and 9.55 KB Golos Text 400/500)
+   - Total first load: ≤ 160 KB, including the SVG of the initial chunk, the logo (actual 94.69 KB)
    - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; there are no route chunks yet)
 7. **`pnpm run e2e` (`playwright test`)**: Chromium against the Vite dev server (section 7).
 

@@ -58,3 +58,4 @@ Append-only log of architectural decisions, one file per decision.
 | [031](031-adopt-the-nekotype-design-system.md)                                       | Adopt the Nekotype Design System from P2                                                     | In force             |
 | [032](032-font-weights-for-the-design-system.md)                                     | Font Weights for the Design System                                                           | In force             |
 | [033](033-repeat-test.md)                                                            | Repeat Test                                                                                  | In force             |
+| [034](034-design-tokens-and-font-build.md)                                           | Design Tokens and Font Build                                                                 | In force             |

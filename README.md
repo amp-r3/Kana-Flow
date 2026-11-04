@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Max%20Strict-blue.svg)](https://www.typescriptlang.org/)
 [![FSD: Verified](https://img.shields.io/badge/Architecture-Feature--Sliced%20Design-orange.svg)](https://feature-sliced.design/)
-[![Bundle Budget](https://img.shields.io/badge/First%20Load-61.1%20KB%20%2F%20160%20KB-success.svg)](#-performance-budgets)
+[![Bundle Budget](https://img.shields.io/badge/First%20Load-94.7%20KB%20%2F%20160%20KB-success.svg)](#-performance-budgets)
 
 ---
 
@@ -98,6 +98,8 @@ pnpm run budget       # check-budget.mjs (size budgets from the Vite manifest)
 pnpm run e2e          # Playwright (Chromium)
 ```
 
+Fonts are subset by hand, not in CI: `pnpm --filter @nekotype/web run fonts` downloads the pinned sources into `apps/web/scripts/font-src/` (ignored by git), checks their SHA-256 and rewrites `glyphs.txt` and the `woff2` files in `apps/web/src/assets/fonts/` (ADR 034).
+
 ### End-to-End Testing (Playwright)
 
 End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify`, locally and in CI. They need Chromium once.
@@ -128,12 +130,14 @@ Nekotype adheres to strict first-load asset caps, checked by `pnpm run budget` (
 
 | Asset                      | Budget Limit | Actual (gzip / woff2) | Status                    |
 | -------------------------- | ------------ | --------------------- | ------------------------- |
-| **Initial HTML**           | $\le 5$ KB   | **0.27 KB**           | ✅ Passed                 |
-| **Initial JavaScript**     | $\le 35$ KB  | **24.49 KB**          | ✅ Passed                 |
-| **Initial CSS**            | $\le 10$ KB  | **4.94 KB**           | ✅ Passed                 |
-| **Noto Sans JP Bold**      | $\le 45$ KB  | **16.45 KB** (woff2)  | ✅ Passed                 |
-| **JetBrains Mono Regular** | $\le 45$ KB  | **14.95 KB** (woff2)  | ✅ Passed                 |
-| **Total First Load**       | $\le 160$ KB | **61.10 KB**          | ✅ Passed (38% of budget) |
+| **Initial HTML**           | $\le 5$ KB   | **0.30 KB**           | ✅ Passed                 |
+| **Initial JavaScript**     | $\le 35$ KB  | **26.71 KB**          | ✅ Passed                 |
+| **Initial CSS**            | $\le 10$ KB  | **5.19 KB**           | ✅ Passed                 |
+| **Noto Sans JP 400**       | $\le 45$ KB  | **20.77 KB** (woff2)  | ✅ Passed                 |
+| **JetBrains Mono 400/500** | $\le 45$ KB  | **10.66 / 10.69 KB**  | ✅ Passed                 |
+| **Golos Text 400/500**     | $\le 45$ KB  | **9.38 / 9.55 KB**    | ✅ Passed                 |
+| **Logo (SVG)**             | counted      | **1.45 KB**           | ✅ Passed                 |
+| **Total First Load**       | $\le 160$ KB | **94.69 KB**          | ✅ Passed (59% of budget) |
 | **Lazy content chunk**     | $\le 40$ KB  | **2.05 KB** (largest) | ✅ Passed                 |
 | **Lazy route chunk**       | $\le 25$ KB  | none yet              | —                         |
 
@@ -205,3 +209,4 @@ No `_redirects` file is needed, because there is no client-side router. A `404.h
 - **Typography:**
   - Noto Sans JP: [SIL Open Font License 1.1](apps/web/src/assets/fonts/OFL-NotoSansJP.txt)
   - JetBrains Mono: [SIL Open Font License 1.1](apps/web/src/assets/fonts/OFL-JetBrainsMono.txt)
+  - Golos Text: [SIL Open Font License 1.1](apps/web/src/assets/fonts/OFL-GolosText.txt)
