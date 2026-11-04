@@ -10,6 +10,15 @@ export type { SegmentedProps, SegmentedOption } from './segmented';
 export { Toggle } from './toggle';
 export type { ToggleProps } from './toggle';
 
+export { Link } from './link';
+export type { LinkProps } from './link';
+
+export { Nav } from './nav';
+export type { NavProps, NavItem } from './nav';
+
+export { Footer } from './footer';
+export type { FooterProps } from './footer';
+
 export { Kbd } from './kbd';
 export type { KbdProps } from './kbd';
 
