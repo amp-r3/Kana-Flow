@@ -8,6 +8,8 @@ export const BUDGETS: {
   readonly lazyContentGzipKb: number;
 };
 
+export const PROBE_MARKER: string;
+
 export function checkBudget(distDir: string): {
   readonly lines: readonly string[];
   readonly failures: readonly string[];

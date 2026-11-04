@@ -12,6 +12,12 @@ const skipWebkit = process.env['E2E_SKIP_WEBKIT'] === '1' && process.env['CI'] =
 const port = Number(process.env['E2E_PORT'] ?? 5273);
 const baseURL = `http://localhost:${port}`;
 
+// The latency test needs a production-like build with the probe in it, served by `vite preview`: a
+// development server is not what a user gets. It has its own port too (docs/spec/quality.md).
+const latencyPort = Number(process.env['E2E_LATENCY_PORT'] ?? 5373);
+const latencyURL = `http://localhost:${latencyPort}`;
+const LATENCY_SPEC = /latency\.spec\.ts/;
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
@@ -27,6 +33,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: LATENCY_SPEC,
       use: { ...devices['Desktop Chrome'] },
     },
     ...(skipWebkit
@@ -34,14 +41,30 @@ export default defineConfig({
       : [
           {
             name: 'webkit-mobile',
+            testIgnore: LATENCY_SPEC,
             use: { ...devices['iPhone 13'] },
           },
         ]),
+    {
+      // Chromium only: the throttling is a DevTools protocol feature.
+      name: 'latency',
+      testMatch: LATENCY_SPEC,
+      timeout: 180000,
+      use: { ...devices['Desktop Chrome'], baseURL: latencyURL },
+    },
   ],
-  webServer: {
-    command: `pnpm exec vite --port ${port} --strictPort`,
-    url: baseURL,
-    reuseExistingServer: false,
-    timeout: 30000,
-  },
+  webServer: [
+    {
+      command: `pnpm exec vite --port ${port} --strictPort`,
+      url: baseURL,
+      reuseExistingServer: false,
+      timeout: 30000,
+    },
+    {
+      command: `pnpm run build:probe && pnpm exec vite preview --outDir dist-probe --port ${latencyPort} --strictPort`,
+      url: latencyURL,
+      reuseExistingServer: false,
+      timeout: 120000,
+    },
+  ],
 });

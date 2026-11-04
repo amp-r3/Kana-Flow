@@ -1,6 +1,7 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import { classifyChar, classifyKeyDown, isJapaneseText } from './input-adapter';
+import { startKeystrokeProbe } from './latency-probe';
 import type { InputClass, KeyIntent } from './input-adapter';
 
 export type InputSourceDeps = {
@@ -91,9 +92,11 @@ export function createInputSource(deps: InputSourceDeps): InputSource {
         return;
       }
 
+      const endProbe = startKeystrokeProbe();
       event.preventDefault();
       if (event.target !== input) input.focus();
       dispatch(cls, true);
+      endProbe?.();
     };
 
     const onBeforeInput = (event: Event): void => {
