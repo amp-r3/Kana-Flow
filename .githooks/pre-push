@@ -1,7 +1,9 @@
 #!/bin/sh
 # Full verification before code leaves the machine: the same `verify` that CI runs
 # (typecheck, lint, formatting, unit tests with coverage, build, size budgets, e2e).
+# The output is not silenced: `--silent` is inherited by the nested pnpm calls and hid the output of a
+# failing e2e run, which showed only as "failed to push some refs".
 # Bypass in an emergency with `git push --no-verify`.
 set -eu
 
-pnpm run --silent verify
+pnpm run verify
