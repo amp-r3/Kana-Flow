@@ -6,6 +6,7 @@ export type DialogProps = {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly title: string;
+  readonly closeLabel: string;
   readonly children: ComponentChildren;
   readonly className?: string;
 };
@@ -14,6 +15,7 @@ export function Dialog({
   open,
   onClose,
   title,
+  closeLabel,
   children,
   className = '',
 }: DialogProps): JSX.Element {
@@ -85,7 +87,7 @@ export function Dialog({
             type="button"
             onClick={onClose}
             className="text-fur-dim hover:text-fur hover:bg-bg-hover pointer-coarse:min-h-touch-min pointer-coarse:min-w-touch-min cursor-pointer rounded-sm p-1 font-mono transition-colors"
-            aria-label="Close"
+            aria-label={closeLabel}
           >
             ✕
           </button>

@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import { t } from '@/shared/i18n';
 
 export type SpeedChartProps = {
   readonly series: readonly number[];
@@ -27,11 +28,11 @@ export function SpeedChart({ series }: SpeedChartProps): JSX.Element | null {
 
   return (
     <div className="flex w-full flex-col gap-1">
-      <span className="text-fur-dim text-ui-caption">Speed Over Time (WPM)</span>
+      <span className="text-fur-dim text-ui-caption">{t('results.chartTitle')}</span>
       <svg
         viewBox={`0 0 ${svgWidth} ${svgHeight}`}
         className="h-24 w-full overflow-visible"
-        aria-label="Speed over time graph"
+        aria-label={t('results.chartLabel')}
       >
         <line
           x1={paddingX}

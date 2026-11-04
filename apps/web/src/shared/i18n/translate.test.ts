@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { en, ru, t, locale, setLocale } from './index';
-import { MemoryKeyValueStore } from '@/shared/lib';
+import { en, ru, t, locale, setLocale, initLocale } from './index';
+import { MemoryKeyValueStore, STORAGE_KEYS } from '@/shared/lib';
 
 // Compile-time verification: ru satisfies Record<keyof typeof en, string>
 type _RuEnCompileTimeParity = typeof ru extends Record<keyof typeof en, string> ? true : false;
@@ -36,6 +36,15 @@ describe('i18n: translations and locale handling', () => {
 
     // Reset back to en
     setLocale('en');
+  });
+
+  it('setLocale without a store persists to the store bound by initLocale', () => {
+    const store = new MemoryKeyValueStore();
+    initLocale(store);
+    setLocale('ru');
+    expect(store.get(STORAGE_KEYS.LOCALE)).toBe('ru');
+    setLocale('en');
+    expect(store.get(STORAGE_KEYS.LOCALE)).toBe('en');
   });
 
   it('setLocale persists locale to store and updates locale signal', () => {

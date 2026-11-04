@@ -65,7 +65,7 @@ export function ConfigBar(): JSX.Element {
           ]}
           value={currentScript}
           onChange={handleScriptChange}
-          ariaLabel="Script selection"
+          ariaLabel={t('config.script.label')}
         />
 
         <Segmented<ContentKind>
@@ -76,7 +76,7 @@ export function ConfigBar(): JSX.Element {
           ]}
           value={currentContent}
           onChange={handleContentChange}
-          ariaLabel="Content kind"
+          ariaLabel={t('config.content.label')}
         />
 
         <Segmented<Strictness>
@@ -86,7 +86,7 @@ export function ConfigBar(): JSX.Element {
           ]}
           value={currentStrictness}
           onChange={handleStrictnessChange}
-          ariaLabel="Romaji strictness"
+          ariaLabel={t('config.strictness.label')}
         />
       </div>
 
@@ -100,20 +100,20 @@ export function ConfigBar(): JSX.Element {
             ]}
             value={currentTestConfig.kind}
             onChange={handleTestKindChange}
-            ariaLabel="Test type"
+            ariaLabel={t('config.test.label')}
           />
 
           {currentTestConfig.kind === 'time' ? (
             <Segmented<15 | 30 | 60 | 120>
               options={[
-                { value: 15, label: '15s' },
-                { value: 30, label: '30s' },
-                { value: 60, label: '60s' },
-                { value: 120, label: '120s' },
+                { value: 15, label: t('config.seconds.option', { n: 15 }) },
+                { value: 30, label: t('config.seconds.option', { n: 30 }) },
+                { value: 60, label: t('config.seconds.option', { n: 60 }) },
+                { value: 120, label: t('config.seconds.option', { n: 120 }) },
               ]}
               value={currentTestConfig.seconds}
               onChange={handleTimeSecondsChange}
-              ariaLabel="Time seconds"
+              ariaLabel={t('config.seconds.label')}
             />
           ) : (
             <Segmented<10 | 25 | 50 | 100>
@@ -125,7 +125,7 @@ export function ConfigBar(): JSX.Element {
               ]}
               value={currentTestConfig.prompts}
               onChange={handleCountPromptsChange}
-              ariaLabel="Count prompts"
+              ariaLabel={t('config.prompts.label')}
             />
           )}
         </div>

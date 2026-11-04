@@ -47,7 +47,7 @@ export function LiveStatsStrip({ controller, strictness }: LiveStatsStripProps):
         {currentPhase === 'running' && (
           <>
             <span className="text-mono-small font-mono">
-              {liveWpm} <span className="text-mono-small font-mono">wpm</span>
+              {liveWpm} <span className="text-mono-small font-mono">{t('stage.liveWpm')}</span>
             </span>
             <span className="text-mono-small font-mono">{liveAccuracy}%</span>
           </>

@@ -17,14 +17,18 @@ function detectLocale(): Locale {
 const _locale = signal<Locale>(detectLocale());
 export const locale: ReadonlySignal<Locale> = _locale;
 
+// The store bound at startup, so components change the language without touching storage.
+let boundStore: KeyValueStore | undefined;
+
 export function initLocale(store: KeyValueStore): void {
+  boundStore = store;
   const persisted = store.get(STORAGE_KEYS.LOCALE);
   if (persisted === 'en' || persisted === 'ru') {
     _locale.value = persisted;
   }
 }
 
-export function setLocale(newLocale: Locale, store?: KeyValueStore): void {
+export function setLocale(newLocale: Locale, store: KeyValueStore | undefined = boundStore): void {
   _locale.value = newLocale;
   if (store) {
     store.set(STORAGE_KEYS.LOCALE, newLocale);

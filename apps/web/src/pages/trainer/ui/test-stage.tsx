@@ -72,7 +72,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
         autoCorrect="off"
         spellcheck={false}
         lang="en"
-        aria-label="Kana input sink"
+        aria-label={t('stage.inputLabel')}
         className="sr-only"
       />
 
@@ -140,7 +140,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
       {/* Bottom hints & restart button */}
       <div className="text-fur-dim text-ui-caption flex w-full flex-wrap items-center justify-between gap-3 pt-2">
         <div className="flex items-center gap-2">
-          <Kbd>Esc</Kbd>
+          <Kbd>{t('key.esc')}</Kbd>
           <span>{t('stage.escHint')}</span>
         </div>
 
@@ -152,11 +152,11 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
             onRestart();
           }}
           className="flex items-center gap-1.5"
-          ariaLabel="Restart test"
+          ariaLabel={t('stage.restartLabel')}
         >
           <RefreshIcon size={13} />
           <span className="hidden sm:inline">{t('stage.tabHint')}</span>
-          <span className="sm:hidden">Restart</span>
+          <span className="sm:hidden">{t('stage.restart')}</span>
         </Button>
       </div>
     </div>
