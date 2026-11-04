@@ -19,12 +19,7 @@ export type RowsDialogProps = {
   readonly onClose: () => void;
 };
 
-const CATEGORIES: readonly { readonly id: RowCategory; readonly label: string }[] = [
-  { id: 'basic', label: 'Gojūon (Basic)' },
-  { id: 'dakuten', label: 'Dakuten & Handakuten' },
-  { id: 'yoon', label: 'Yōon (Digraphs)' },
-  { id: 'extended', label: 'Extended Katakana' },
-];
+const CATEGORIES: readonly RowCategory[] = ['basic', 'dakuten', 'yoon', 'extended'];
 
 export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
@@ -60,7 +55,7 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} title={t('app.rows')}>
+    <Dialog open={open} onClose={onClose} title={t('app.rows')} closeLabel={t('dialog.close')}>
       {isContentDisabled && (
         <div className="text-fur-dim text-ui-label">{t('dialog.contentDisabled')}</div>
       )}
@@ -93,14 +88,14 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
       {/* Categories matrix */}
       <div className="flex flex-col gap-5 py-2">
         {CATEGORIES.map((cat) => {
-          const rowsInCat = allKanaRows.filter((r) => r.category === cat.id);
-          const isCategoryDisabled = isContentDisabled || (cat.id === 'extended' && isHiraganaOnly);
+          const rowsInCat = allKanaRows.filter((r) => r.category === cat);
+          const isCategoryDisabled = isContentDisabled || (cat === 'extended' && isHiraganaOnly);
 
           return (
-            <div key={cat.id} className="flex flex-col gap-2">
+            <div key={cat} className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-fur-dim text-ui-label">{cat.label}</span>
-                {cat.id === 'extended' && isHiraganaOnly && (
+                <span className="text-fur-dim text-ui-label">{t(`rows.category.${cat}`)}</span>
+                {cat === 'extended' && isHiraganaOnly && (
                   <span className="text-fur-dim text-ui-caption">
                     {t('dialog.extendedDisabled')}
                   </span>

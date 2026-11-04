@@ -175,4 +175,32 @@ export default [
       ],
     },
   },
+  {
+    // All user-visible strings come from shared/i18n (AGENTS.md). `no-restricted-syntax` replaces
+    // the base config's list, so the base selectors are repeated here.
+    files: ['src/**/*.tsx'],
+    ignores: ['src/**/*.test.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportAllDeclaration',
+          message: 'Export * is forbidden. Use explicit named re-exports.',
+        },
+        {
+          selector: 'ExportDefaultDeclaration',
+          message: 'Export default is forbidden except in config files.',
+        },
+        {
+          selector: 'JSXText[value=/[\\p{L}]{2,}/u]',
+          message: 'Visible text must come from shared/i18n: use t().',
+        },
+        {
+          selector:
+            ':matches(JSXAttribute[name.name="aria-label"], JSXAttribute[name.name="ariaLabel"], JSXAttribute[name.name="title"], JSXAttribute[name.name="alt"]) > Literal',
+          message: 'Accessible names must come from shared/i18n: use t().',
+        },
+      ],
+    },
+  },
 ];

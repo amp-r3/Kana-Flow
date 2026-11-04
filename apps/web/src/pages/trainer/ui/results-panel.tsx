@@ -66,7 +66,12 @@ export function ResultsPanel({ onNextTest }: ResultsPanelProps): JSX.Element {
     >
       {/* Polite live region for screen readers (Plan 11.3 & P5 A11y) */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {`Test complete. Speed: ${m.wpm} WPM, accuracy: ${Math.round(m.accuracy * 100)} percent. Completed ${m.promptsCompleted} prompts with ${m.mistakes} mistakes.`}
+        {t('results.summary', {
+          wpm: m.wpm,
+          accuracy: Math.round(m.accuracy * 100),
+          prompts: m.promptsCompleted,
+          mistakes: m.mistakes,
+        })}
       </div>
 
       {/* Header with primary WPM and Accuracy */}

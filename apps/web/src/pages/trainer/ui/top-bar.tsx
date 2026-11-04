@@ -1,7 +1,6 @@
 import type { JSX } from 'preact';
 import { useState } from 'preact/hooks';
 import { locale, setLocale, t } from '@/shared/i18n';
-import { LocalStorageStore } from '@/shared/lib';
 import { Button, Dialog, Segmented, RowsIcon, ResetIcon } from '@/shared/ui';
 import { resetProgress } from '@/entities/progress';
 import lockupUrl from '@/assets/logo/lockup.svg';
@@ -10,14 +9,12 @@ export type TopBarProps = {
   readonly onOpenRows: () => void;
 };
 
-const storage = new LocalStorageStore();
-
 export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const currentLocale = locale.value;
 
   const handleLocaleChange = (newLoc: 'en' | 'ru') => {
-    setLocale(newLoc, storage);
+    setLocale(newLoc);
   };
 
   const handleConfirmReset = () => {
@@ -44,7 +41,7 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
           ]}
           value={currentLocale}
           onChange={handleLocaleChange}
-          ariaLabel="Interface language"
+          ariaLabel={t('app.language')}
           size="sm"
         />
 
@@ -68,6 +65,7 @@ export function TopBar({ onOpenRows }: TopBarProps): JSX.Element {
 
       <Dialog
         open={resetDialogOpen}
+        closeLabel={t('dialog.close')}
         onClose={() => {
           setResetDialogOpen(false);
         }}
