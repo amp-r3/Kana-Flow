@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { effect } from '@preact/signals';
 import { createSession } from './session';
+import { AHEAD_TOKENS, BEHIND_TOKENS } from './stream';
 import type { Session } from './session';
 import { setupSettingsResetWatcher } from './settings-watcher';
 import { setTestConfig, testConfig } from '@/entities/settings';
@@ -367,7 +369,9 @@ describe('session: prompt stream (spec D3, A15)', () => {
     }
   }
 
-  it('keeps the displayed prompt and two more in the matcher, and asks for no more than a count test needs', () => {
+  // Spec "Window": at least one prompt beyond the displayed one. The stream shows lines of text, so
+  // the session keeps AHEAD_TOKENS tokens after the displayed prompt (ねこ is two tokens).
+  it('keeps enough prompts after the displayed one to fill the stream, and no more than a count test needs', () => {
     let asked = 0;
     const supply = (): PromptItem => {
       asked += 1;
@@ -382,9 +386,10 @@ describe('session: prompt stream (spec D3, A15)', () => {
       scheduler,
     });
     open.loadPrompt(neko, 'learner');
-    expect(asked).toBe(2);
+    expect(asked).toBe(AHEAD_TOKENS / 2);
     type(open, 'neko');
-    expect(asked).toBe(3);
+    // One prompt was typed, so one more is needed to keep the same number of tokens ahead.
+    expect(asked).toBe(AHEAD_TOKENS / 2 + 1);
 
     setTestConfig({ kind: 'count', prompts: 10 });
     asked = 0;
@@ -395,7 +400,8 @@ describe('session: prompt stream (spec D3, A15)', () => {
       scheduler,
     });
     counted.loadPrompt(neko, 'learner');
-    expect(asked).toBe(2);
+    // The whole test is already in the window; nothing is asked beyond it.
+    expect(asked).toBe(9);
     for (let i = 0; i < 10; i++) type(counted, 'neko');
     expect(counted.phase.value).toBe('finished');
     expect(asked).toBe(9);
@@ -740,5 +746,198 @@ describe('session: live indicators and independence (D17)', () => {
     expect(session.liveKpm.value).toBe(0);
     expect(session.liveAccuracy.value).toBe(100);
     expect(session.metrics.value).toBeNull();
+  });
+});
+
+describe('session: the text stream (frontend.md, Text stream and romaji buffer)', () => {
+  let clock: FakeClock;
+  let scheduler: FakeScheduler;
+
+  const a: PromptItem = { key: 'basic:a', text: 'あ' };
+  const neko: PromptItem = { key: 'word:neko', text: 'ねこ' };
+  const comma: PromptItem = { key: 'word:ne-ko', text: 'ね、こ' };
+
+  const make = (nextPrompt: () => PromptItem, config: TestConfig): Session =>
+    createSession({ nextPrompt, config: () => config, clock, scheduler });
+
+  const press = (session: Session, keys: string, stepMs = 10): void => {
+    for (const char of keys) {
+      clock.advance(stepMs);
+      session.handleIntent({ kind: 'char', char });
+    }
+  };
+
+  beforeEach(() => {
+    clock = new FakeClock();
+    scheduler = new FakeScheduler();
+  });
+
+  it('starts with the prompt to type and enough tokens after it to fill the lines', () => {
+    const session = make(() => neko, { kind: 'time', seconds: 60 });
+    session.loadPrompt(neko, 'learner');
+
+    const prompts = session.stream.value.prompts;
+    expect(prompts[0]).toMatchObject({ index: 0, firstToken: 0 });
+    expect(prompts[0]?.tokens.map((token) => token.glyph)).toEqual(['ね', 'こ']);
+    const tokens = prompts.reduce((sum, prompt) => sum + prompt.tokens.length, 0);
+    expect(tokens).toBeGreaterThanOrEqual(2 + AHEAD_TOKENS);
+    expect(session.caret.value).toBe(0);
+    expect(session.romajiBuffer.value).toBe('');
+    expect(session.mistake.value).toBeNull();
+    expect(session.erroredTokens().size).toBe(0);
+  });
+
+  it('the caret stands before the next token and the buffer holds the Latin typed beyond it', () => {
+    const session = make(() => neko, { kind: 'time', seconds: 60 });
+    session.loadPrompt(neko, 'learner');
+
+    press(session, 'n');
+    expect([session.caret.value, session.romajiBuffer.value]).toEqual([0, 'n']);
+    press(session, 'e');
+    expect([session.caret.value, session.romajiBuffer.value]).toEqual([1, '']);
+    press(session, 'k');
+    expect([session.caret.value, session.romajiBuffer.value]).toEqual([1, 'k']);
+    press(session, 'o');
+    // The caret has moved on to the first token of the next prompt.
+    expect([session.caret.value, session.romajiBuffer.value]).toEqual([2, '']);
+  });
+
+  it('the caret passes over a token that needs no input', () => {
+    const session = make(() => comma, { kind: 'time', seconds: 60 });
+    session.loadPrompt(comma, 'learner');
+    const tokens = session.stream.value.prompts[0]?.tokens ?? [];
+    expect(tokens.map((token) => token.skip)).toEqual([false, true, false]);
+
+    press(session, 'ne');
+    // Token 1 is the comma: the caret is already before こ.
+    expect(session.caret.value).toBe(2);
+  });
+
+  it('the stream changes once per completed prompt, not on the other keystrokes', () => {
+    const session = make(() => neko, { kind: 'time', seconds: 60 });
+    session.loadPrompt(neko, 'learner');
+    let changes = 0;
+    let latest = session.stream.value;
+    const stop = effect(() => {
+      latest = session.stream.value;
+      changes += 1;
+    });
+    expect(changes).toBe(1);
+
+    press(session, 'nek');
+    expect(changes).toBe(1);
+    press(session, 'o');
+    expect(changes).toBe(2);
+    for (let i = 0; i < 9; i++) press(session, 'neko');
+    expect(changes).toBe(11);
+    expect(latest).toBe(session.stream.value);
+    stop();
+  });
+
+  it('numbers tokens from the start of the test, whatever compact() does to the matcher', () => {
+    const session = make(() => a, { kind: 'time', seconds: 120 });
+    session.loadPrompt(a, 'learner');
+
+    // 45 prompts: compact() runs at least twice on the way (every 20 committed prompts).
+    press(session, 'a'.repeat(45));
+    expect(session.caret.value).toBe(45);
+    expect(session.promptResults.value).toHaveLength(45);
+
+    // A wrong key now is charged to the token the caret stands before, by its number in the test.
+    press(session, 'x');
+    expect(session.mistake.value).toMatchObject({ token: 45, kind: 'rejected' });
+    expect(session.erroredTokens().has(45)).toBe(true);
+  });
+
+  it('keeps a bounded window over 1000 prompts, contiguous and around the caret', () => {
+    const session = make(() => a, { kind: 'time', seconds: 120 });
+    session.loadPrompt(a, 'learner');
+
+    let widest = 0;
+    for (let i = 0; i < 1000; i++) {
+      press(session, 'a', 1);
+      widest = Math.max(widest, session.stream.value.prompts.length);
+    }
+
+    expect(session.caret.value).toBe(1000);
+    // One token per prompt: behind + ahead + the prompt on display and a margin.
+    expect(widest).toBeLessThanOrEqual(BEHIND_TOKENS + AHEAD_TOKENS + 5);
+    const prompts = session.stream.value.prompts;
+    for (let i = 1; i < prompts.length; i++) {
+      const previous = prompts[i - 1];
+      const current = prompts[i];
+      expect(current?.index).toBe((previous?.index ?? -2) + 1);
+      expect(current?.firstToken).toBe(
+        (previous?.firstToken ?? 0) + (previous?.tokens.length ?? 0),
+      );
+    }
+    const head = prompts[0];
+    expect(head && head.firstToken).toBeGreaterThanOrEqual(1000 - BEHIND_TOKENS - 2);
+  });
+
+  it('a wrong key and a hint are charged to a token, by its number, and the mistake event is new each time', () => {
+    const session = make(() => neko, { kind: 'time', seconds: 60 });
+    session.loadPrompt(neko, 'learner');
+
+    press(session, 'x');
+    const first = session.mistake.value;
+    expect(first).toMatchObject({ token: 0, kind: 'rejected' });
+    press(session, 'x');
+    const second = session.mistake.value;
+    expect(second).toMatchObject({ token: 0, kind: 'rejected' });
+    expect(second?.seq).toBeGreaterThan(first?.seq ?? 0);
+
+    press(session, 'ne');
+    session.handleIntent({ kind: 'reveal' });
+    expect(session.mistake.value).toMatchObject({ token: 1, kind: 'hint' });
+    expect([...session.erroredTokens()].sort()).toEqual([0, 1]);
+  });
+
+  it('forgets the errors of tokens that have left the window', () => {
+    const session = make(() => a, { kind: 'time', seconds: 120 });
+    session.loadPrompt(a, 'learner');
+    press(session, 'x');
+    expect(session.erroredTokens().has(0)).toBe(true);
+
+    press(session, 'a'.repeat(BEHIND_TOKENS + 10));
+    expect(session.erroredTokens().has(0)).toBe(false);
+  });
+
+  it('never draws a prompt beyond the end of a count test', () => {
+    const session = make(() => neko, { kind: 'count', prompts: 10 });
+    session.loadPrompt(neko, 'learner');
+    const prompts = session.stream.value.prompts;
+    expect(prompts).toHaveLength(10);
+    expect(prompts.at(-1)?.index).toBe(9);
+
+    for (let i = 0; i < 10; i++) press(session, 'neko');
+    expect(session.phase.value).toBe('finished');
+    expect(session.stream.value.prompts.at(-1)?.index).toBe(9);
+    // The caret is after the last token.
+    expect(session.caret.value).toBe(20);
+  });
+
+  it('reset() empties the stream', () => {
+    const session = make(() => neko, { kind: 'time', seconds: 60 });
+    session.loadPrompt(neko, 'learner');
+    press(session, 'nex');
+    session.reset();
+
+    expect(session.stream.value.prompts).toEqual([]);
+    expect(session.caret.value).toBe(0);
+    expect(session.romajiBuffer.value).toBe('');
+    expect(session.mistake.value).toBeNull();
+    expect(session.erroredTokens().size).toBe(0);
+  });
+
+  it('a new test numbers its tokens from zero again', () => {
+    const session = make(() => neko, { kind: 'time', seconds: 60 });
+    session.loadPrompt(neko, 'learner');
+    press(session, 'nekoneko');
+    session.reset();
+    session.loadPrompt(neko, 'learner');
+
+    expect(session.caret.value).toBe(0);
+    expect(session.stream.value.prompts[0]).toMatchObject({ index: 0, firstToken: 0 });
   });
 });
