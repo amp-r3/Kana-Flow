@@ -2,8 +2,21 @@
 @import '../../shared/styles/fonts.css';
 @import '../../shared/styles/tokens.css';
 
+/* Old palette, removed once the components move to the design tokens. */
+[data-theme='dark'] {
+  --surface: #181a1f;
+  --surface-2: #20232a;
+  --border: #2e333d;
+  --border-strong: #383e4a;
+  --text: #e4e4e7;
+  --text-dim: #a1a1aa;
+  --accent: #fbbf24;
+  --accent-dim: #ca8a04;
+  --ok: #10b981;
+  --error: #f43f5e;
+}
+
 @theme inline {
-  --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-border: var(--border);
@@ -14,9 +27,10 @@
   --color-accent-dim: var(--accent-dim);
   --color-ok: var(--ok);
   --color-error: var(--error);
+}
 
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-jp: 'Noto Sans JP', sans-serif;
+@theme {
+  --animate-blink: blink var(--dur-blink) var(--ease-inout) infinite;
 }
 
 @keyframes shake {
@@ -48,11 +62,34 @@
 }
 
 .animate-fadeIn {
-  animation: fadeIn 200ms ease-out;
+  animation: fadeIn var(--dur-reveal) var(--ease-out);
 }
 
 html {
+  background: var(--bg);
+  color: var(--fur);
+  color-scheme: dark;
   font-synthesis: none;
+}
+
+::selection {
+  background: var(--selection);
+}
+
+:focus-visible {
+  outline: var(--stroke-mark) solid var(--focus);
+  outline-offset: 2px;
+}
+
+@keyframes blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

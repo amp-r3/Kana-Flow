@@ -1,13 +1,209 @@
-[data-theme='matte'] {
-  --bg: #121316;
-  --surface: #181a1f;
-  --surface-2: #20232a;
-  --border: #2e333d;
-  --border-strong: #383e4a;
-  --text: #e4e4e7;
-  --text-dim: #a1a1aa;
-  --accent: #fbbf24;
-  --accent-dim: #ca8a04;
-  --ok: #10b981;
-  --error: #f43f5e;
+[data-theme='dark'] {
+  --bg: #1c1e21;
+  --bg-raised: #23262a;
+  --bg-hover: #2b2e32;
+  --line: #313439;
+  --line-strong: #6b6f75;
+  --fur: #efe9dd;
+  --fur-bright: #faf6ef;
+  --fur-dim: #b5b1a8;
+  --fur-faint: #65635e;
+  --untyped: #6c7177;
+  --on-fur: var(--bg);
+  --eye: #a5c8dd;
+  --eye-bright: #c4dded;
+  --miss: #cb8c83;
+  --miss-dim: #7e5853;
+  --focus: var(--eye);
+  --selection: #a5c8dd33;
+  --scrim: #1c1e21cc;
+  --chart-kpm: var(--fur);
+  --chart-grid: var(--line);
+  --chart-cursor: var(--eye);
+  --heat-fur-1: #313234;
+  --heat-fur-2: #464747;
+  --heat-fur-3: #605f5d;
+  --heat-fur-4: #9f9c96;
+  --heat-fur-5: #d1cdc3;
+  --heat-miss-1: #342d2f;
+  --heat-miss-2: #4a3b3a;
+  --heat-miss-3: #624a48;
+  --heat-miss-4: #af7a73;
+  --heat-miss-5: #cb8c83;
+  --cat-fur: var(--fur);
+  --cat-eye: var(--eye);
+  --cat-ground: var(--bg);
+}
+
+/* Colour utilities (ADR 002). */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-hover: var(--bg-hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fur: var(--fur);
+  --color-fur-bright: var(--fur-bright);
+  --color-fur-dim: var(--fur-dim);
+  --color-fur-faint: var(--fur-faint);
+  --color-untyped: var(--untyped);
+  --color-on-fur: var(--on-fur);
+  --color-eye: var(--eye);
+  --color-eye-bright: var(--eye-bright);
+  --color-miss: var(--miss);
+  --color-miss-dim: var(--miss-dim);
+  --color-focus: var(--focus);
+  --color-selection: var(--selection);
+  --color-scrim: var(--scrim);
+  --color-chart-kpm: var(--chart-kpm);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-cursor: var(--chart-cursor);
+  --color-heat-fur-1: var(--heat-fur-1);
+  --color-heat-fur-2: var(--heat-fur-2);
+  --color-heat-fur-3: var(--heat-fur-3);
+  --color-heat-fur-4: var(--heat-fur-4);
+  --color-heat-fur-5: var(--heat-fur-5);
+  --color-heat-miss-1: var(--heat-miss-1);
+  --color-heat-miss-2: var(--heat-miss-2);
+  --color-heat-miss-3: var(--heat-miss-3);
+  --color-heat-miss-4: var(--heat-miss-4);
+  --color-heat-miss-5: var(--heat-miss-5);
+  --color-cat-fur: var(--cat-fur);
+  --color-cat-eye: var(--cat-eye);
+  --color-cat-ground: var(--cat-ground);
+}
+
+/* Scales. Static: every token is emitted even when no class uses it. */
+@theme static {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  --radius-0: 0;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  --stroke-hair: 1px;
+  --stroke-mark: 2px;
+  --stroke-cat: 2.5;
+
+  --layout-max: 1120px;
+  --layout-test: 960px;
+  --layout-nav-h: 64px;
+  --control-h: 36px;
+  --control-h-sm: 28px;
+  --caret-h: 1.1em;
+  --touch-min: 44px;
+  --bp-narrow: 640px;
+  --test-lines: 3;
+  --test-lines-sm: 2;
+
+  --dur-caret: 90ms;
+  --dur-reject: 120ms;
+  --dur-hover: 120ms;
+  --dur-fade: 200ms;
+  --dur-reveal: 240ms;
+  --dur-stagger: 40ms;
+  --dur-draw: 320ms;
+  --dur-blink: 1000ms;
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --font-jp: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Noto Sans JP', ui-monospace, Menlo, Consolas, monospace;
+  --font-ui: 'Golos Text', 'Noto Sans JP', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+
+  /* Tailwind bindings */
+  --spacing: 4px;
+  --spacing-control: var(--control-h);
+  --spacing-control-sm: var(--control-h-sm);
+  --spacing-touch-min: var(--touch-min);
+  --container-layout-max: var(--layout-max);
+  --container-layout-test: var(--layout-test);
+  --breakpoint-sm: 640px;
+  --default-transition-duration: var(--dur-hover);
+  --default-transition-timing-function: var(--ease-out);
+  --default-font-family: var(--font-ui);
+}
+
+/* Text styles: `text-<name>` sets size, line height, weight and tracking. */
+@theme static {
+  --text-jp-solo: 72px;
+  --text-jp-solo--line-height: 96px;
+  --text-jp-solo--font-weight: 400;
+  --text-jp-solo--letter-spacing: 0.06em;
+  --text-jp-solo-sm: 48px;
+  --text-jp-solo-sm--line-height: 72px;
+  --text-jp-solo-sm--font-weight: 400;
+  --text-jp-solo-sm--letter-spacing: 0.06em;
+  --text-jp-test: 48px;
+  --text-jp-test--line-height: 72px;
+  --text-jp-test--font-weight: 400;
+  --text-jp-test--letter-spacing: 0.04em;
+  --text-jp-test-sm: 32px;
+  --text-jp-test-sm--line-height: 48px;
+  --text-jp-test-sm--font-weight: 400;
+  --text-jp-test-sm--letter-spacing: 0.04em;
+  --text-jp-cell: 22px;
+  --text-jp-cell--line-height: 28px;
+  --text-jp-cell--font-weight: 400;
+  --text-jp-cell-sm: 18px;
+  --text-jp-cell-sm--line-height: 24px;
+  --text-jp-cell-sm--font-weight: 400;
+  --text-jp-body: 16px;
+  --text-jp-body--line-height: 28px;
+  --text-jp-body--font-weight: 400;
+  --text-jp-vertical: 13px;
+  --text-jp-vertical--line-height: 16px;
+  --text-jp-vertical--font-weight: 400;
+  --text-jp-vertical--letter-spacing: 0.4em;
+  --text-mono-hero: 72px;
+  --text-mono-hero--line-height: 72px;
+  --text-mono-hero--font-weight: 400;
+  --text-mono-hero--letter-spacing: -0.02em;
+  --text-mono-hero-sm: 56px;
+  --text-mono-hero-sm--line-height: 56px;
+  --text-mono-hero-sm--font-weight: 400;
+  --text-mono-hero-sm--letter-spacing: -0.02em;
+  --text-mono-stat: 32px;
+  --text-mono-stat--line-height: 40px;
+  --text-mono-stat--font-weight: 400;
+  --text-mono-counter: 24px;
+  --text-mono-counter--line-height: 32px;
+  --text-mono-counter--font-weight: 400;
+  --text-mono-romaji: 16px;
+  --text-mono-romaji--line-height: 20px;
+  --text-mono-romaji--font-weight: 500;
+  --text-mono-romaji--letter-spacing: 0.02em;
+  --text-mono-small: 12px;
+  --text-mono-small--line-height: 16px;
+  --text-mono-small--font-weight: 400;
+  --text-ui-title: 24px;
+  --text-ui-title--line-height: 32px;
+  --text-ui-title--font-weight: 500;
+  --text-ui-title--letter-spacing: -0.01em;
+  --text-ui-heading: 17px;
+  --text-ui-heading--line-height: 24px;
+  --text-ui-heading--font-weight: 500;
+  --text-ui-body: 15px;
+  --text-ui-body--line-height: 24px;
+  --text-ui-body--font-weight: 400;
+  --text-ui-label: 14px;
+  --text-ui-label--line-height: 20px;
+  --text-ui-label--font-weight: 500;
+  --text-ui-caption: 12px;
+  --text-ui-caption--line-height: 16px;
+  --text-ui-caption--font-weight: 400;
+  --text-ui-caption--letter-spacing: 0.02em;
 }
