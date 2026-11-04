@@ -99,7 +99,7 @@ export function TestStage({ controller, onRestart }: TestStageProps): JSX.Elemen
         {/* Large kana glyph display (Noto Sans JP Bold) */}
         <div
           data-testid="prompt-text"
-          className="font-kana text-text text-center text-5xl font-bold tracking-wide md:text-6xl"
+          className="font-jp text-text text-center text-5xl tracking-wide md:text-6xl"
         >
           {currentPrompt ? currentPrompt.text : '...'}
         </div>

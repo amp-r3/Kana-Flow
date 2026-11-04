@@ -26,7 +26,7 @@ export function WeakestKanaList({ items }: WeakestKanaListProps): JSX.Element | 
             key={item.key}
             className="bg-surface-2 border-border flex items-center gap-1.5 rounded border px-2.5 py-1"
           >
-            <span className="font-kana text-text text-base font-bold">{item.glyph}</span>
+            <span className="font-jp text-text text-base">{item.glyph}</span>
             <span className="text-accent font-mono text-xs font-normal">{item.romaji}</span>
             <span className="text-error text-[10px] font-normal">({item.mistakes})</span>
           </div>

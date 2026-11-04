@@ -140,9 +140,7 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
                       }`}
                     >
                       <span className="text-xs font-normal">{row.name}</span>
-                      <span className="font-kana text-text mt-0.5 text-xs font-bold">
-                        {sampleKana}
-                      </span>
+                      <span className="font-jp text-text mt-0.5 text-xs">{sampleKana}</span>
                     </button>
                   );
                 })}
