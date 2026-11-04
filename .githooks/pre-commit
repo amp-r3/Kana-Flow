@@ -26,7 +26,7 @@ fi
 
 # Code checks are skipped when only Markdown files are staged.
 if printf '%s\n' "$staged" | grep -qv '\.md$'; then
-  pnpm run --silent typecheck
-  pnpm run --silent lint
-  pnpm run --silent test
+  pnpm run typecheck
+  pnpm run lint
+  pnpm run test
 fi
