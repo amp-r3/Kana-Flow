@@ -5,6 +5,13 @@ import { defineConfig, devices } from '@playwright/test';
 // can set E2E_SKIP_WEBKIT=1. CI always runs it.
 const skipWebkit = process.env['E2E_SKIP_WEBKIT'] === '1' && process.env['CI'] === undefined;
 
+// The tests run against a Vite server of their own, on a port that is not the development one
+// (5173). They never reuse a server that is already there: a dev server kept running while you
+// work can serve an older build of the code, and the tests would then pass or fail because of it,
+// not because of the code under test. If the port is taken the run stops and says so.
+const port = Number(process.env['E2E_PORT'] ?? 5273);
+const baseURL = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
@@ -14,7 +21,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -32,10 +39,9 @@ export default defineConfig({
         ]),
   ],
   webServer: {
-    command: 'pnpm run dev',
-    url: 'http://localhost:5173',
-    // Locally (pre-push hook) reuse a running `pnpm run dev`; in CI always start a fresh server.
-    reuseExistingServer: !process.env.CI,
+    command: `pnpm exec vite --port ${port} --strictPort`,
+    url: baseURL,
+    reuseExistingServer: false,
     timeout: 30000,
   },
 });
