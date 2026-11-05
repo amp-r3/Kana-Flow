@@ -15,6 +15,8 @@ export {
   weakFocusSetting,
   testConfig,
   DEFAULT_TEST_CONFIG,
+  DEFAULT_TIME_TEST,
+  DEFAULT_COUNT_TEST,
   initSettings,
   flushSettings,
   getPracticeSettings,

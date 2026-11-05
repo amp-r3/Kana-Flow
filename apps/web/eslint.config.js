@@ -192,7 +192,7 @@ export default [
           message: 'Export default is forbidden except in config files.',
         },
         {
-          selector: 'JSXText[value=/[\\p{L}]{2,}/u]',
+          selector: 'JSXText[value=/\\p{L}/u]',
           message: 'Visible text must come from shared/i18n: use t().',
         },
         {

@@ -2,11 +2,10 @@ import type { JSX } from 'preact';
 import { useRef, useLayoutEffect } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
-import { canonicalFor, isKanaKey } from '@/entities/prompt';
 import type { Session } from '@/features/training';
+import { weakestKana } from '@/features/training';
 import { SpeedChart } from './speed-chart';
 import { WeakestKanaList } from './weakest-kana-list';
-import type { WeakKanaItem } from './weakest-kana-list';
 
 export type ResultsPanelProps = {
   readonly session: Session;
@@ -34,32 +33,7 @@ export function ResultsPanel({ session, onNextTest }: ResultsPanelProps): JSX.El
     );
   }
 
-  // Calculate weakest kana this run (up to 5 items with mistakes > 0)
-  const mistakeMap = new Map<string, number>();
-  for (const pr of results) {
-    for (const token of pr.tokenOutcomes) {
-      if (token.kanaKey && token.mistakes > 0) {
-        const prev = mistakeMap.get(token.kanaKey) ?? 0;
-        mistakeMap.set(token.kanaKey, prev + token.mistakes);
-      }
-    }
-  }
-
-  const weakestItems: WeakKanaItem[] = [];
-  for (const [key, count] of mistakeMap.entries()) {
-    const colonIdx = key.indexOf(':');
-    const glyph = colonIdx >= 0 ? key.slice(colonIdx + 1) : key;
-    const romaji = isKanaKey(key) ? canonicalFor(key) : '';
-    weakestItems.push({
-      key,
-      glyph,
-      romaji,
-      mistakes: count,
-    });
-  }
-
-  weakestItems.sort((a, b) => b.mistakes - a.mistakes);
-  const topWeakest = weakestItems.slice(0, 5);
+  const topWeakest = weakestKana(results);
   const elapsedSec = (m.elapsedMs / 1000).toFixed(1);
 
   return (
@@ -111,7 +85,9 @@ export function ResultsPanel({ session, onNextTest }: ResultsPanelProps): JSX.El
 
         <div className="flex flex-col">
           <span className="text-fur-dim text-ui-caption">{t('results.time')}</span>
-          <span className="text-fur text-mono-counter font-mono">{elapsedSec}s</span>
+          <span className="text-fur text-mono-counter font-mono">
+            {t('config.seconds.option', { n: elapsedSec })}
+          </span>
         </div>
 
         <div className="flex flex-col">

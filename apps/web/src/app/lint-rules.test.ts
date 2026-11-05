@@ -72,6 +72,13 @@ describe('lint-rules: strict TypeScript and architecture enforcement', { timeout
     ).toBe(true);
   });
 
+  it('rejects a single letter as visible text', async () => {
+    const messages = await getLintErrors('export const A = () => <b>{1}s</b>;\n');
+    expect(
+      messages.some((m) => m.message.includes('Visible text must come from shared/i18n')),
+    ).toBe(true);
+  });
+
   it('accepts text from t() and symbols without letters', async () => {
     const messages = await getLintErrors(
       "const t = (k: string) => k;\nexport const A = () => <p aria-label={t('a')}>{t('b')} ✕ 1</p>;\n",

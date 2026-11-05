@@ -10,6 +10,8 @@ import {
   weakFocusSetting,
   testConfig,
   DEFAULT_TEST_CONFIG,
+  DEFAULT_TIME_TEST,
+  DEFAULT_COUNT_TEST,
   setTestConfig,
   setScript,
   setContent,
@@ -156,6 +158,12 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
     initSettings(store);
     expect(testConfig.value).toEqual({ kind: 'count', prompts: 50 });
     expect(contentSetting.value).toBe('words');
+  });
+
+  it('names the defaults of each test kind, and the initial test is the time default', () => {
+    expect(DEFAULT_TIME_TEST).toEqual({ kind: 'time', seconds: 30 });
+    expect(DEFAULT_COUNT_TEST).toEqual({ kind: 'count', prompts: 25 });
+    expect(DEFAULT_TEST_CONFIG).toBe(DEFAULT_TIME_TEST);
   });
 
   it('a corrupted settings value falls back to the default test config', () => {
