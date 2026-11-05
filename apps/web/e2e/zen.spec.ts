@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { canonicalOfPrompt } from './lib/prompt';
 
 const FINISH = { name: /^Finish/ };
 
@@ -10,12 +11,10 @@ async function chooseZen(page: Page): Promise<void> {
   await expect(zen).toHaveAttribute('aria-checked', 'true');
 }
 
-// Types the prompts one after another, from the canonical romaji the stream keeps for tests.
+// Types the prompts one after another, from the canonical romaji of each prompt on display.
 async function typePrompts(page: Page, count: number): Promise<void> {
-  const arena = page.getByTestId('prompt-arena');
   for (let i = 0; i < count; i++) {
-    await expect(arena).not.toHaveAttribute('data-canonical', '');
-    const canonical = (await arena.getAttribute('data-canonical')) ?? '';
+    const canonical = await canonicalOfPrompt(page);
     const glyph = await page.getByTestId('prompt-text').innerText();
     await page.keyboard.type(canonical, { delay: 15 });
     if (i < count - 1) {

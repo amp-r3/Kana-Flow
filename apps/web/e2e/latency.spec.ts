@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { canonicalOfPrompt } from './lib/prompt';
 
 // Keystroke latency (docs/spec/quality.md, "Budgets" and "Latency measurement"), measured by the
 // probe of the test build under 4x CPU throttling: 200 keystrokes in a timed test, three runs, the
@@ -24,10 +25,9 @@ const median = (values: readonly number[]): number => percentile(values, 0.5);
 
 // Types the prompts as they come, one wrong key now and then, until `count` keys were pressed.
 async function typeKeystrokes(page: Page, count: number): Promise<void> {
-  const arena = page.getByTestId('prompt-arena');
   let pressed = 0;
   while (pressed < count) {
-    const canonical = (await arena.getAttribute('data-canonical')) ?? '';
+    const canonical = await canonicalOfPrompt(page);
     for (const key of canonical) {
       if (pressed >= count) return;
       if (pressed > 0 && pressed % WRONG_EVERY === 0) {

@@ -52,7 +52,7 @@ From P2 the interface follows the [Nekotype design system](../design/README.md) 
 
 - **Logic stays out of components.** Components in `ui/` read `ReadonlySignal` state and call exported actions. They MUST NOT call the engine, `Clock`, `Scheduler`, storage or `fetch`, and hold only local presentation state such as an open dialog. Everything else lives in `model/` and `lib/`.
 - **One exception for the hot path:** DOM writes through refs and `useSignalEffect` stay in hooks in the slice's `lib/`, with a small interface the view binds to, so a new view reuses them and keeps the render budget.
-- **Tests target behaviour.** Logic is tested at the `model/` and `lib/` level without rendering. e2e and DOM tests select by role, label or `data-testid`, never by class name or DOM structure. Replacing a view MUST NOT require changing a model test.
+- **Tests target behaviour.** Logic is tested at the `model/` and `lib/` level without rendering. e2e and DOM tests select by role, label or `data-testid`, never by class name or DOM structure. The DOM carries no answers for tests: a test works out the expected input from what the page shows (ADR 045). Replacing a view MUST NOT require changing a model test.
 - **Styling** uses only the CSS-variable tokens and `shared/ui` primitives; a page defines no colours or one-off components of its own.
 
 **Slices** (a starting point; ADR 015 still merges a slice with a single consumer into it):

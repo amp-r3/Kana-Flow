@@ -67,7 +67,7 @@ Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks.
 
 - `shared/styles/tokens.css` holds the design-system tokens by hand (colours under `[data-theme='dark']`, scales and text styles in `@theme`); `tokens.test.ts` compares it with `docs/design/source/tokens.json`. The Tailwind default scales are cleared, so only token-based classes (`text-fur`, `text-ui-label`, `font-jp`, `h-control`, …) produce CSS.
 - `shared/styles/fonts.css` declares the five faces (Golos Text 400/500, JetBrains Mono 400/500, Noto Sans JP 400); `font-synthesis: none`.
-- E2E and DOM tests select by `data-testid` and by the attributes the stream keeps on `prompt-arena` (`data-phase`, `data-canonical`, `data-rejected`), not by class. `prompt-text` is a visually hidden element with the text of the prompt on display, which is also what assistive technology reads.
+- E2E and DOM tests select by `data-testid` and by the attributes the stream keeps on `prompt-arena` (`data-phase`, `data-rejected`), not by class. `prompt-text` is a visually hidden element with the text of the prompt on display, which is also what assistive technology reads; e2e tests work out the canonical answer from it with the engine (`e2e/lib/prompt.ts`, ADR 045).
 
 ---
 
@@ -275,7 +275,7 @@ Every commit and pull request must satisfy `pnpm run verify`, which CI also runs
    - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 20.77 KB Noto Sans JP 400, 10.66 and 10.69 KB JetBrains Mono 400/500, 9.38 and 9.55 KB Golos Text 400/500)
    - Total first load: ≤ 160 KB, including the SVG of the initial chunk, the logo (actual 102.39 KB)
    - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; there are no route chunks yet)
-7. **`pnpm run e2e` (`playwright test`)**: Chromium and WebKit (iPhone 13 emulation) against the Vite dev server on a port of its own (5273), plus a `latency` project: it runs a probe build (`pnpm run build:probe`, `vite preview`) with 4× CPU throttling and checks the keystroke p95 budgets (ADR 043). `check-budget` fails when `dist` contains the probe.
+7. **`pnpm run e2e` (`playwright test`)**: Chromium and WebKit (iPhone 13 emulation) against the production bundle (`vite build` into `dist-e2e`, served by `vite preview` on a port of its own, 5273; ADR 045), then the latency test (`playwright.latency.config.ts`): it runs a probe build (`pnpm run build:probe`, `vite preview`) with 4× CPU throttling and checks the keystroke p95 budgets (ADR 043). `check-budget` fails when `dist` contains the probe.
 
 Git hooks run the same checks earlier (`pre-commit`: staged formatting, typecheck, lint, unit tests; `pre-push`: `verify`).
 

@@ -6,6 +6,7 @@ export function createBaseConfig(tsconfigRootDir) {
       ignores: [
         'dist/**',
         'dist-probe/**',
+        'dist-e2e/**',
         'node_modules/**',
         'coverage/**',
         'scripts/font-src/**',

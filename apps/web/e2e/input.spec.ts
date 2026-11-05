@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { CDPSession, Locator, Page } from '@playwright/test';
+import { canonicalOfPrompt } from './lib/prompt';
 
 const LAYOUT_NOTICE = 'Switch your keyboard layout to English';
 const IME_NOTICE = 'Turn off the Japanese IME';
@@ -67,12 +68,6 @@ async function composeWord(client: CDPSession, word: string): Promise<void> {
   await client.send('Input.insertText', { text: word });
 }
 
-async function readCanonical(page: Page): Promise<string> {
-  const arena = page.locator('[data-canonical]');
-  await expect(arena).not.toHaveAttribute('data-canonical', '');
-  return (await arena.getAttribute('data-canonical')) ?? '';
-}
-
 test.describe('input: composition (IME emulated through the DevTools protocol)', () => {
   test.skip(
     ({ browserName }) => browserName !== 'chromium',
@@ -89,7 +84,7 @@ test.describe('input: composition (IME emulated through the DevTools protocol)',
     const client = await page.context().newCDPSession(page);
 
     for (let i = 0; i < 10; i++) {
-      const canonical = await readCanonical(page);
+      const canonical = await canonicalOfPrompt(page);
       const glyph = await page.getByTestId('prompt-text').innerText();
       await composeWord(client, canonical);
       await expect(page.getByText(IME_NOTICE)).toHaveCount(0);

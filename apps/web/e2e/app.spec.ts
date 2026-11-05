@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { canonicalOfPrompt } from './lib/prompt';
 
 test.describe('focus redirection and keyboard-first typing', () => {
   test('(a) load, type immediately without clicking, the test starts', async ({ page }) => {
@@ -127,9 +128,8 @@ test.describe('focus redirection and keyboard-first typing', () => {
 
     // Type canonical answers for all 10 prompts
     for (let i = 0; i < 10; i++) {
-      const arena = page.locator('[data-canonical]');
-      await expect(arena).toBeVisible();
-      const canonical = await arena.getAttribute('data-canonical');
+      await expect(page.getByTestId('prompt-arena')).toBeVisible();
+      const canonical = await canonicalOfPrompt(page);
       const glyph = await page.getByTestId('prompt-text').innerText();
 
       if (i < 9) {
@@ -181,11 +181,9 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.getByTestId('prompt-text')).toHaveText(/^.{2,}$/);
 
     for (let i = 0; i < 10; i++) {
-      const arena = page.locator('[data-canonical]');
-      await expect(arena).toBeVisible();
-      // Wait until the lazily loaded words are on screen and the hint belongs to the prompt shown
-      await expect(arena).not.toHaveAttribute('data-canonical', '');
-      const canonical = await arena.getAttribute('data-canonical');
+      await expect(page.getByTestId('prompt-arena')).toBeVisible();
+      // Waits until the lazily loaded words are on screen, then answers for the prompt shown
+      const canonical = await canonicalOfPrompt(page);
       const glyph = await page.getByTestId('prompt-text').innerText();
       if (canonical) {
         await page.keyboard.type(canonical, { delay: 15 });
@@ -257,8 +255,7 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.locator('text=Revealed:')).toBeVisible();
 
     // Type canonical answer to complete the assisted prompt
-    const arena = page.locator('[data-canonical]');
-    const canonical = await arena.getAttribute('data-canonical');
+    const canonical = await canonicalOfPrompt(page);
     const firstGlyph = await page.getByTestId('prompt-text').innerText();
     if (canonical) {
       await page.keyboard.type(canonical, { delay: 15 });

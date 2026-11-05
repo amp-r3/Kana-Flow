@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { canonicalOfPrompt } from './lib/prompt';
 
 const RESTART = { name: 'Restart test' };
 
@@ -9,14 +10,16 @@ async function box(page: Page, testId: string) {
   return found;
 }
 
-// The canonical romaji of the prompt on display, from the attribute the stream keeps for tests.
-async function canonical(page: Page): Promise<string> {
-  const arena = page.getByTestId('prompt-arena');
-  await expect(arena).not.toHaveAttribute('data-canonical', '');
-  return (await arena.getAttribute('data-canonical')) ?? '';
-}
-
 test.describe('the text stream', () => {
+  test('keeps the answer out of the DOM: tests work it out from the prompt text', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
+    await expect(page.getByTestId('prompt-text')).not.toHaveText('');
+    await expect(page.locator('[data-canonical]')).toHaveCount(0);
+  });
+
   test('shows the prompt to type and the prompts after it, with the caret at the start', async ({
     page,
   }) => {
@@ -40,7 +43,7 @@ test.describe('the text stream', () => {
     const before = await caret.evaluate((el) => el.style.transform);
     const arenaBefore = await box(page, 'prompt-arena');
 
-    const word = await canonical(page);
+    const word = await canonicalOfPrompt(page);
     await page.keyboard.type(word, { delay: 20 });
 
     // The first prompt is typed: its token is in the typed colour, the caret moved on.
