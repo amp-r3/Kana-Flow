@@ -39,7 +39,7 @@ The prompt picker and weight functions are not part of the engine: they live in 
 ## Key technical decisions
 
 - **Deployment goes to the Cloudflare Pages project `nekotype`, origin `nekotype.pages.dev`.** The origin changed from `kana-flow.pages.dev` before launch (ADR 025): there were no users, so no data is carried over. The API runs as Pages Functions: `functions/api/[[route]].ts` mounts the Hono app with a D1 binding. Single origin: no CORS; session cookie `HttpOnly; Secure; SameSite=Lax`.
-- **Routing of requests.** `_routes.json` includes only `/api/*`, so static requests never invoke Functions. `_redirects` rewrites each known SPA route (`/learn`, `/stats`, `/settings`, `/about`) to `/index.html` with status 200. Any other unknown path, including a missing `/assets/*` file, returns the baseline `404.html` with status 404.
+- **Routing of requests.** `_routes.json` includes only `/api/*`, so static requests never invoke Functions. `_redirects` rewrites each known SPA route (`/learn`, `/stats`, `/settings`, `/about`) to `/` with status 200 ([ADR 039](../adr/039-redirects-rewrite-to-root.md)): Pages redirects `/index.html` to `/`, so a rewrite to it ends on the trainer. Any other unknown path, including a missing `/assets/*` file, returns the baseline `404.html` with status 404.
 - **Router:** a dependency-free client router on the History API. All routes except `/` are lazy-loaded.
 - **Training sessions:** `createSession(deps)` factory instead of global stores (D17). `Clock`, `Scheduler`, `Rng` and storage are injected, keeping tests deterministic.
 - **Validation:** valibot schemas in `shared` are used by the server only. The client imports shared/types and shared/runtime only, so schemas and valibot are not bundled.
