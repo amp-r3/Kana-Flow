@@ -21,8 +21,7 @@ export type StreamRefs = {
  * Binds a rendered stream to the session. The view renders when `drawn` changes, once per completed
  * prompt; everything a keystroke changes goes through the writer by signal effects, with no render
  * (docs/spec/frontend.md, "Hot path"). The root also carries what tests read: `data-phase`,
- * `data-canonical` (the hint for the prompt on display) and `data-rejected`, which is set by a
- * rejected key and cleared by the next accepted one.
+ * `data-rejected`, which is set by a rejected key and cleared by the next accepted one.
  */
 export function useStreamBinding(
   session: Session,
@@ -99,10 +98,6 @@ export function useStreamBinding(
     const phase = session.phase.value;
     writerRef.current?.setIdle(phase !== 'running');
     refs.root.current?.setAttribute('data-phase', phase);
-  });
-
-  useSignalEffect(() => {
-    refs.root.current?.setAttribute('data-canonical', session.canonicalRomaji.value);
   });
 
   useSignalEffect(() => {

@@ -69,3 +69,4 @@ Append-only log of architectural decisions, one file per decision.
 | [042](042-zen-test-and-finish-key.md)                                                | The Zen Test and Its Finish Key                                                              | In force             |
 | [043](043-keystroke-latency-gate-and-stepwise-publishing.md)                         | Keystroke Latency Gate and Stepwise Stream Publishing                                        | In force             |
 | [044](044-row-names-are-romaji.md)                                                   | Kana Row Names Are Romaji                                                                    | In force             |
+| [045](045-e2e-on-production-bundle-and-gated-deploy.md)                              | e2e on the Production Bundle, and a Deploy Gated by a Smoke Test                             | In force             |

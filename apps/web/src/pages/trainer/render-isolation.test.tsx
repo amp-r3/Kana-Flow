@@ -140,7 +140,8 @@ describe('render isolation: the hot path renders nothing', () => {
   it('writes the stream to the DOM instead: classes, and the attributes tests read', async () => {
     const arena = container.querySelector('[data-testid="prompt-arena"]');
     expect(arena?.getAttribute('data-phase')).toBe('idle');
-    expect(arena?.getAttribute('data-canonical')).toBe('neko');
+    // The answer is not in the DOM: tests work it out from the prompt's text.
+    expect(arena?.hasAttribute('data-canonical')).toBe(false);
     expect(arena?.getAttribute('data-rejected')).toBeNull();
 
     await press('n');

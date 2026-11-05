@@ -103,7 +103,7 @@ pnpm run format:check # prettier --check .
 pnpm test             # vitest run in every package (engine with a coverage threshold)
 pnpm run build        # vite production build into apps/web/dist
 pnpm run budget       # check-budget.mjs (size budgets from the Vite manifest)
-pnpm run e2e          # Playwright (Chromium, and WebKit in mobile emulation)
+pnpm run e2e          # Playwright on the production bundle (Chromium, WebKit in mobile emulation), then the latency test
 ```
 
 Fonts are subset by hand, not in CI: `pnpm --filter @nekotype/web run fonts` downloads the pinned sources into `apps/web/scripts/font-src/` (ignored by git), checks their SHA-256 and rewrites `glyphs.txt` and the `woff2` files in `apps/web/src/assets/fonts/` (ADR 034).
@@ -116,17 +116,17 @@ To install the browser binary and run the E2E suite:
 
 ```bash
 pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit    # One-time install of the browsers
-pnpm run e2e                        # Run Playwright E2E suite against Vite dev server
+pnpm run e2e                        # Run the Playwright suite against the production bundle (vite build + vite preview)
 ```
 
 ### Git Hooks
 
 `pnpm install --frozen-lockfile` runs the `prepare` script, which points Git at the versioned hooks in `.githooks/`. No extra dependencies are involved.
 
-| Hook         | Runs                                                                                                               | Notes                                                                                                                                                                                                                          |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                                                                                                                    |
-| `pre-push`   | `pnpm run verify` (includes e2e); `prettier --check` only if the push changes only `.md` files                     | Runs the e2e against its own Vite server on port 5273 (`E2E_PORT`), never a dev server you keep running; needs `pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit` once (or `E2E_SKIP_WEBKIT=1`) |
+| Hook         | Runs                                                                                                               | Notes                                                                                                                                                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                                                                                                                                |
+| `pre-push`   | `pnpm run verify` (includes e2e); `prettier --check` only if the push changes only `.md` files                     | Runs the e2e against its own production build served on port 5273 (`E2E_PORT`), never a dev server you keep running; needs `pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit` once (or `E2E_SKIP_WEBKIT=1`) |
 
 CI still runs `verify` on every push and pull request; the hooks catch the same failures earlier. In an emergency, `git commit --no-verify` / `git push --no-verify` skips them.
 
@@ -162,8 +162,9 @@ Nekotype is a fully static SPA (`apps/web/dist/`, no backend, state in `localSto
 `.github/workflows/deploy.yml` runs on every push to `main` and on every pull request:
 
 1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e on Chromium and WebKit). Any failure blocks the deploy.
-2. `wrangler pages deploy apps/web/dist` — pushes to `main` go to production, PRs get a preview deployment. Fork PRs verify but never deploy, since they cannot read secrets.
+2. `wrangler pages deploy apps/web/dist` — PRs get a preview deployment; a push to `main` is deployed first to the preview branch `release-candidate`. Fork PRs verify but never deploy, since they cannot read secrets.
 3. `scripts/smoke-deploy.mjs` requests the deployment that was just made (the address wrangler writes to `WRANGLER_OUTPUT_FILE_PATH`, else the branch alias): every route and its trailing-slash form must answer `200` with the application, a missing `/assets/*` file and an unknown path must answer `404` and not the application, and the bundle named by the entry page must load. These are behaviours of Cloudflare Pages that the dev server and the unit tests cannot show (ADR 039). Run it by hand against any address: `pnpm --filter @nekotype/web exec tsx scripts/smoke-deploy.mjs https://nekotype.pages.dev`.
+4. On `main` only, after the candidate passes: the same build is deployed to production and the smoke test runs against production again. A failed candidate stops the workflow before production (ADR 045).
 
 ### One-Time Setup
 

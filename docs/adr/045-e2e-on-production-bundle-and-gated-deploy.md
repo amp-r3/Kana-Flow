@@ -1,0 +1,10 @@
+# ADR 045: e2e on the Production Bundle, and a Deploy Gated by a Smoke Test
+
+- **Status:** In force.
+- **Context:** The e2e ran against the Vite development server, so the bundle users get was checked only by the smoke test after it was already in production (PR #35 admitted this). A bug that exists only in the minified build would reach users and merely be noticed at once. The Playwright configuration also started both servers every time, so running one e2e file built the latency probe. The stream wrote the answer to the production DOM (`data-canonical`) only so that tests could read it.
+- **Decision:**
+  1. The e2e (Chromium and WebKit in mobile emulation) run against `vite build` into `dist-e2e`, served by `vite preview`. The latency test has its own configuration, `playwright.latency.config.ts`, with the probe build in `dist-probe`; `pnpm run e2e` runs both, and one file runs only its own server.
+  2. On a push to `main` CI deploys to the preview branch `release-candidate`, smoke-tests it, deploys the same build to production and smoke-tests production again. A failed smoke test of the candidate stops the workflow before production. Pull requests are unchanged: a preview deployment and a smoke test.
+  3. `data-canonical` is removed from the DOM. The e2e work out the answer from the text of `prompt-text` with `createEngine(engineTable)` and `canonical()` (`e2e/lib/prompt.ts`). The spec defines the canonical spelling by the strict table, so reading hints do not change it.
+- **Justification:** The check that matters runs on what is shipped, before it is shipped. The candidate is a preview, so a broken build never replaces the working production one; the second smoke test catches a difference between the candidate and production itself. Tests that compute the answer need no test-only attribute in the product.
+- **Consequences:** `verify` builds the app one more time (`dist-e2e`, about ten seconds). The first production deploy after a failed candidate smoke test is not made; the fix is a new commit. The preview alias `release-candidate` always holds the latest `main` build.
