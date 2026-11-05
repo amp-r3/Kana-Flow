@@ -3,8 +3,10 @@ import type { Page } from '@playwright/test';
 import { canonicalOfPrompt } from './lib/prompt';
 
 // Keystroke latency (docs/spec/quality.md, "Budgets" and "Latency measurement"), measured by the
-// probe of the test build under 4x CPU throttling: 200 keystrokes in a timed test, three runs, the
-// median of the three p95 values against each budget.
+// probe of the test build under 4x CPU throttling on each kind of content: 200 keystrokes in a
+// timed test, three runs. Two checks per kind: the median of the three p95 values against the
+// budget, and the median of the three worst keystrokes against a ceiling (ADR 048). The p95 alone
+// cannot see the redraw of the text stream, which is about one key in sixty.
 const THROTTLE = 4;
 const RUNS = 3;
 const KEYSTROKES = 200;
@@ -13,6 +15,13 @@ const WRONG_EVERY = 25;
 const WORK_BUDGET_MS = 8;
 // Two frames at 60 Hz.
 const FRAME_BUDGET_MS = 2 * (1000 / 60);
+// The ceilings of the worst keystroke (the median of the three maxima), not to be loosened.
+const WORK_MAX_MS = 25;
+const FRAME_MAX_MS = 50;
+// Long enough that the test is still running after the slowest throttled run (about 15 s of keys).
+const TEST_SECONDS = 120;
+const CONTENTS = ['single', 'words', 'phrases'] as const;
+const DEFAULT_ROWS = ['vowels', 'k', 's', 't', 'n', 'h', 'm', 'y', 'r', 'w_n'];
 
 type Sample = { readonly work: number; readonly frame: number };
 
@@ -56,64 +65,99 @@ async function readSamples(page: Page): Promise<Sample[]> {
   });
 }
 
-test('keystroke latency stays within the budgets at 4x CPU throttling', async ({ page }) => {
-  const client = await page.context().newCDPSession(page);
-  await client.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
-
-  const workP95: number[] = [];
-  const frameP95: number[] = [];
-  const report: string[] = [];
-
-  for (let run = 1; run <= RUNS; run++) {
-    await page.goto('/');
-    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
-    await page.evaluate(() => {
-      const probe: unknown = Reflect.get(window, '__nekotypeProbe');
-      if (probe === null || typeof probe !== 'object') throw new Error('no probe');
-      const reset: unknown = Reflect.get(probe, 'reset');
-      if (typeof reset === 'function') Reflect.apply(reset, probe, []);
-    });
-
-    await typeKeystrokes(page, KEYSTROKES);
-    // The last frame's task has to arrive before the samples are read.
-    await page.waitForTimeout(200);
-
-    const samples = await readSamples(page);
-    const complete = samples.filter((s) => Number.isFinite(s.work) && Number.isFinite(s.frame));
-    expect(complete.length, `run ${run}: a sample for every keystroke`).toBe(KEYSTROKES);
-
-    const work = percentile(
-      complete.map((s) => s.work),
-      0.95,
+for (const content of CONTENTS) {
+  test(`keystroke latency stays within the budgets at 4x CPU throttling: ${content}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ content, seconds, rowIds }) => {
+        localStorage.setItem(
+          'kanaflow:settings:v1',
+          JSON.stringify({
+            v: 1,
+            script: 'hiragana',
+            content,
+            strictness: 'learner',
+            rowIds,
+            weakFocus: false,
+            test: { kind: 'time', seconds },
+          }),
+        );
+      },
+      { content, seconds: TEST_SECONDS, rowIds: DEFAULT_ROWS },
     );
-    const frame = percentile(
-      complete.map((s) => s.frame),
-      0.95,
-    );
-    workP95.push(work);
-    frameP95.push(frame);
-    const works = complete.map((s) => s.work);
-    const frames = complete.map((s) => s.frame);
+    const client = await page.context().newCDPSession(page);
+    await client.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+
+    const workP95: number[] = [];
+    const frameP95: number[] = [];
+    const workMax: number[] = [];
+    const frameMax: number[] = [];
+    const report: string[] = [];
+
+    for (let run = 1; run <= RUNS; run++) {
+      await page.goto('/');
+      await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
+      await page.evaluate(() => {
+        const probe: unknown = Reflect.get(window, '__nekotypeProbe');
+        if (probe === null || typeof probe !== 'object') throw new Error('no probe');
+        const reset: unknown = Reflect.get(probe, 'reset');
+        if (typeof reset === 'function') Reflect.apply(reset, probe, []);
+      });
+
+      await typeKeystrokes(page, KEYSTROKES);
+      // The last frame's task has to arrive before the samples are read.
+      await page.waitForTimeout(200);
+      // A test that ended early would make the numbers cover something else (a results screen).
+      await expect(
+        page.getByTestId('prompt-arena'),
+        `run ${run}: the ${TEST_SECONDS} s test is still running after ${KEYSTROKES} keys`,
+      ).toHaveAttribute('data-phase', 'running');
+
+      const samples = await readSamples(page);
+      const complete = samples.filter((s) => Number.isFinite(s.work) && Number.isFinite(s.frame));
+      expect(complete.length, `run ${run}: a sample for every keystroke`).toBe(KEYSTROKES);
+
+      const works = complete.map((s) => s.work);
+      const frames = complete.map((s) => s.frame);
+      const work = percentile(works, 0.95);
+      const frame = percentile(frames, 0.95);
+      workP95.push(work);
+      frameP95.push(frame);
+      workMax.push(Math.max(...works));
+      frameMax.push(Math.max(...frames));
+      report.push(
+        `${content} run ${run}: work p95 ${work.toFixed(2)} ms (median ${median(works).toFixed(2)}, max ${Math.max(...works).toFixed(2)}), ` +
+          `frame p95 ${frame.toFixed(2)} ms (median ${median(frames).toFixed(2)}, max ${Math.max(...frames).toFixed(2)})`,
+      );
+    }
+
+    const work = median(workP95);
+    const frame = median(frameP95);
+    const worstWork = median(workMax);
+    const worstFrame = median(frameMax);
     report.push(
-      `run ${run}: work p95 ${work.toFixed(2)} ms (median ${median(works).toFixed(2)}, max ${Math.max(...works).toFixed(2)}), ` +
-        `frame p95 ${frame.toFixed(2)} ms (median ${median(frames).toFixed(2)}, max ${Math.max(...frames).toFixed(2)})`,
+      `${content}, median of the p95 values: work ${work.toFixed(2)} ms (budget ${WORK_BUDGET_MS}), ` +
+        `frame ${frame.toFixed(2)} ms (budget ${FRAME_BUDGET_MS.toFixed(1)})`,
+      `${content}, median of the worst keystrokes: work ${worstWork.toFixed(2)} ms (ceiling ${WORK_MAX_MS}), ` +
+        `frame ${worstFrame.toFixed(2)} ms (ceiling ${FRAME_MAX_MS})`,
     );
-  }
+    // The numbers belong in the log of every run, not only in a failure.
+    test.info().annotations.push({ type: 'latency', description: report.join('\n') });
+    console.log(`\nKeystroke latency at ${THROTTLE}x CPU throttling\n${report.join('\n')}`);
 
-  const work = median(workP95);
-  const frame = median(frameP95);
-  report.push(
-    `median of the p95 values: work ${work.toFixed(2)} ms (budget ${WORK_BUDGET_MS}), ` +
-      `frame ${frame.toFixed(2)} ms (budget ${FRAME_BUDGET_MS.toFixed(1)})`,
-  );
-  // The numbers belong in the log of every run, not only in a failure.
-  test.info().annotations.push({ type: 'latency', description: report.join('\n') });
-  console.log(`\nKeystroke latency at ${THROTTLE}x CPU throttling\n${report.join('\n')}`);
-
-  expect(work, 'keystroke work, median of the three p95 values').toBeLessThanOrEqual(
-    WORK_BUDGET_MS,
-  );
-  expect(frame, 'keystroke to next frame, median of the three p95 values').toBeLessThanOrEqual(
-    FRAME_BUDGET_MS,
-  );
-});
+    expect(work, 'keystroke work, median of the three p95 values').toBeLessThanOrEqual(
+      WORK_BUDGET_MS,
+    );
+    expect(frame, 'keystroke to next frame, median of the three p95 values').toBeLessThanOrEqual(
+      FRAME_BUDGET_MS,
+    );
+    expect(worstWork, 'keystroke work, median of the three worst keystrokes').toBeLessThanOrEqual(
+      WORK_MAX_MS,
+    );
+    expect(
+      worstFrame,
+      'keystroke to next frame, median of the three worst keystrokes',
+    ).toBeLessThanOrEqual(FRAME_MAX_MS);
+  });
+}

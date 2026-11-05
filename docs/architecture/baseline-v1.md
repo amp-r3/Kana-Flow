@@ -275,7 +275,7 @@ Every commit and pull request must satisfy `pnpm run verify`, which CI also runs
    - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 20.77 KB Noto Sans JP 400, 10.66 and 10.69 KB JetBrains Mono 400/500, 9.38 and 9.55 KB Golos Text 400/500)
    - Total first load: ≤ 160 KB, including the SVG of the initial chunk, the logo (actual 102.39 KB)
    - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; there are no route chunks yet)
-7. **`pnpm run e2e` (`playwright test`)**: Chromium and WebKit (iPhone 13 emulation) against the production bundle (`vite build` into `dist-e2e`, served by `vite preview` on a port of its own, 5273; ADR 045), then the latency test (`playwright.latency.config.ts`): it runs a probe build (`pnpm run build:probe`, `vite preview`) with 4× CPU throttling and checks the keystroke p95 budgets (ADR 043). `check-budget` fails when `dist` contains the probe.
+7. **`pnpm run e2e` (`playwright test`)**: Chromium and WebKit (iPhone 13 emulation) against the production bundle (`vite build` into `dist-e2e`, served by `vite preview` on a port of its own, 5273; ADR 045), then the latency test (`playwright.latency.config.ts`): it runs a probe build (`pnpm run build:probe`, `vite preview`) with 4× CPU throttling and checks, for Single Kana, Words and Phrases, the keystroke p95 budgets and a ceiling on the worst keystroke (ADR 043, 048). `check-budget` fails when `dist` contains the probe.
 
 Git hooks run the same checks earlier (`pre-commit`: staged formatting, typecheck, lint, unit tests; `pre-push`: `verify`).
 

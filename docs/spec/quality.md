@@ -4,21 +4,23 @@ The baseline budgets are retained and extended with latency and lazy-chunk budge
 
 ## Budgets
 
-| Item                                                                | Budget                      | Baseline     | Checked by                                                       |
-| ------------------------------------------------------------------- | --------------------------- | ------------ | ---------------------------------------------------------------- |
-| HTML                                                                | ≤ 5 KB                      | 0.27 KB      | `check-budget.mjs`                                               |
-| Initial JS (gzip)                                                   | ≤ 35 KB                     | 24.0 KB      | `check-budget.mjs`                                               |
-| Initial CSS (gzip)                                                  | ≤ 10 KB                     | 5.0 KB       | `check-budget.mjs`                                               |
-| Noto Sans JP (kana only)                                            | ≤ 45 KB                     | 16.4 KB      | `check-budget.mjs`                                               |
-| JetBrains Mono                                                      | ≤ 45 KB                     | 14.9 KB      | `check-budget.mjs`                                               |
-| Golos Text                                                          | ≤ 45 KB                     | —            | `check-budget.mjs`                                               |
-| Total first load                                                    | ≤ 160 KB                    | 60.6 KB      | `check-budget.mjs`                                               |
-| Lazy route chunk (gzip)                                             | ≤ 25 KB                     | —            | `check-budget.mjs`                                               |
-| Content chunk (gzip)                                                | ≤ 40 KB                     | —            | `check-budget.mjs`                                               |
-| Keystroke work (handler + style + layout), p95 at 4× CPU throttling | ≤ 8 ms                      | 2.3 ms       | Playwright latency test                                          |
-| Keystroke → next frame, p95 at 4× CPU throttling                    | ≤ 2 frames (33 ms at 60 Hz) | 25 ms        | Playwright latency test                                          |
-| Component renders per keystroke                                     | 0; ≤ 1 on prompt completion | 0; 1         | Vitest render test                                               |
-| Lighthouse Performance, mobile profile                              | ≥ 95, median of 3 runs      | not measured | `@lhci/cli` on the production build served by vite preview in CI |
+| Item                                                                | Budget                      | Baseline     | End of P2    | Checked by                                                       |
+| ------------------------------------------------------------------- | --------------------------- | ------------ | ------------ | ---------------------------------------------------------------- |
+| HTML                                                                | ≤ 5 KB                      | 0.27 KB      | 0.44 KB      | `check-budget.mjs`                                               |
+| Initial JS (gzip)                                                   | ≤ 35 KB                     | 24.0 KB      | 33.42 KB     | `check-budget.mjs`                                               |
+| Initial CSS (gzip)                                                  | ≤ 10 KB                     | 5.0 KB       | 6.03 KB      | `check-budget.mjs`                                               |
+| Noto Sans JP (kana only)                                            | ≤ 45 KB                     | 16.4 KB      | 20.77 KB     | `check-budget.mjs`                                               |
+| JetBrains Mono                                                      | ≤ 45 KB                     | 14.9 KB      | 10.69 KB     | `check-budget.mjs`                                               |
+| Golos Text                                                          | ≤ 45 KB                     | —            | 9.55 KB      | `check-budget.mjs`                                               |
+| Total first load                                                    | ≤ 160 KB                    | 60.6 KB      | 102.39 KB    | `check-budget.mjs`                                               |
+| Lazy route chunk (gzip)                                             | ≤ 25 KB                     | —            | —            | `check-budget.mjs`                                               |
+| Content chunk (gzip)                                                | ≤ 40 KB                     | —            | —            | `check-budget.mjs`                                               |
+| Keystroke work (handler + style + layout), p95 at 4× CPU throttling | ≤ 8 ms                      | not measured | 2.3 ms       | Playwright latency test                                          |
+| Keystroke → next frame, p95 at 4× CPU throttling                    | ≤ 2 frames (33 ms at 60 Hz) | not measured | 25 ms        | Playwright latency test                                          |
+| Keystroke work, worst of 200 (median of 3 runs), 4× CPU throttling  | ≤ 25 ms                     | not measured | 15.9–19 ms   | Playwright latency test                                          |
+| Keystroke → next frame, worst of 200 (median of 3 runs), 4×         | ≤ 50 ms                     | not measured | 31.7–44.2 ms | Playwright latency test                                          |
+| Component renders per keystroke                                     | 0; ≤ 1 on prompt completion | 5            | 0; 1         | Vitest render test                                               |
+| Lighthouse Performance, mobile profile                              | ≥ 95, median of 3 runs      | not measured | not measured | `@lhci/cli` on the production build served by vite preview in CI |
 
 Sign-in and sync do not count toward the initial budget: the sync client and account screens are lazy-loaded.
 
@@ -31,7 +33,7 @@ The Event Timing API is not used: by default it reports only events longer than 
 1. **Work:** `performance.now()` on handler entry, and again after all state updates followed by a forced style and layout read (`getBoundingClientRect()` on the romaji buffer). The difference is the time the application spends on the keystroke and does not include waiting for a frame.
 2. **Next frame:** the time from handler entry to a `MessageChannel` task posted from the next `requestAnimationFrame` callback. It includes the wait for the next frame, which alone ranges from 0 to one frame interval, hence the 2-frame budget.
 
-The Playwright test enables 4× CPU throttling via the Chrome DevTools Protocol and types 200 keystrokes in a timed test. It runs 3 times; the median of the three p95 values is compared with each budget. The probe is excluded from the production build.
+The Playwright test enables 4× CPU throttling via the Chrome DevTools Protocol and types 200 keystrokes in a 120 s timed test, with the settings written explicitly, and fails when the test is no longer running at the end. It does so for each kind of content (Single Kana, Words, Phrases), 3 runs each. Two checks per kind: the median of the three p95 values is compared with each budget, and the median of the three worst keystrokes with a ceiling (work ≤ 25 ms, frame ≤ 50 ms). The ceiling exists because the redraw of the text stream happens about once in sixty keys and never reaches the p95; it is not loosened to make a run pass (ADR 048). The probe is excluded from the production build.
 
 ## Tests
 
