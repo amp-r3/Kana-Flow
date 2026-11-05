@@ -29,6 +29,8 @@ The primary metric is kana per minute (KPM); accuracy is measured per kana. The 
 
 **Conditions.** A test ended by `manual`, `idle` or `hidden` is saved only if at least one prompt is completed and `durationMs` is greater than 0. Otherwise it is discarded like a restart, and the application returns to a new test without a results screen.
 
+**Completed prompts (ADR 050).** When a zen test is finished by hand or a time test reaches its deadline, every prompt before the one on screen is completed, including one that ends in ん typed with a single `n`: the display has moved on once the live conversion reaches the end of the prompt. The partly typed prompt on screen is not completed. The live counter shows this number, so it equals the count in the result. A count test ends as in the table above.
+
 **Idle end (D24).**
 
 - The idle time is the code constant `IDLE_END_MS` = 5000. Zen is exempt. The check starts at the first keystroke, so a test that has not started never ends.

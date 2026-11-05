@@ -95,6 +95,26 @@ test.describe('zen: a test without a length, ended by hand', () => {
     await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
   });
 
+  test('keeps a test whose only prompt ends in ん, typed with a single n', async ({ page }) => {
+    await chooseZen(page);
+    await page.getByRole('radio', { name: 'Words' }).click();
+    const promptText = page.getByTestId('prompt-text');
+    // Restart until the prompt on display ends in ん.
+    for (let i = 0; i < 200 && !(await promptText.innerText()).endsWith('ん'); i++) {
+      await page.getByRole('button', { name: 'Restart test' }).click();
+    }
+    await expect(promptText).toHaveText(/ん$/);
+    // Restart keeps the focus on its button, where Enter would press it: type from the input.
+    await page.getByRole('textbox', { name: 'Kana input sink' }).focus();
+    const canonical = await canonicalOfPrompt(page);
+    expect(canonical.endsWith('nn')).toBe(true);
+
+    await page.keyboard.type(canonical.slice(0, -1), { delay: 20 });
+    await expect(page.getByTestId('live-counter')).toHaveText('1');
+    await page.keyboard.press('Control+Enter');
+    await expect(page.getByTestId('results-panel')).toBeVisible();
+  });
+
   test('Ctrl+Enter does nothing in a test that is not zen', async ({ page }) => {
     await page.goto('/');
     await typePrompts(page, 2);

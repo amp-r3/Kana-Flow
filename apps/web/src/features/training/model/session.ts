@@ -89,6 +89,9 @@ export type Session = {
   readonly phase: ReadonlySignal<Phase>;
   readonly metrics: ReadonlySignal<SessionMetrics | null>;
   readonly promptResults: ReadonlySignal<readonly PromptResult[]>;
+  // Prompts completed so far, as a test ending now would count them: every prompt before the one on
+  // screen (metrics.md, "Test end"). The live counter reads it; `promptResults` lags behind it.
+  readonly completedPrompts: ReadonlySignal<number>;
   readonly correctKeystrokes: ReadonlySignal<number>;
   readonly sessionStartedAt: ReadonlySignal<number>;
   // Committed tokens per minute and kana accuracy in percent, for the live strip (metrics.md).
@@ -134,7 +137,8 @@ export function createSession(deps: SessionDeps): Session {
 /**
  * Types a stream of prompts. The matcher holds a window of the displayed prompt and the next ones;
  * the next prompt is displayed as soon as the live conversion reaches the end of the current one,
- * and a result is recorded when `committedPrompts()` includes the prompt (spec D3, A15).
+ * and a result is recorded when `settledPrompts()` includes the prompt, or at the test's end for every
+ * prompt before the displayed one (spec D3, A15, metrics.md "Test end").
  *
  * Prompts are numbered from the start of the test ("absolute"); the matcher numbers them from the
  * first prompt of its window ("local"), which moves when `compact()` drops committed prompts.
@@ -146,7 +150,14 @@ class TrainingSession implements Session {
   private readonly _tickerNow = signal<number>(0);
   private readonly _phase = signal<Phase>('idle');
   private readonly _metrics = signal<SessionMetrics | null>(null);
-  private readonly _promptResults = signal<readonly PromptResult[]>([]);
+  // The results of the recorded prompts. They grow by one per prompt to the end of the test (O(n),
+  // ADR 050); `promptResults` copies them only when something reads it.
+  private results: PromptResult[] = [];
+  private readonly resultsMark = signal<{ list: PromptResult[]; count: number }>({
+    list: this.results,
+    count: 0,
+  });
+  private readonly _completedPrompts = signal<number>(0);
   private readonly _correctKeystrokes = signal<number>(0);
   private readonly _sessionStartedAt = signal<number>(0);
   private readonly _stream = signal<StreamSnapshot>(EMPTY_STREAM);
@@ -162,7 +173,12 @@ class TrainingSession implements Session {
   readonly tickerNow: ReadonlySignal<number> = this._tickerNow;
   readonly phase: ReadonlySignal<Phase> = this._phase;
   readonly metrics: ReadonlySignal<SessionMetrics | null> = this._metrics;
-  readonly promptResults: ReadonlySignal<readonly PromptResult[]> = this._promptResults;
+  readonly promptResults: ReadonlySignal<readonly PromptResult[]> = computed(() => {
+    // The copy is made only when a reader asks and the results changed.
+    const { list, count } = this.resultsMark.value;
+    return list.slice(0, count);
+  });
+  readonly completedPrompts: ReadonlySignal<number> = this._completedPrompts;
   readonly correctKeystrokes: ReadonlySignal<number> = this._correctKeystrokes;
   readonly sessionStartedAt: ReadonlySignal<number> = this._sessionStartedAt;
 
@@ -213,8 +229,10 @@ class TrainingSession implements Session {
   private readonly committedAt = new Map<number, number>();
   private readonly assisted = new Set<number>();
   private errorLog: ErrorLog = createErrorLog();
-  // Time of every accepted keystroke, indexed like the engine's keystroke indices.
+  // Time of the accepted keystrokes still needed, from the one numbered `keyBase` (the engine's
+  // keystroke indices count from the start of the test; compact() lets the older ones go).
   private keyTimes: number[] = [];
+  private keyBase = 0;
   // When the last recorded token ended; undefined until one is recorded.
   private lastTokenEnd: number | undefined = undefined;
   // The test config as it stood when the prompt was loaded; the test runs by it to its end.
@@ -245,6 +263,7 @@ class TrainingSession implements Session {
     this.assisted.clear();
     this.errorLog = createErrorLog();
     this.keyTimes = [];
+    this.keyBase = 0;
     this.lastTokenEnd = undefined;
     this.testConfig = this.config();
     this.committedPtr = 0;
@@ -318,7 +337,8 @@ class TrainingSession implements Session {
   private finishSession(): void {
     if (this._phase.value !== 'running') return;
     if (this.matcher !== null && this.matchState !== null) {
-      this.flushResults(this.promptBase + committedPrompts(this.matcher, this.matchState));
+      // Every prompt before the one on screen is completed, a final ん of it included (metrics.md).
+      this.flushResults(this.displayed);
     }
     this.clearTimers();
     this.finishTest(this.clock.now());
@@ -332,7 +352,7 @@ class TrainingSession implements Session {
     if (matcher === null || state === null) return;
 
     const now = this.clock.now();
-    const completed = this.promptBase + committedPrompts(matcher, state);
+    const completed = this.displayed;
     const elapsed = now - (this.keyTally.snapshot.firstAt ?? now);
     if (completed >= 1 && elapsed > 0) {
       this.finishSession();
@@ -353,6 +373,7 @@ class TrainingSession implements Session {
     this.matchState = null;
     this.prompts = [];
     this.keyTimes = [];
+    this.keyBase = 0;
     this.committedAt.clear();
     this.assisted.clear();
     this._isAssisted.value = false;
@@ -425,6 +446,7 @@ class TrainingSession implements Session {
     // The last prompt of a count test ends it as soon as the stream is complete.
     if (this.isFinalStream() && isComplete(matcher, state)) {
       this.flushResults(this.promptBase + this.prompts.length);
+      this._completedPrompts.value = this.recorded;
       this.finishSession();
       return;
     }
@@ -459,11 +481,7 @@ class TrainingSession implements Session {
 
   private finishTest(endTimeMs: number): void {
     this._phase.value = 'finished';
-    this._metrics.value = computeMetrics(
-      this.keyTally.snapshot,
-      this._promptResults.value,
-      endTimeMs,
-    );
+    this._metrics.value = computeMetrics(this.keyTally.snapshot, this.results, endTimeMs);
   }
 
   private resetState(): void {
@@ -472,7 +490,9 @@ class TrainingSession implements Session {
     this._correctKeystrokes.value = 0;
     this._committedTokens.value = 0;
     this._erroredTokens.value = 0;
-    this._promptResults.value = [];
+    this.results = [];
+    this.resultsMark.value = { list: this.results, count: 0 };
+    this._completedPrompts.value = 0;
     this._metrics.value = null;
     this.keyTally.reset();
     this.committedPtr = 0;
@@ -529,6 +549,7 @@ class TrainingSession implements Session {
     this._currentPrompt.value = this.prompts[local] ?? null;
     this._canonicalRomaji.value = matcher === null ? '' : canonical(matcher, local);
     this._isAssisted.value = this.assisted.has(this.displayed);
+    this._completedPrompts.value = this.displayed;
     this.publishStream(this.tokenBase + v.displayedTokens);
   }
 
@@ -595,10 +616,11 @@ class TrainingSession implements Session {
         // one to its last; one whose paths are still ambiguous ends now and starts where the
         // previous token ended. The first token of a test has no such keystroke: ms = 0 is no
         // measurement.
-        const end = timing === undefined ? endedAt : (this.keyTimes[timing.lastKey] ?? endedAt);
-        const since = timing === undefined ? this.lastTokenEnd : this.keyTimes[timing.firstKey - 1];
+        const end = timing === undefined ? endedAt : (this.keyTimeAt(timing.lastKey) ?? endedAt);
+        const since =
+          timing === undefined ? this.lastTokenEnd : this.keyTimeAt(timing.firstKey - 1);
         if (tokenOutcomes.length === 0 && timing !== undefined) {
-          startedAt = this.keyTimes[timing.firstKey] ?? endedAt;
+          startedAt = this.keyTimeAt(timing.firstKey) ?? endedAt;
         }
         this.lastTokenEnd = end;
         const tokenMistakes = this.errorLog.mistakes(t);
@@ -610,20 +632,18 @@ class TrainingSession implements Session {
         });
       }
 
-      this._promptResults.value = [
-        ...this._promptResults.value,
-        {
-          key: this.prompts[local]?.key ?? '',
-          startedAt,
-          endedAt,
-          mistakes,
-          assisted: this.assisted.has(this.recorded),
-          tokenOutcomes,
-        },
-      ];
+      this.results.push({
+        key: this.prompts[local]?.key ?? '',
+        startedAt,
+        endedAt,
+        mistakes,
+        assisted: this.assisted.has(this.recorded),
+        tokenOutcomes,
+      });
       this.stats.record(tokenOutcomes);
       this.recorded += 1;
     }
+    this.resultsMark.value = { list: this.results, count: this.results.length };
   }
 
   // Drops settled prompts after every COMPACT_EVERY committed ones. They are the prompts that were
@@ -634,6 +654,15 @@ class TrainingSession implements Session {
     if (matcher === null || state === null || committed < COMPACT_EVERY) return;
     const result = compact(matcher, state);
     if (result.droppedTokens === 0) return;
+
+    // The keystrokes before the last one of the dropped tokens are not asked for any more: a token
+    // that stays is timed from the keystroke before its first one.
+    let keepFrom = this.keyBase;
+    for (const timing of committedTimings(matcher, state)) {
+      if (timing.tokenIndex < result.droppedTokens) keepFrom = Math.max(keepFrom, timing.lastKey);
+    }
+    this.keyTimes.splice(0, keepFrom - this.keyBase);
+    this.keyBase = keepFrom;
 
     const droppedPrompts = this.prompts.length - result.m.promptStarts.length;
     this.matcher = result.m;
@@ -649,6 +678,10 @@ class TrainingSession implements Session {
     for (const k of this.assisted) {
       if (k < this.promptBase) this.assisted.delete(k);
     }
+  }
+
+  private keyTimeAt(index: number): number | undefined {
+    return this.keyTimes[index - this.keyBase];
   }
 
   private clearTimers(): void {
