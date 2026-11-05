@@ -74,7 +74,7 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
 - Narrow `unknown` with type guards (`@nekotype/shared/runtime`); never cast.
 - Prettier: single quotes, trailing commas, 100 columns. The whole repository is formatted and `verify` checks it; run `pnpm run format` before committing.
 - Match the surrounding code: naming, comment density and idioms.
-- All user-visible strings, including `aria-label` values, come from `shared/i18n` (`en` and `ru` must keep key parity; a test checks it).
+- All user-visible strings, including `aria-label` values, come from `shared/i18n` (`en` and `ru` must keep key parity; a test checks it). Exception: kana row names are romaji from the kana table, the same in every language (ADR 044).
 - No new runtime dependency without a clear need: it counts against the JS budget.
 
 ## Input engine

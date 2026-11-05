@@ -79,6 +79,6 @@ Speed-test options stay in the config bar on `/`. The navigation holds the logo,
 
 ## Interface
 
-- All strings, including `aria-label` values, row names and chart titles, come from the i18n dictionaries.
+- All strings, including `aria-label` values and chart titles, come from the i18n dictionaries. Exception: kana row names are the romaji labels from the kana table, identical in every language ([ADR 044](../adr/044-row-names-are-romaji.md)).
 - The layout is responsive: every feature works on a phone; the primary layout target is desktop.
 - One dark theme; colours remain CSS-variable tokens so that themes can be added without structural changes.
