@@ -120,7 +120,6 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     expect(controller.mistake.value).toMatchObject({ kind: 'rejected', token: 1 });
     expect(controller.romajiBuffer.value).toBe('');
     expect(controller.caret.value).toBe(1);
-    expect(controller.mistakeCount.value).toBe(1);
 
     // 4. Key 'n' at time 1600: a bare n reaches the end of パン, so ねこ is shown, but the prompt
     // is not committed yet: the n may still turn out to be the first half of `nn`.
@@ -145,8 +144,7 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     // 6. User presses Esc (reveal) at time 2000: charged to the prompt on screen
     clock.advance(300); // 2000
     controller.handleIntent({ kind: 'reveal' });
-    expect(controller.isAssisted.value).toBe(true);
-    expect(controller.mistakeCount.value).toBe(2); // 1 rejected + 1 reveal
+    expect(controller.isAssisted.value).toBe(true); // 1 rejected + 1 reveal
 
     // 7. 'e' at time 2200 settles it: ん was a bare n. パン is recorded, ended by the key that
     // committed it (time 1700).
@@ -183,7 +181,7 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
       }
     }
 
-    // Automatically finished on the 10th prompt without calling finishSession()!
+    // Automatically finished on the 10th prompt by itself!
     expect(controller.phase.value).toBe('finished');
 
     const m = controller.metrics.value;
@@ -197,10 +195,9 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     expect(m.mistakes).toBe(2);
     // Live counters match computeMetrics derived output
     expect(controller.correctKeystrokes.value).toBe(m.correct);
-    expect(controller.mistakeCount.value).toBe(m.mistakes);
   });
 
-  it('count test (10 prompts) auto-finishes on the last prompt without calling finishSession()', () => {
+  it('count test (10 prompts) auto-finishes on the last prompt by itself', () => {
     setTestConfig({ kind: 'count', prompts: 10 });
     const prompt: PromptItem = { key: 'basic:a', text: 'あ' };
     const controller = createSession({
@@ -217,7 +214,7 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
       controller.handleIntent({ kind: 'char', char: 'a' });
     }
 
-    // Must be finished automatically without calling finishSession()
+    // Must be finished automatically by itself
     expect(controller.phase.value).toBe('finished');
     expect(controller.metrics.value).not.toBeNull();
     expect(controller.metrics.value?.promptsCompleted).toBe(10);
@@ -242,7 +239,6 @@ describe('session: timing, lifecycle and scripted typing sessions', () => {
     const second = controller.mistake.value;
     expect(second).toMatchObject({ kind: 'rejected', token: 0 });
     expect(second?.seq).toBeGreaterThan(first?.seq ?? 0);
-    expect(controller.mistakeCount.value).toBe(2);
   });
 
   it('time test ends mid-prompt at deadline with partial prompt keystrokes counted', () => {
@@ -456,7 +452,6 @@ describe('session: prompt stream (spec D3, A15)', () => {
     controller.loadPrompt(hon, 'learner');
     type(controller, 'hon');
     type(controller, 'x');
-    expect(controller.mistakeCount.value).toBe(1);
     type(controller, 'ne');
     expect(controller.promptResults.value).toHaveLength(1);
     expect(controller.promptResults.value[0]?.mistakes).toBe(0);
@@ -475,10 +470,8 @@ describe('session: prompt stream (spec D3, A15)', () => {
     controller.loadPrompt(neko, 'learner');
     controller.handleIntent({ kind: 'reveal' });
     expect(controller.phase.value).toBe('idle');
-    expect(controller.mistakeCount.value).toBe(1);
     type(controller, 'n');
     expect(controller.phase.value).toBe('running');
-    expect(controller.mistakeCount.value).toBe(1);
   });
 
   it('an Esc while the ん of the previous prompt is undecided is charged to the prompt on screen', () => {
@@ -493,7 +486,6 @@ describe('session: prompt stream (spec D3, A15)', () => {
     type(controller, 'hon');
     expect(controller.currentPrompt.value?.text).toBe('ねこ');
     controller.handleIntent({ kind: 'reveal' });
-    expect(controller.mistakeCount.value).toBe(1);
     type(controller, 'neko');
     const [first, second] = controller.promptResults.value;
     expect(first?.mistakes).toBe(0);
@@ -550,7 +542,8 @@ describe('session: prompt stream (spec D3, A15)', () => {
     });
     controller.loadPrompt(n, 'learner');
     type(controller, 'nn');
-    controller.finishSession();
+    scheduler.advance(15000);
+    expect(controller.phase.value).toBe('finished');
     expect(controller.promptResults.value[0]?.tokenOutcomes[0]?.ms).toBe(0);
   });
 
@@ -703,10 +696,8 @@ describe('session: live indicators and independence (D17)', () => {
 
     expect(first.phase.value).toBe('running');
     expect(first.correctKeystrokes.value).toBe(1);
-    expect(first.mistakeCount.value).toBe(1);
     expect(second.phase.value).toBe('idle');
     expect(second.correctKeystrokes.value).toBe(0);
-    expect(second.mistakeCount.value).toBe(0);
     expect(second.currentPrompt.value?.text).toBe('ねこ');
 
     typeAt(second, 'n', 1200);
@@ -715,6 +706,61 @@ describe('session: live indicators and independence (D17)', () => {
     expect(first.phase.value).toBe('idle');
     expect(second.phase.value).toBe('running');
     expect(second.romajiBuffer.value).toBe('n');
+  });
+
+  it('two sessions write the outcomes of their prompts to their own statistics', () => {
+    const recordedA: number[] = [];
+    const recordedB: number[] = [];
+    let flushedA = 0;
+    let flushedB = 0;
+    const sessionA = createSession({
+      nextPrompt: () => a,
+      config: () => ({ kind: 'time', seconds: 15 }),
+      clock,
+      scheduler,
+      stats: { record: (o) => recordedA.push(o.length), flush: () => (flushedA += 1) },
+    });
+    const sessionB = createSession({
+      nextPrompt: () => neko,
+      config: () => ({ kind: 'time', seconds: 15 }),
+      clock,
+      scheduler,
+      stats: { record: (o) => recordedB.push(o.length), flush: () => (flushedB += 1) },
+    });
+    sessionA.loadPrompt(a, 'learner');
+    sessionB.loadPrompt(neko, 'learner');
+
+    typeAt(sessionA, 'a', 1000);
+    scheduler.advance(15000);
+    expect(sessionA.phase.value).toBe('finished');
+    expect(recordedA).toEqual([1]);
+    expect(flushedA).toBe(1);
+    expect(recordedB).toEqual([]);
+    expect(flushedB).toBe(0);
+  });
+
+  it('a change of the test config in the middle of a test does not affect it', () => {
+    let config: TestConfig = { kind: 'time', seconds: 15 };
+    const session = make(
+      () => a,
+      () => config,
+    );
+    session.loadPrompt(a, 'learner');
+    config = { kind: 'count', prompts: 10 };
+    typeAt(session, 'a', 1000);
+    // Still a time test: one prompt does not end it, the deadline does.
+    expect(session.phase.value).toBe('running');
+    scheduler.advance(15000);
+    expect(session.phase.value).toBe('finished');
+  });
+
+  it('loadPrompt without reset() publishes a new stream', () => {
+    const session = make(() => a);
+    session.loadPrompt(a, 'learner');
+    const before = session.stream.value;
+    session.loadPrompt(neko, 'learner');
+    expect(session.stream.value).not.toBe(before);
+    expect(session.stream.value.prompts[0]?.tokens).toHaveLength(2);
   });
 
   it('each session reads its own test config: one ends on a timer, the other does not', () => {
@@ -744,7 +790,6 @@ describe('session: live indicators and independence (D17)', () => {
     session.reset();
     session.loadPrompt(a, 'learner');
     expect(session.correctKeystrokes.value).toBe(0);
-    expect(session.mistakeCount.value).toBe(0);
     expect(session.liveKpm.value).toBe(0);
     expect(session.liveAccuracy.value).toBe(100);
     expect(session.metrics.value).toBeNull();

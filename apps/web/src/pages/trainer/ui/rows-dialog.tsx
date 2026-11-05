@@ -6,7 +6,6 @@ import { allKanaRows } from '@/entities/prompt';
 import {
   rowIdsSetting,
   scriptSetting,
-  contentSetting,
   toggleRow,
   selectAllRows,
   clearRows,
@@ -26,9 +25,7 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
 
   const selectedRows = new Set(rowIdsSetting.value);
   const currentScript = scriptSetting.value;
-  const currentContent = contentSetting.value;
 
-  const isContentDisabled = currentContent !== 'single';
   const isHiraganaOnly = currentScript === 'hiragana';
 
   const handleToggle = (rowId: RowId) => {
@@ -56,31 +53,17 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
 
   return (
     <Dialog open={open} onClose={onClose} title={t('app.rows')} closeLabel={t('dialog.close')}>
-      {isContentDisabled && (
-        <div className="text-fur-dim text-ui-label">{t('dialog.contentDisabled')}</div>
-      )}
-
       {warningMessage && <div className="text-miss text-ui-label">{warningMessage}</div>}
 
       {/* Preset actions */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleSelectAll}
-          disabled={isContentDisabled}
-        >
+        <Button variant="secondary" size="sm" onClick={handleSelectAll}>
           {t('dialog.selectAll')}
         </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleGojuonOnly}
-          disabled={isContentDisabled}
-        >
+        <Button variant="secondary" size="sm" onClick={handleGojuonOnly}>
           {t('dialog.gojuonOnly')}
         </Button>
-        <Button variant="ghost" size="sm" onClick={handleClear} disabled={isContentDisabled}>
+        <Button variant="ghost" size="sm" onClick={handleClear}>
           {t('dialog.clear')}
         </Button>
       </div>
@@ -89,7 +72,7 @@ export function RowsDialog({ open, onClose }: RowsDialogProps): JSX.Element {
       <div className="flex flex-col gap-5 py-2">
         {CATEGORIES.map((cat) => {
           const rowsInCat = allKanaRows.filter((r) => r.category === cat);
-          const isCategoryDisabled = isContentDisabled || (cat === 'extended' && isHiraganaOnly);
+          const isCategoryDisabled = cat === 'extended' && isHiraganaOnly;
 
           return (
             <div key={cat} className="flex flex-col gap-2">

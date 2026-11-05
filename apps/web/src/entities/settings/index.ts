@@ -23,7 +23,6 @@ export {
   setStrictness,
   setWeakFocus,
   setTestConfig,
-  toggleWeakFocus,
   toggleRow,
   selectAllRows,
   clearRows,

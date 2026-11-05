@@ -97,7 +97,6 @@ export const ru = {
   'dialog.clear': 'Сбросить выбор',
   'dialog.gojuonOnly': 'Только Годзюон',
   'dialog.atLeastOneRow': 'Хотя бы один ряд должен быть выбран',
-  'dialog.contentDisabled': 'Выбор рядов доступен только в режиме одиночных кана',
   'dialog.extendedDisabled': 'Расширенная катакана недоступна в режиме только хираганы',
   'reset.title': 'Сброс прогресса',
   'reset.confirm': 'Вы уверены, что хотите удалить всю статистику точности и времени?',

@@ -14,7 +14,7 @@ import {
   strictnessSetting,
   testConfig,
 } from '@/entities/settings';
-import { progressStats } from '@/entities/stats';
+import { flushProgress, progressStats, recordTokenOutcomes } from '@/entities/stats';
 import type { Clock, Rng, Scheduler } from '@/shared/lib';
 import { defaultClock, defaultRng, defaultScheduler } from '@/shared/lib';
 
@@ -93,6 +93,7 @@ export function createTrainer(deps: TrainerDeps = {}): Trainer {
     scheduler: deps.scheduler ?? defaultScheduler,
     // The prompts of the selected content are not here yet: nothing to type.
     inputBlocked: () => isLoadingContent.peek(),
+    stats: { record: recordTokenOutcomes, flush: flushProgress },
     // A zen test ended with nothing to keep: a fresh prompt, as after a restart.
     onDiscard: () => {
       restart();
