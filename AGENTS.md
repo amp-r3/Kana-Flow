@@ -55,7 +55,7 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
   When the maintainer says to merge, squash-merge with `gh pr merge --squash --delete-branch`.
 - Git hooks live in `.githooks/`:
   - `pre-commit`: `prettier --check` on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
-  - `pre-push`: `pnpm run verify` (which includes e2e).
+  - `pre-push`: `pnpm run verify` (which includes e2e); when only Markdown files changed, `prettier --check` instead. Do not run `verify` by hand before pushing: the hook does it.
 - Never bypass hooks with `--no-verify` unless the maintainer explicitly asks. If a hook fails, fix the cause.
 - CI (`.github/workflows/deploy.yml`) runs `verify` on every push and PR and deploys with wrangler.
 
