@@ -73,3 +73,4 @@ Append-only log of architectural decisions, one file per decision.
 | [046](046-trainer-lifecycle-and-content-loading.md)                                  | Trainer Lifecycle and Vocabulary Loading                                                     | In force             |
 | [047](047-stream-trimmed-by-whole-lines.md)                                          | Text Stream Trimmed by Whole Lines                                                           | In force             |
 | [048](048-worst-keystroke-latency-gate.md)                                           | Worst-Keystroke Latency Gate on Every Content Kind                                           | In force             |
+| [049](049-session-boundaries.md)                                                     | Session Boundaries: Injected Statistics, Config Read Once, Private Finish                    | In force             |

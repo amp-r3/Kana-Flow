@@ -15,7 +15,6 @@ import {
   setContent,
   setStrictness,
   setWeakFocus,
-  toggleWeakFocus,
   toggleRow,
   selectAllRows,
   clearRows,
@@ -91,7 +90,7 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
     setWeakFocus(false);
     expect(weakFocusSetting.value).toBe(false);
 
-    toggleWeakFocus();
+    setWeakFocus(true);
     expect(weakFocusSetting.value).toBe(true);
   });
 

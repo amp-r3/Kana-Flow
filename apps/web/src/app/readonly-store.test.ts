@@ -47,7 +47,6 @@ export type _CheckPromptResults = AssertFalse<IsWritable<Session['promptResults'
 export type _CheckCorrectKeystrokes = AssertFalse<
   IsWritable<Session['correctKeystrokes'], 'value'>
 >;
-export type _CheckMistakeCount = AssertFalse<IsWritable<Session['mistakeCount'], 'value'>>;
 export type _CheckSessionStartedAt = AssertFalse<IsWritable<Session['sessionStartedAt'], 'value'>>;
 export type _CheckLiveKpm = AssertFalse<IsWritable<Session['liveKpm'], 'value'>>;
 export type _CheckLiveAccuracy = AssertFalse<IsWritable<Session['liveAccuracy'], 'value'>>;
@@ -80,7 +79,6 @@ describe('store state: ReadonlySignal guarantees', () => {
     expect(dummyController.metrics.value).toBeNull();
     expect(dummyController.promptResults.value).toEqual([]);
     expect(dummyController.correctKeystrokes.value).toBe(0);
-    expect(dummyController.mistakeCount.value).toBe(0);
     expect(dummyController.sessionStartedAt.value).toBe(0);
     expect(dummyController.liveKpm.value).toBe(0);
     expect(dummyController.liveAccuracy.value).toBe(100);

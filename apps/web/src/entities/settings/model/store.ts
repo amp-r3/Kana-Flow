@@ -130,11 +130,6 @@ export function setTestConfig(config: TestConfig): void {
   notifyChange();
 }
 
-export function toggleWeakFocus(): void {
-  _weakFocusSetting.value = !_weakFocusSetting.value;
-  notifyChange();
-}
-
 // Domain rule: at least one row must stay selected!
 export function toggleRow(rowId: RowId): boolean {
   const current = _rowIdsSetting.value;

@@ -39,7 +39,6 @@ import {
   view,
 } from '@/entities/prompt';
 import type { TestConfig } from '@/entities/settings';
-import { recordTokenOutcomes, flushProgress } from '@/entities/stats';
 import type { Clock, Scheduler, TimeoutHandle } from '@/shared/lib';
 import { defaultClock, defaultScheduler } from '@/shared/lib';
 
@@ -50,10 +49,28 @@ const COMPACT_EVERY = 20;
 // show a figure that is only noise.
 const MIN_LIVE_MS = 1000;
 
+// Where a session writes what the typed prompts say about the kana. The session holds no store of
+// its own (D17): the trainer passes the real statistics, a session in a mode that must not change
+// them passes nothing.
+export type SessionStats = {
+  readonly record: (outcomes: readonly TokenOutcome[]) => void;
+  readonly flush: () => void;
+};
+
+type TokenOutcome = {
+  readonly kanaKey: string | null;
+  readonly mistakes: number;
+  readonly ms: number;
+};
+
+const NO_STATS: SessionStats = { record: () => undefined, flush: () => undefined };
+
 export type SessionDeps = {
   readonly nextPrompt: () => PromptItem;
-  // Read when a test starts, so a settings change takes effect on the next test.
+  // Read once per prompt loaded (`loadPrompt`), so a settings change takes effect on the next test.
   readonly config: () => TestConfig;
+  // Defaults to nothing: the results of the prompts are not stored.
+  readonly stats?: SessionStats;
   readonly clock?: Clock;
   readonly scheduler?: Scheduler;
   // While true, keys are ignored: the prompts to type are still loading.
@@ -73,7 +90,6 @@ export type Session = {
   readonly metrics: ReadonlySignal<SessionMetrics | null>;
   readonly promptResults: ReadonlySignal<readonly PromptResult[]>;
   readonly correctKeystrokes: ReadonlySignal<number>;
-  readonly mistakeCount: ReadonlySignal<number>;
   readonly sessionStartedAt: ReadonlySignal<number>;
   // Committed tokens per minute and kana accuracy in percent, for the live strip (metrics.md).
   readonly liveKpm: ReadonlySignal<number>;
@@ -96,7 +112,6 @@ export type Session = {
   setTrimPoint(token: number): void;
   loadPrompt(prompt: PromptItem, strictness: Strictness): void;
   handleIntent(intent: KeyIntent): void;
-  finishSession(): void;
   // Ends a zen test by hand (the Finish button, Ctrl/Cmd+Enter). It keeps the test when a prompt is
   // completed and time has passed, and drops it like a restart otherwise (metrics.md, "Test end").
   // Any other kind of test, and a test that has not started, ignore it.
@@ -112,6 +127,7 @@ export function createSession(deps: SessionDeps): Session {
     deps.scheduler ?? defaultScheduler,
     deps.onDiscard,
     deps.inputBlocked,
+    deps.stats ?? NO_STATS,
   );
 }
 
@@ -132,7 +148,6 @@ class TrainingSession implements Session {
   private readonly _metrics = signal<SessionMetrics | null>(null);
   private readonly _promptResults = signal<readonly PromptResult[]>([]);
   private readonly _correctKeystrokes = signal<number>(0);
-  private readonly _mistakeCount = signal<number>(0);
   private readonly _sessionStartedAt = signal<number>(0);
   private readonly _stream = signal<StreamSnapshot>(EMPTY_STREAM);
   private readonly _caret = signal<number>(0);
@@ -149,7 +164,6 @@ class TrainingSession implements Session {
   readonly metrics: ReadonlySignal<SessionMetrics | null> = this._metrics;
   readonly promptResults: ReadonlySignal<readonly PromptResult[]> = this._promptResults;
   readonly correctKeystrokes: ReadonlySignal<number> = this._correctKeystrokes;
-  readonly mistakeCount: ReadonlySignal<number> = this._mistakeCount;
   readonly sessionStartedAt: ReadonlySignal<number> = this._sessionStartedAt;
 
   readonly stream: ReadonlySignal<StreamSnapshot> = this._stream;
@@ -203,8 +217,8 @@ class TrainingSession implements Session {
   private keyTimes: number[] = [];
   // When the last recorded token ended; undefined until one is recorded.
   private lastTokenEnd: number | undefined = undefined;
-  // Mistakes made by Esc before the test started; startTest resets the counters.
-  private mistakesBeforeStart = 0;
+  // The test config as it stood when the prompt was loaded; the test runs by it to its end.
+  private testConfig: TestConfig;
 
   private deadlineTimeoutHandle: TimeoutHandle | null = null;
   private tickerIntervalHandle: TimeoutHandle | null = null;
@@ -216,7 +230,10 @@ class TrainingSession implements Session {
     private readonly scheduler: Scheduler,
     private readonly onDiscard: (() => void) | undefined,
     private readonly inputBlocked: (() => boolean) | undefined,
-  ) {}
+    private readonly stats: SessionStats,
+  ) {
+    this.testConfig = config();
+  }
 
   loadPrompt(prompt: PromptItem, strictness: Strictness): void {
     this.prompts = [prompt];
@@ -229,7 +246,7 @@ class TrainingSession implements Session {
     this.errorLog = createErrorLog();
     this.keyTimes = [];
     this.lastTokenEnd = undefined;
-    this.mistakesBeforeStart = 0;
+    this.testConfig = this.config();
     this.committedPtr = 0;
     this.tokenBase = 0;
     this.streamPrompts = [];
@@ -241,6 +258,8 @@ class TrainingSession implements Session {
     this.matchState = state;
     this.streamPrompts = streamPromptsOf(matcher, 0, this.promptBase, this.tokenBase);
     this._mistake.value = null;
+    // A stream of the old prompts may still stand: publish this one whatever shouldPublish says.
+    this._stream.value = EMPTY_STREAM;
     this.fillWindow();
     const v = view(matcher, state);
     this.showPrompt(v);
@@ -270,11 +289,7 @@ class TrainingSession implements Session {
         this._isAssisted.value = true;
         const target = errorTarget(matcher, state);
         this.errorLog.record(target, null, '');
-        if (this._phase.value === 'idle') this.mistakesBeforeStart += 1;
-        batch(() => {
-          this._mistakeCount.value += 1;
-          this.noteMistake(target, 'hint');
-        });
+        this.noteMistake(target, 'hint');
       }
       return;
     }
@@ -300,19 +315,20 @@ class TrainingSession implements Session {
     });
   }
 
-  finishSession(): void {
-    if (this.matcher !== null && this.matchState !== null && this._phase.value === 'running') {
+  private finishSession(): void {
+    if (this._phase.value !== 'running') return;
+    if (this.matcher !== null && this.matchState !== null) {
       this.flushResults(this.promptBase + committedPrompts(this.matcher, this.matchState));
     }
     this.clearTimers();
     this.finishTest(this.clock.now());
-    flushProgress();
+    this.stats.flush();
   }
 
   finish(): void {
     const matcher = this.matcher;
     const state = this.matchState;
-    if (this.config().kind !== 'zen' || this._phase.value !== 'running') return;
+    if (this.testConfig.kind !== 'zen' || this._phase.value !== 'running') return;
     if (matcher === null || state === null) return;
 
     const now = this.clock.now();
@@ -364,11 +380,9 @@ class TrainingSession implements Session {
     this.resetState();
     this._phase.value = 'running';
     this._sessionStartedAt.value = now;
-    // Mistakes made by Esc before the first key count for this test.
-    this._mistakeCount.value = this.mistakesBeforeStart;
 
     // If time test, arm deadline timer
-    const config = this.config();
+    const config = this.testConfig;
     if (config.kind === 'time') {
       this.deadlineTimeoutHandle = this.scheduler.setTimeout(() => {
         this.finishSession();
@@ -385,7 +399,6 @@ class TrainingSession implements Session {
   // Rejected: the view flashes the caret (`mistake`), and the key is charged to errorTarget() (D10, A34).
   private reject(matcher: Matcher, state: MatchState, char: string, now: number): void {
     this.keyTally.record(now, false);
-    this._mistakeCount.value += 1;
     const target = errorTarget(matcher, state);
     this.errorLog.record(target, matcher.tokens[target]?.kanaKey ?? null, char);
     this.noteMistake(target, 'rejected');
@@ -457,7 +470,6 @@ class TrainingSession implements Session {
     this._phase.value = 'idle';
     this._sessionStartedAt.value = 0;
     this._correctKeystrokes.value = 0;
-    this._mistakeCount.value = 0;
     this._committedTokens.value = 0;
     this._erroredTokens.value = 0;
     this._promptResults.value = [];
@@ -467,7 +479,7 @@ class TrainingSession implements Session {
   }
 
   private promptLimit(): number {
-    const config = this.config();
+    const config = this.testConfig;
     return config.kind === 'count' ? config.prompts : Number.POSITIVE_INFINITY;
   }
 
@@ -609,7 +621,7 @@ class TrainingSession implements Session {
           tokenOutcomes,
         },
       ];
-      recordTokenOutcomes(tokenOutcomes);
+      this.stats.record(tokenOutcomes);
       this.recorded += 1;
     }
   }

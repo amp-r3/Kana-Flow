@@ -8,6 +8,11 @@ import {
   testConfig,
 } from '@/entities/settings';
 
+// Reading a signal's value inside an effect is what subscribes to it.
+function readAll(...values: readonly unknown[]): number {
+  return values.length;
+}
+
 /**
  * Calls `onReset` whenever one of the six practice and test settings changes, but not for the
  * values present when it is set up. The settings slice cannot reset a session itself, so this is
@@ -17,17 +22,17 @@ export function setupSettingsResetWatcher(onReset: () => void): () => void {
   let isFirstRun = true;
 
   const dispose = effect(() => {
-    // Track all 6 practice and session configuration signals
-    const _tracked = [
+    // Subscribe to all six practice and test settings.
+    readAll(
       scriptSetting.value,
       contentSetting.value,
       strictnessSetting.value,
       rowIdsSetting.value,
       weakFocusSetting.value,
       testConfig.value,
-    ];
+    );
 
-    if (_tracked.length > 0 && isFirstRun) {
+    if (isFirstRun) {
       isFirstRun = false;
       return;
     }
