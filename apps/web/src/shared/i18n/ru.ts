@@ -66,7 +66,7 @@ export const ru = {
   'stage.finish': 'Завершить',
   'stage.revealed': 'Ответ: {answer}',
   'stage.contentLoading': 'Загрузка словаря...',
-  'stage.contentLoadError': 'Не удалось загрузить словарь, возврат к одиночным канам',
+  'stage.contentLoadError': 'Не удалось загрузить словарь. Пока он не загружен, тренируются каны.',
   'stage.noKanaForRows':
     'В выбранных рядах нет кан для этого письма. Пока тренируются основные ряды.',
 

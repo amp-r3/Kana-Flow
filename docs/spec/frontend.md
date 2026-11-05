@@ -46,6 +46,13 @@ The training screen consists of a Japanese text stream with a romaji buffer at t
 
 After the first render, on `requestIdleCallback`, the client prefetches all lazy route chunks and the content chunks matching the current settings. This keeps the application usable when the network drops after load.
 
+Vocabulary (words, phrases) is loaded per kind, and only the selected kind matters to the screen:
+
+- While the selected vocabulary loads, the stream is empty (it keeps its height), typing is ignored and a loading notice is shown. A chunk that arrives is cached; it restarts the test only if its kind is still selected.
+- A failed load never changes the content setting. The notice names the failure and offers Retry; until it succeeds, kana are practised from the fallback pool and typing is allowed. A failure of a kind that is not selected shows nothing.
+- Loading, error and "no kana for these rows" notices share one reserved slot above the stream, so none of them moves the text. The slot hides with the other interface while a test runs.
+- Leaving the training screen drops a running test without saving it (metrics.md, "Test end").
+
 ## UI architecture
 
 From P2 the interface follows the [Nekotype design system](../design/README.md) (A31, [ADR 031](../adr/031-adopt-the-nekotype-design-system.md)); no separate redesign is planned. Views stay separated from logic, so a later visual change does not touch behaviour.

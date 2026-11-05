@@ -101,8 +101,13 @@ describe('trainer: prompt source, restarts and content loading', () => {
     stop();
   });
 
-  it('a failed load reports it and falls back to single kana', async () => {
-    vi.spyOn(promptModule, 'loadContent').mockRejectedValue(new Error('chunk failed'));
+  // Spec "Loading" (frontend.md): a failed load keeps the setting; the fallback pool is used
+  // until Retry succeeds.
+  it('a failed load reports it, keeps the setting and practises kana until Retry', async () => {
+    const load = vi
+      .spyOn(promptModule, 'loadContent')
+      .mockRejectedValueOnce(new Error('chunk failed'))
+      .mockResolvedValue([word]);
     const trainer = createTrainer({ rng: { next: () => 0 } });
     const stop = trainer.start();
 
@@ -111,8 +116,152 @@ describe('trainer: prompt source, restarts and content loading', () => {
 
     expect(trainer.contentLoadFailed.value).toBe(true);
     expect(trainer.isLoadingContent.value).toBe(false);
-    expect(contentSetting.value).toBe('single');
+    expect(contentSetting.value).toBe('phrases');
+    // Typing is allowed on the fallback pool.
+    expect(trainer.session.currentPrompt.value).not.toBeNull();
+
+    trainer.retryContent();
+    expect(trainer.isLoadingContent.value).toBe(true);
+    expect(trainer.contentLoadFailed.value).toBe(false);
+    await flush();
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(trainer.contentLoadFailed.value).toBe(false);
+    expect(trainer.session.currentPrompt.value?.text).toBe('ねこ');
     stop();
+  });
+
+  it('a failure of a kind that is no longer selected shows nothing and keeps the test', async () => {
+    let fail: (error: Error) => void = () => {};
+    vi.spyOn(promptModule, 'loadContent').mockImplementation((kind) =>
+      kind === 'words'
+        ? new Promise((_, reject) => {
+            fail = reject;
+          })
+        : Promise.resolve([word]),
+    );
+    const trainer = createTrainer({ rng: { next: () => 0 } });
+    const stop = trainer.start();
+    setContent('words');
+    setContent('phrases');
+    await flush();
+    trainer.session.handleIntent({ kind: 'char', char: 'n' });
+    expect(trainer.session.phase.value).toBe('running');
+
+    fail(new Error('chunk failed'));
+    await flush();
+
+    expect(contentSetting.value).toBe('phrases');
+    expect(trainer.contentLoadFailed.value).toBe(false);
+    expect(trainer.session.phase.value).toBe('running');
+    stop();
+  });
+
+  it('a chunk that arrives late does not reset a running test of another content', async () => {
+    let resolveWords: (items: readonly ContentItem[]) => void = () => {};
+    vi.spyOn(promptModule, 'loadContent').mockReturnValue(
+      new Promise((r) => {
+        resolveWords = r;
+      }),
+    );
+    const trainer = createTrainer({ rng: { next: () => 0 } });
+    const stop = trainer.start();
+    setContent('words');
+    setContent('single');
+    trainer.session.handleIntent({ kind: 'char', char: 'a' });
+    const phase = trainer.session.phase.value;
+    expect(phase).toBe('running');
+
+    resolveWords([word]);
+    await flush();
+
+    expect(trainer.session.phase.value).toBe('running');
+    stop();
+  });
+
+  it('input is blocked and no prompt is shown while the selected content loads', async () => {
+    let resolve: (items: readonly ContentItem[]) => void = () => {};
+    vi.spyOn(promptModule, 'loadContent').mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    setContent('words');
+    const trainer = createTrainer({ rng: { next: () => 0 } });
+    const stop = trainer.start();
+    expect(trainer.isLoadingContent.value).toBe(true);
+    expect(trainer.session.currentPrompt.value).toBeNull();
+
+    trainer.session.handleIntent({ kind: 'char', char: 'n' });
+    expect(trainer.session.phase.value).toBe('idle');
+
+    resolve([word]);
+    await flush();
+    expect(trainer.session.currentPrompt.value?.text).toBe('ねこ');
+    trainer.session.handleIntent({ kind: 'char', char: 'n' });
+    expect(trainer.session.phase.value).toBe('running');
+    stop();
+  });
+
+  it("parallel loads do not clear each other's indicator", async () => {
+    const resolvers = new Map<string, (items: readonly ContentItem[]) => void>();
+    vi.spyOn(promptModule, 'loadContent').mockImplementation(
+      (kind) =>
+        new Promise((r) => {
+          resolvers.set(kind, r);
+        }),
+    );
+    const trainer = createTrainer({ rng: { next: () => 0 } });
+    const stop = trainer.start();
+    setContent('words');
+    setContent('phrases');
+    resolvers.get('words')?.([word]);
+    await flush();
+    expect(trainer.isLoadingContent.value).toBe(true);
+    resolvers.get('phrases')?.([word]);
+    await flush();
+    expect(trainer.isLoadingContent.value).toBe(false);
+    stop();
+  });
+
+  it('stop() ends a running test: no timers stay alive and the deadline does not fire', () => {
+    setTestConfig({ kind: 'time', seconds: 15 });
+    const live = new Set<number>();
+    let nextId = 1;
+    const deadlines: (() => void)[] = [];
+    const scheduler = {
+      setTimeout: (fn: () => void) => {
+        const id = nextId++;
+        live.add(id);
+        deadlines.push(() => {
+          if (live.has(id)) fn();
+        });
+        return { id };
+      },
+      clearTimeout: (h: { id: unknown }) => {
+        live.delete(Number(h.id));
+      },
+      setInterval: () => {
+        const id = nextId++;
+        live.add(id);
+        return { id };
+      },
+      clearInterval: (h: { id: unknown }) => {
+        live.delete(Number(h.id));
+      },
+    };
+    const trainer = createTrainer({
+      nextPrompt: () => ({ key: 'basic:a', text: 'あ' }),
+      scheduler,
+    });
+    const stop = trainer.start();
+    trainer.session.handleIntent({ kind: 'char', char: 'a' });
+    expect(live.size).toBeGreaterThan(0);
+
+    stop();
+
+    expect(live.size).toBe(0);
+    for (const run of deadlines) run();
+    expect(trainer.session.phase.value).not.toBe('finished');
   });
 
   it('a load that finishes after stop() does not touch the session', async () => {

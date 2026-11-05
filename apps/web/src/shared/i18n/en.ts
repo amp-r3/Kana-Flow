@@ -64,7 +64,7 @@ export const en = {
   'stage.finish': 'Finish',
   'stage.revealed': 'Revealed: {answer}',
   'stage.contentLoading': 'Loading vocabulary...',
-  'stage.contentLoadError': 'Failed to load content, reverted to Single Kana',
+  'stage.contentLoadError': 'Failed to load the vocabulary. Kana are practised until it loads.',
   'stage.noKanaForRows':
     'The selected rows have no kana for this script. Practising the basic rows instead.',
 
