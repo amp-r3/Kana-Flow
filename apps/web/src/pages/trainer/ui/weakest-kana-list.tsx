@@ -1,12 +1,6 @@
 import type { JSX } from 'preact';
 import { t } from '@/shared/i18n';
-
-export type WeakKanaItem = {
-  readonly key: string;
-  readonly glyph: string;
-  readonly romaji: string;
-  readonly mistakes: number;
-};
+import type { WeakKanaItem } from '@/features/training';
 
 export type WeakestKanaListProps = {
   readonly items: readonly WeakKanaItem[];

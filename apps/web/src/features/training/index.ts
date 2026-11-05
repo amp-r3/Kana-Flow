@@ -21,3 +21,7 @@ export { setupSettingsResetWatcher } from './model/settings-watcher';
 
 export type { PromptWeights } from './lib/prompt-weights';
 export { createPromptWeights } from './lib/prompt-weights';
+
+export type { WeakKanaItem } from './lib/weakest-kana';
+export { weakestKana } from './lib/weakest-kana';
+export { useTestInput } from './lib/use-test-input';

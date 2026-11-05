@@ -2,7 +2,14 @@ import type { ReadonlySignal } from '@preact/signals';
 import { signal } from '@preact/signals';
 import { allKanaRows } from '@nekotype/engine';
 import type { RowId, Strictness } from '@nekotype/engine';
-import type { PracticeSettings, ScriptMode, ContentKind, TestConfig } from './types';
+import type {
+  PracticeSettings,
+  ScriptMode,
+  ContentKind,
+  TestConfig,
+  TimeTestConfig,
+  CountTestConfig,
+} from './types';
 import type { KeyValueStore } from '@/shared/lib';
 import { DEFAULT_BASIC_ROWS, STORAGE_KEYS, isSettings, createDebouncedSaver } from '@/shared/lib';
 
@@ -12,7 +19,9 @@ function isRowId(id: string): id is RowId {
   return VALID_ROW_IDS.has(id);
 }
 
-export const DEFAULT_TEST_CONFIG: TestConfig = { kind: 'time', seconds: 30 };
+export const DEFAULT_TIME_TEST: TimeTestConfig = { kind: 'time', seconds: 30 };
+export const DEFAULT_COUNT_TEST: CountTestConfig = { kind: 'count', prompts: 25 };
+export const DEFAULT_TEST_CONFIG: TestConfig = DEFAULT_TIME_TEST;
 
 const _scriptSetting = signal<ScriptMode>('both');
 const _contentSetting = signal<ContentKind>('single');

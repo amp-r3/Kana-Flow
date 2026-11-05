@@ -15,6 +15,8 @@ import {
   setWeakFocus,
   testConfig,
   setTestConfig,
+  DEFAULT_TIME_TEST,
+  DEFAULT_COUNT_TEST,
 } from '@/entities/settings';
 import type { ScriptMode, ContentKind } from '@/entities/settings';
 import type { Strictness } from '@/entities/prompt';
@@ -48,9 +50,9 @@ export function ModePanel(): JSX.Element {
 
   const handleTestKindChange = (kind: 'time' | 'count' | 'zen') => {
     if (kind === 'time') {
-      setTestConfig({ kind: 'time', seconds: 30 });
+      setTestConfig(DEFAULT_TIME_TEST);
     } else if (kind === 'count') {
-      setTestConfig({ kind: 'count', prompts: 25 });
+      setTestConfig(DEFAULT_COUNT_TEST);
     } else {
       setTestConfig({ kind: 'zen' });
     }
