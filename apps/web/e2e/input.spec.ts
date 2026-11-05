@@ -51,6 +51,26 @@ test.describe('input: layouts', () => {
   });
 });
 
+test.describe('input: keys that belong to the browser', () => {
+  test('Ctrl+Enter on a link is not cancelled and keeps the focus', async ({ page }) => {
+    await page.goto('/');
+    const link = page.getByRole('navigation').getByRole('link').first();
+    await link.focus();
+    const prevented = await link.evaluate((el) => {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      el.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(prevented).toBe(false);
+    await expect(link).toBeFocused();
+  });
+});
+
 async function compose(client: CDPSession, text: string): Promise<void> {
   await client.send('Input.imeSetComposition', {
     text,
@@ -116,6 +136,32 @@ test.describe('input: composition (IME emulated through the DevTools protocol)',
 
     // Turned off, the next real key hides it.
     await page.keyboard.press('KeyA');
+    await expect(page.getByText(IME_NOTICE)).toHaveCount(0);
+  });
+
+  test('a Japanese IME that is on does not start the test with its first letter', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const client = await page.context().newCDPSession(page);
+
+    await compose(client, 'k');
+    await compose(client, 'か');
+    await client.send('Input.insertText', { text: 'か' });
+    await expect(page.getByText(IME_NOTICE)).toBeVisible();
+    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
+  });
+
+  test('a Latin composition after kana hides the notice', async ({ page }) => {
+    await page.goto('/');
+    const client = await page.context().newCDPSession(page);
+
+    await compose(client, 'か');
+    await client.send('Input.insertText', { text: 'か' });
+    await expect(page.getByText(IME_NOTICE)).toBeVisible();
+
+    // The layout was switched: a Latin vowel in a composition proves the IME is off.
+    await compose(client, 'a');
     await expect(page.getByText(IME_NOTICE)).toHaveCount(0);
   });
 

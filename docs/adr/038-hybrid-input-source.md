@@ -1,6 +1,6 @@
 # ADR 038: Hybrid Input Source
 
-- **Status:** In force. Supersedes the `event.code` fallback of the baseline (D15) and [ADR 013](013-trailing-extension-absorption-and-desktop-input-normalization-features.md) for input.
+- **Status:** In force; amended by [ADR 051](051-input-source-rules.md) (composition, held keys, Ctrl/Cmd+Enter). Supersedes the `event.code` fallback of the baseline (D15) and [ADR 013](013-trailing-extension-absorption-and-desktop-input-normalization-features.md) for input.
 - **Context:** Input came from `keydown` only. A mobile keyboard reports `Unidentified` there, so a phone could not type; a Cyrillic layout was translated silently by the physical key (`event.code`); and the Japanese IME notice appeared on any composition, including the Latin composition of Gboard. The spec ([Frontend](../spec/frontend.md), D14, D15) asks for a hybrid source and a layout notice.
 - **Decision:**
   - **Three paths into one intent stream.** `keydown` with a Latin letter, `-` or `'` is handled at once and cancelled (desktop). `beforeinput` of type `insertText` is handled and cancelled when it is cancelable (iOS, most mobile keyboards). When it is not (Gboard composition), `input` compares the field with the last value seen and processes only what was added at its end. Anything else (a replacement, a deletion, a paste) is not typing.

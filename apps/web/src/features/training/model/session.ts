@@ -119,6 +119,8 @@ export type Session = {
   // completed and time has passed, and drops it like a restart otherwise (metrics.md, "Test end").
   // Any other kind of test, and a test that has not started, ignore it.
   finish(): void;
+  /** Whether `finish()` would end the test now: a zen test that is running. */
+  canFinish(): boolean;
   reset(): void;
 };
 
@@ -343,6 +345,16 @@ class TrainingSession implements Session {
     this.clearTimers();
     this.finishTest(this.clock.now());
     this.stats.flush();
+  }
+
+  canFinish(): boolean {
+    return (
+      this.testConfig.kind === 'zen' &&
+      this._phase.value === 'running' &&
+      this.matcher !== null &&
+      this.matchState !== null &&
+      !this.inputBlocked?.()
+    );
   }
 
   finish(): void {

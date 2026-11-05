@@ -34,6 +34,7 @@ export function useTestInput(session: Session): TestInput {
         onIntent: (intent) => {
           session.handleIntent(intent);
         },
+        canFinish: () => session.canFinish(),
       }),
     [session],
   );
