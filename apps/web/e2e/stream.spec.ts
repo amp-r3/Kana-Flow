@@ -101,6 +101,113 @@ test.describe('the text stream', () => {
   });
 });
 
+// Types the prompts as they come until `count` keys were pressed.
+async function typeKeys(page: Page, count: number): Promise<void> {
+  let pressed = 0;
+  while (pressed < count) {
+    for (const key of await canonicalOfPrompt(page)) {
+      if (pressed >= count) return;
+      await page.keyboard.press(key);
+      pressed += 1;
+    }
+    await page.waitForTimeout(0);
+  }
+}
+
+type Redraw = { readonly shared: number; readonly moved: number; readonly caretGlide: number };
+
+// Records every redraw of the stream (tokens added or removed): how far the tokens it keeps moved on
+// the screen, and how far the caret is from where it was placed, which is not zero while it glides.
+async function watchRedraws(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const view = document.querySelector('.nk-test__text');
+    const inner = document.querySelector('.nk-test__inner');
+    const caret = document.querySelector('.nk-caret');
+    if (view === null || inner === null || caret === null) throw new Error('no stream');
+    const positions = () => {
+      const origin = view.getBoundingClientRect();
+      const result = new Map<string, [number, number]>();
+      for (const token of inner.querySelectorAll<HTMLElement>('[data-token]')) {
+        const r = token.getBoundingClientRect();
+        result.set(token.dataset['token'] ?? '', [r.left - origin.left, r.top - origin.top]);
+      }
+      return result;
+    };
+    const redraws: unknown[] = [];
+    Reflect.set(window, '__redraws', redraws);
+    let before = positions();
+    addEventListener('keyup', () => (before = positions()), true);
+    new MutationObserver(() => {
+      const after = positions();
+      // A key may scroll the block by a line before the redraw, which moves every token alike: what
+      // must not change is where the kept tokens are relative to each other.
+      let shared = 0;
+      let moved = 0;
+      let anchor: [number, number, number, number] | undefined;
+      for (const [token, [x, y]] of after) {
+        const old = before.get(token);
+        if (old === undefined) continue;
+        shared += 1;
+        anchor ??= [old[0], old[1], x, y];
+        if (
+          Math.abs(old[0] - anchor[0] - (x - anchor[2])) > 0.5 ||
+          Math.abs(old[1] - anchor[1] - (y - anchor[3])) > 0.5
+        ) {
+          moved += 1;
+        }
+      }
+      // The matrix of the caret as it is now against the one it was given.
+      const at = (value: string) => value.match(/-?[\d.]+(?=px|[,)])/g)?.map(Number) ?? [];
+      const shown = at(getComputedStyle(caret).transform);
+      const placed = at((caret as HTMLElement).style.transform);
+      // `matrix(a, b, c, d, x, y)` or `matrix3d(…)` with x and y at 12 and 13.
+      const [x, y] = shown.length === 16 ? [shown[12] ?? 0, shown[13] ?? 0] : shown.slice(4, 6);
+      const caretGlide =
+        Math.abs((x ?? 0) - (placed[0] ?? 0)) + Math.abs((y ?? 0) - (placed[1] ?? 0));
+      redraws.push({ shared, moved, caretGlide });
+      before = after;
+    }).observe(inner, { childList: true });
+  });
+}
+
+async function readRedraws(page: Page): Promise<Redraw[]> {
+  const raw: unknown = await page.evaluate(() => Reflect.get(window, '__redraws'));
+  if (!Array.isArray(raw)) throw new Error('no redraws recorded');
+  return raw.map((r: Redraw) => ({ shared: r.shared, moved: r.moved, caretGlide: r.caretGlide }));
+}
+
+test.describe('redrawing the stream', () => {
+  for (const content of ['Single Kana', 'Words']) {
+    test(`${content}: the text does not move under the fingers and the caret does not glide`, async ({
+      page,
+    }) => {
+      await page.goto('/');
+      await page.getByRole('radio', { name: content }).click();
+      await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
+      await expect(page.getByTestId('prompt-text')).not.toHaveText('');
+      // Words come in a chunk of their own, and keys are ignored until it is in.
+      if (content === 'Words') await expect(page.getByTestId('translation')).not.toHaveText('');
+      await watchRedraws(page);
+
+      await typeKeys(page, 260);
+      await page.waitForTimeout(150);
+
+      const redraws = await readRedraws(page);
+      // Steps, not every prompt: a few redraws in 260 keys, and some of them trimmed the text.
+      expect(redraws.length).toBeGreaterThan(0);
+      expect(redraws.length).toBeLessThan(20);
+      expect(
+        redraws.filter((r) => r.shared > 0 && r.moved > 0),
+        'tokens kept by a redraw changed place',
+      ).toEqual([]);
+      expect(
+        redraws.filter((r) => r.caretGlide > 0.5),
+        'the caret glided across the screen after a redraw',
+      ).toEqual([]);
+    });
+  }
+});
+
 test.describe('the interface while a test runs', () => {
   test('starting a test hides the navigation, the modes and the footer without moving the text', async ({
     page,

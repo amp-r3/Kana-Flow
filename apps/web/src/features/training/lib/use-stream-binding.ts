@@ -18,8 +18,8 @@ export type StreamRefs = {
 };
 
 /**
- * Binds a rendered stream to the session. The view renders when `drawn` changes, once per completed
- * prompt; everything a keystroke changes goes through the writer by signal effects, with no render
+ * Binds a rendered stream to the session. The view renders when `drawn` changes, which is a step of
+ * the window and not every prompt (model/stream.ts); everything a keystroke changes goes through the writer by signal effects, with no render
  * (docs/spec/frontend.md, "Hot path"). The root also carries what tests read: `data-phase`,
  * `data-rejected`, which is set by a rejected key and cleared by the next accepted one.
  */
@@ -48,7 +48,12 @@ export function useStreamBinding(
         flash: flash.current,
         buffer: buffer.current,
       },
-      { lines },
+      {
+        lines,
+        onTrim: (token) => {
+          session.setTrimPoint(token);
+        },
+      },
     );
     writerRef.current = writer;
     shownMistake.current = session.mistake.peek()?.seq ?? 0;

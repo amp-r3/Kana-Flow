@@ -1,6 +1,6 @@
 # ADR 043: Keystroke Latency Gate and Stepwise Stream Publishing
 
-- **Status:** In force. Refines [ADR 040](040-text-stream-window-and-dom-writer.md) (when the stream changes).
+- **Status:** In force. Refines [ADR 040](040-text-stream-window-and-dom-writer.md) (when the stream changes). The trim rule (more than `MAX_BEHIND_TOKENS` behind the caret, 30 kept) is replaced by [ADR 047](047-stream-trimmed-by-whole-lines.md): it cut the text mid-line and re-wrapped it under the user's fingers. In this ADR the trim is measured from the end of the first drawn prompt, not as "60 tokens behind the caret" the wording suggests.
 - **Context:** The spec ([Quality](../spec/quality.md)) requires a keystroke p95 of at most 8 ms of work and at most 2 frames to the next paint at 4× CPU throttling. The first measurement failed: 9.2 ms of work. The cause was not the keystroke itself but the DOM mutation and layout on every completed prompt, because `stream` changed each time the caret moved to the next prompt.
 - **Decision:**
   - **Stepwise publishing.** `stream` is replaced only when `shouldPublish` says so: fewer than `MIN_AHEAD_TOKENS` (44) tokens are left ahead of the caret, or more than `MAX_BEHIND_TOKENS` (60) are behind it. The matcher still holds up to `AHEAD_TOKENS` (72) and keeps `BEHIND_TOKENS` (30) after a redraw. Most prompt completions change no DOM.

@@ -12,7 +12,7 @@ export type TextStreamProps = {
 
 /**
  * The text stream: the prompts around the caret, the caret and the romaji buffer. It renders when
- * a prompt enters or leaves the window, once per completed prompt, and never on a keystroke:
+ * the window of prompts is published (model/stream.ts), a step every few dozen keys, and never on a keystroke:
  * `useStreamBinding` writes those to the DOM. The markup has no child component, so that one render
  * is one component render. The contract with the writer is in `lib/stream-dom.ts`.
  */

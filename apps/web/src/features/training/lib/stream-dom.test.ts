@@ -365,3 +365,94 @@ describe('stream writer: the rejected key, the blink and the window focus', () =
     local.root.remove();
   });
 });
+
+describe('stream writer: trimming by lines and measuring again', () => {
+  let elements: StreamElements;
+  let writer: StreamWriter;
+
+  afterEach(() => {
+    writer.destroy();
+    elements.root.remove();
+    Reflect.deleteProperty(document, 'fonts');
+    vi.restoreAllMocks();
+  });
+
+  // 12 tokens at five a line: lines start at 100, 105 and 110.
+  const setup = (onTrim: (token: number) => void): void => {
+    elements = render(SPECS, FIRST);
+    writer = createStreamWriter(elements, {
+      lines: 3,
+      measure: () => measurementOf(SPECS.length),
+      onTrim,
+    });
+  };
+
+  it('reports the first token of the line above the caret when the caret changes line', () => {
+    const onTrim = vi.fn<(token: number) => void>();
+    setup(onTrim);
+    writer.sync({ caret: 100, errored: new Set() });
+    expect(onTrim).toHaveBeenLastCalledWith(100);
+
+    writer.setCaret(107); // second line: the line above is the first
+    expect(onTrim).toHaveBeenLastCalledWith(100);
+    writer.setCaret(111); // third line: the second line starts at 105
+    expect(onTrim).toHaveBeenLastCalledWith(105);
+  });
+
+  it('reports once per line, not on every move of the caret', () => {
+    const onTrim = vi.fn<(token: number) => void>();
+    setup(onTrim);
+    writer.sync({ caret: 110, errored: new Set() });
+    onTrim.mockClear();
+    writer.setCaret(111);
+    writer.setCaret(111);
+    expect(onTrim).not.toHaveBeenCalled();
+  });
+
+  it('reports again after a measurement, which may have moved the lines', () => {
+    const onTrim = vi.fn<(token: number) => void>();
+    setup(onTrim);
+    writer.sync({ caret: 111, errored: new Set() });
+    onTrim.mockClear();
+    writer.measure();
+    expect(onTrim).toHaveBeenCalledTimes(1);
+  });
+
+  it('places the caret without a transition: the class is on while it is placed, gone after', () => {
+    setup(vi.fn());
+    const calls: string[] = [];
+    const { classList } = elements.root;
+    const add = classList.add.bind(classList);
+    const remove = classList.remove.bind(classList);
+    vi.spyOn(classList, 'add').mockImplementation((...names: string[]) => {
+      calls.push(`add ${names.join()}`);
+      add(...names);
+    });
+    vi.spyOn(classList, 'remove').mockImplementation((...names: string[]) => {
+      calls.push(`remove ${names.join()}`);
+      remove(...names);
+    });
+    writer.sync({ caret: 103, errored: new Set() });
+    expect(calls).toEqual(['add is-placing', 'remove is-placing']);
+    expect(classList.contains('is-placing')).toBe(false);
+  });
+
+  it('measures again when a font finishes loading, and stops after it is destroyed', () => {
+    const fonts = new EventTarget();
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: Object.assign(fonts, { ready: Promise.resolve() }),
+    });
+    const measure = vi.fn(() => measurementOf(SPECS.length));
+    elements = render(SPECS, FIRST);
+    writer = createStreamWriter(elements, { lines: 3, measure });
+    measure.mockClear();
+
+    fonts.dispatchEvent(new Event('loadingdone'));
+    expect(measure).toHaveBeenCalledTimes(1);
+
+    writer.destroy();
+    fonts.dispatchEvent(new Event('loadingdone'));
+    expect(measure).toHaveBeenCalledTimes(1);
+  });
+});

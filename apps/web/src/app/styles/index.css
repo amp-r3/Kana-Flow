@@ -139,6 +139,11 @@ html {
   animation: blink var(--dur-blink) var(--ease-inout) infinite;
 }
 
+.nk-test.is-placing .nk-caret,
+.nk-test.is-placing .nk-test__buffer {
+  transition: none;
+}
+
 .nk-test__buffer {
   position: absolute;
   left: 0;

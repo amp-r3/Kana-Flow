@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lineOf, placeCaret, viewHeight } from './stream-layout';
+import { lineOf, placeCaret, trimIndex, viewHeight } from './stream-layout';
 import type { StreamMetrics, TokenBox } from './stream-layout';
 
 const metrics: StreamMetrics = {
@@ -84,5 +84,29 @@ describe('stream layout: the caret and the buffer', () => {
     expect(lineOf(undefined, 72)).toBe(0);
     expect(lineOf(boxes[7], 0)).toBe(0);
     expect(viewHeight(metrics)).toBe(3 * 72 + 12);
+  });
+});
+
+describe('stream layout: where whole lines can be cut', () => {
+  // Four tokens a line, lines of 72 px.
+  const boxes: TokenBox[] = Array.from({ length: 16 }, (_, i) => ({
+    x: (i % 4) * 40,
+    y: Math.floor(i / 4) * 72,
+    width: 40,
+  }));
+
+  it('starts at the line above the caret', () => {
+    expect(trimIndex(boxes, 3, 72)).toBe(8);
+    expect(trimIndex(boxes, 2, 72)).toBe(4);
+  });
+
+  it('keeps everything while the caret is on the first two lines', () => {
+    expect(trimIndex(boxes, 0, 72)).toBe(0);
+    expect(trimIndex(boxes, 1, 72)).toBe(0);
+  });
+
+  it('has nothing to cut without tokens or lines of no height', () => {
+    expect(trimIndex([], 5, 72)).toBe(0);
+    expect(trimIndex(boxes, 3, 0)).toBe(0);
   });
 });
