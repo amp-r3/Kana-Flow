@@ -87,7 +87,7 @@ A pair is stored only when `expected` is a `KanaKey`: a standalone っ and ー h
 - ん at the end of a prompt takes its context from the first token of the next prompt, using the same rules as inside a prompt. In relaxed mode a single n is additionally accepted at a boundary before any next spelling (A15).
 - ん before a skip token and ん at the end of the stream behave as "ん at the end": a single `n` completes it.
 - っ never merges across a prompt boundary or a skip token.
-- NFA positions MAY cross a prompt boundary. A prompt counts as completed when `committedPrompts()` includes it; its completion time is the time of the keystroke that committed it. The last prompt of a finite stream also counts as completed when `isComplete()` holds: `hon` ends a stream that ends in ほん, although the position that takes another `n` is still active.
+- NFA positions MAY cross a prompt boundary. A prompt counts as completed when `committedPrompts()` includes it; its completion time is the time of the keystroke that committed it. The last prompt of a finite stream also counts as completed when `isComplete()` holds: `hon` ends a stream that ends in ほん, although the position that takes another `n` is still active. When a zen test is ended by hand or a time test reaches its deadline, every prompt before the displayed one counts as completed, whether or not its final ん is settled (ADR 050); `committedPrompts()` still decides what is settled during the test.
 
 ## Accepted input
 

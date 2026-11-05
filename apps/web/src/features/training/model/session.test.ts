@@ -608,6 +608,57 @@ describe('session: prompt stream (spec D3, A15)', () => {
   });
 });
 
+describe('session: memory of a long test (ADR 050)', () => {
+  it('times the tokens of 1000 prompts right after compact() let the old keystrokes go', () => {
+    const clock = new FakeClock();
+    const scheduler = new FakeScheduler();
+    const hon: PromptItem = { key: 'word:hon', text: 'ほん' };
+    const session = createSession({
+      nextPrompt: () => hon,
+      config: () => ({ kind: 'zen' }),
+      clock,
+      scheduler,
+    });
+    session.loadPrompt(hon, 'learner');
+    for (let i = 0; i < 1000; i++) {
+      for (const char of session.canonicalRomaji.value) {
+        clock.advance(100);
+        session.handleIntent({ kind: 'char', char });
+      }
+    }
+    session.finish();
+
+    const results = session.promptResults.value;
+    expect(session.phase.value).toBe('finished');
+    expect(results).toHaveLength(1000);
+    const measured = results.flatMap((r) => r.tokenOutcomes).slice(1);
+    expect(measured.every((token) => token.ms === 100 || token.ms === 200)).toBe(true);
+    expect(results.at(-1)?.startedAt).toBeGreaterThan(results.at(-2)?.startedAt ?? 0);
+  });
+
+  it('copies the results only when they change', () => {
+    const clock = new FakeClock();
+    const a: PromptItem = { key: 'basic:a', text: 'あ' };
+    const session = createSession({
+      nextPrompt: () => a,
+      config: () => ({ kind: 'zen' }),
+      clock,
+      scheduler: new FakeScheduler(),
+    });
+    session.loadPrompt(a, 'learner');
+    clock.advance(100);
+    session.handleIntent({ kind: 'char', char: 'a' });
+    clock.advance(100);
+    session.handleIntent({ kind: 'char', char: 'a' });
+    const first = session.promptResults.value;
+    expect(session.promptResults.value).toBe(first);
+    clock.advance(100);
+    session.handleIntent({ kind: 'char', char: 'a' });
+    expect(session.promptResults.value).not.toBe(first);
+    expect(first).toHaveLength(2);
+  });
+});
+
 describe('session: live indicators and independence (D17)', () => {
   let clock: FakeClock;
   let scheduler: FakeScheduler;
@@ -1102,15 +1153,59 @@ describe('session: a zen test, and ending it by hand (metrics.md, Test end)', ()
     expect(session.phase.value).toBe('finished');
   });
 
-  it('counts the prompts that are committed, and a partial one is not a completed prompt', () => {
+  it('counts every prompt before the one on screen, and a partial one is not a completed prompt', () => {
     const session = make(zen, undefined, () => pan);
     session.loadPrompt(pan, 'learner');
-    press(session, 'pan'); // パ and the ん: the ん is still ambiguous, so the prompt is not committed
-    press(session, 'pa'); // the next prompt starts: the first is committed now
+    press(session, 'pan'); // パ and the ん: the next prompt is on screen now, though the ん is open
+    press(session, 'pa'); // the second prompt is partly typed
     session.finish();
 
     expect(session.phase.value).toBe('finished');
     expect(session.metrics.value?.promptsCompleted).toBe(1);
+  });
+
+  it('keeps a test whose only prompt ends in ん, typed with a single n (metrics.md, Test end)', () => {
+    const session = make(zen, undefined, () => pan);
+    session.loadPrompt(pan, 'learner');
+    press(session, 'pan');
+    expect(session.completedPrompts.value).toBe(1);
+    session.finish();
+
+    expect(session.phase.value).toBe('finished');
+    expect(session.promptResults.value).toHaveLength(1);
+    expect(session.metrics.value?.promptsCompleted).toBe(1);
+  });
+
+  it('counts the prompt on ん the same way when a time test ends on its deadline', () => {
+    const session = createSession({
+      nextPrompt: () => pan,
+      config: () => ({ kind: 'time', seconds: 15 }),
+      clock,
+      scheduler,
+    });
+    session.loadPrompt(pan, 'learner');
+    press(session, 'pan');
+    scheduler.advance(15000);
+
+    expect(session.phase.value).toBe('finished');
+    expect(session.metrics.value?.promptsCompleted).toBe(1);
+    expect(session.promptResults.value).toHaveLength(1);
+  });
+
+  it('shows the same number while it runs as the result holds at the end', () => {
+    const session = make(zen, undefined, () => pan);
+    session.loadPrompt(pan, 'learner');
+    expect(session.completedPrompts.value).toBe(0);
+    press(session, 'pan');
+    press(session, 'pan');
+    press(session, 'pa');
+    const shown = session.completedPrompts.value;
+    expect(shown).toBe(2);
+    session.finish();
+
+    expect(session.promptResults.value).toHaveLength(shown);
+    expect(session.metrics.value?.promptsCompleted).toBe(shown);
+    expect(session.completedPrompts.value).toBe(shown);
   });
 
   it('drops a test in which no prompt is completed, like a restart, with no result', () => {
