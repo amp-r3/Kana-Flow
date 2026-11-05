@@ -1,14 +1,15 @@
-import { placeCaret, viewHeight } from './stream-layout';
+import { placeCaret, trimIndex, viewHeight } from './stream-layout';
 import type { StreamMetrics, TokenBox } from './stream-layout';
 
 // Writes the text stream to the DOM without a component render (docs/spec/frontend.md, "Hot path").
-// A view renders the tokens once per completed prompt and hands the elements here; every keystroke
+// A view renders the tokens when the window changes and hands the elements here; every keystroke
 // then costs a few class and transform writes, and no layout read, because the positions are
 // measured only when the layout can have changed: after a render, on a resize and when the fonts
 // are in.
 //
 // The elements, as the view renders them:
-//   root    gets `is-blurred` while the window has lost focus
+//   root    gets `is-blurred` while the window has lost focus, and `is-placing` while the caret and
+//           the buffer are put in place after a measurement, so that they jump instead of gliding
 //   view    clips the text; its height is set here
 //   inner   holds the tokens, the caret and the buffer, and is scrolled by `translateY`
 //   tokens  `[data-token="<number from the start of the test>"]` inside inner, in order, with
@@ -44,6 +45,9 @@ export type StreamWriterOptions = {
   // Whether the user prefers reduced motion; read when a key is rejected. Defaults to the
   // browser's setting.
   readonly reducedMotion?: () => boolean;
+  // The first token (its number from the start of the test) of the line above the caret. Called when
+  // the caret changes line and after a measurement, with arithmetic on the measured boxes only.
+  readonly onTrim?: (token: number) => void;
 };
 
 /** What a stream is painted from: the model's state when it was rendered. */
@@ -86,11 +90,13 @@ function cssMilliseconds(element: Element, name: string, fallback: number): numb
   return raw.endsWith('ms') ? value : raw.endsWith('s') ? value * 1000 : fallback;
 }
 
-function prefersReducedMotion(): boolean {
+// The query is made once; its `matches` stays live.
+function reducedMotionQuery(): () => boolean {
   try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    return () => query.matches;
   } catch {
-    return false;
+    return () => false;
   }
 }
 
@@ -135,7 +141,7 @@ export function createStreamWriter(
 ): StreamWriter {
   const { root, view, inner, caret: caretElement, flash, buffer } = elements;
   const measureLayout = options.measure ?? readLayout;
-  const reducedMotion = options.reducedMotion ?? prefersReducedMotion;
+  const reducedMotion = options.reducedMotion ?? reducedMotionQuery();
 
   let tokens: readonly HTMLElement[] = [];
   let skip: readonly boolean[] = [];
@@ -152,6 +158,9 @@ export function createStreamWriter(
   let destroyed = false;
 
   const rejectMs = cssMilliseconds(root, '--dur-reject', DEFAULT_REJECT_MS);
+  const rejectEasing = getComputedStyle(root).getPropertyValue('--ease-in').trim() || 'ease-in';
+  // The line of the caret last reported to `onTrim`; NaN asks for a report at the next placement.
+  let reportedLine = Number.NaN;
 
   const paint = (token: number): void => {
     const index = token - first;
@@ -172,6 +181,10 @@ export function createStreamWriter(
     if (metrics === null) return;
     const placement = placeCaret(boxes, caret - first, shift, buffer.textContent.length, metrics);
     shift = placement.shift;
+    if (placement.line !== reportedLine) {
+      reportedLine = placement.line;
+      options.onTrim?.(first + trimIndex(boxes, placement.line, metrics.lineHeight));
+    }
     if (shift !== appliedShift) {
       appliedShift = shift;
       inner.style.transform = `translateY(${-shift * metrics.lineHeight}px)`;
@@ -187,7 +200,13 @@ export function createStreamWriter(
     metrics = result.metrics;
     view.style.height = `${viewHeight(metrics)}px`;
     caretElement.style.height = `${metrics.caretHeight}px`;
+    // The layout changed, so the caret goes to its new place at once: a transition would carry it
+    // across the screen. Flushing the style while the class is on makes the jump final.
+    reportedLine = Number.NaN;
+    root.classList.add('is-placing');
     place();
+    root.getBoundingClientRect();
+    root.classList.remove('is-placing');
   };
 
   const setWindowFocus = (on: boolean): void => {
@@ -205,9 +224,10 @@ export function createStreamWriter(
 
   const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
   observer?.observe(view);
-  if ('fonts' in document) {
-    void document.fonts.ready.then(measure);
-  }
+  // The fonts that arrive after the first measurement change the widths: measure again for each.
+  const fonts = 'fonts' in document ? document.fonts : null;
+  void fonts?.ready.then(measure);
+  fonts?.addEventListener('loadingdone', measure);
 
   return {
     sync(state) {
@@ -217,7 +237,8 @@ export function createStreamWriter(
       missed = new Set(state.errored);
       caret = state.caret;
       applied = [];
-      // The tokens at the top may have left, which moves the rest up: scroll from the start again.
+      // Whole lines have left the top, so the rest is a few lines higher in the block: scroll from
+      // the start again, which puts the caret's line where it was on the screen.
       shift = 0;
       appliedShift = Number.NaN;
       paintAll();
@@ -250,9 +271,7 @@ export function createStreamWriter(
         const animation = flash.animate([{ opacity: 1 }, { opacity: 0 }], {
           duration: rejectMs,
           // With reduced motion the colour holds for the whole time without fading.
-          easing: reducedMotion()
-            ? 'step-end'
-            : getComputedStyle(root).getPropertyValue('--ease-in').trim() || 'ease-in',
+          easing: reducedMotion() ? 'step-end' : rejectEasing,
         });
         // A cancelled animation rejects `finished`. A browser marks that promise as handled; a DOM
         // emulation may not, and the next rejected key cancels this flash.
@@ -273,6 +292,7 @@ export function createStreamWriter(
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('focus', onFocus);
       observer?.disconnect();
+      fonts?.removeEventListener('loadingdone', measure);
     },
   };
 }

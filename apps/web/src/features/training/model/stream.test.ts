@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { compile } from '@/entities/prompt';
 import type { PromptItem } from '@/entities/prompt';
 import {
-  BEHIND_TOKENS,
-  MAX_BEHIND_TOKENS,
+  HARD_BEHIND_TOKENS,
+  MIN_TRIM_TOKENS,
   MIN_AHEAD_TOKENS,
   lastToken,
   shouldPublish,
@@ -50,19 +50,14 @@ describe('stream: what leaves the window', () => {
     tokens: Array.from({ length: count }, () => ({ glyph: 'あ', skip: false })),
   });
 
-  it('drops the prompts that ended more than BEHIND_TOKENS before the caret', () => {
+  it('drops the prompts that end before the first token of the line above the caret', () => {
     // Prompts of 10 tokens: [0-9] [10-19] [20-29] [30-39] [40-49].
     const prompts = [0, 1, 2, 3, 4].map((i) => prompt(i, i * 10, 10));
-    // Caret at 45: stale = ends before 45 - 30 = 15, so only [0-9].
-    expect(staleCount(prompts, 45)).toBe(1);
-    // Caret at 60: ends before 30, so [0-9] [10-19] [20-29].
-    expect(staleCount(prompts, 60)).toBe(3);
-  });
-
-  it('keeps a prompt that ends exactly BEHIND_TOKENS behind', () => {
-    const prompts = [prompt(0, 0, 10), prompt(1, 10, 10)];
-    expect(staleCount(prompts, 9 + BEHIND_TOKENS)).toBe(0);
-    expect(staleCount(prompts, 9 + BEHIND_TOKENS + 1)).toBe(1);
+    expect(staleCount(prompts, 0)).toBe(0);
+    // A line starts at token 20: [0-9] and [10-19] leave.
+    expect(staleCount(prompts, 20)).toBe(2);
+    // The line starts inside a prompt that has not ended before it: that prompt stays.
+    expect(staleCount(prompts, 19)).toBe(1);
   });
 
   it('never drops the last prompt', () => {
@@ -102,20 +97,21 @@ describe('stream: when the view is given a new window', () => {
 
   it('does not publish for low tokens ahead when there is nothing more to show (the end of a test)', () => {
     // A short test: the whole text is published and the caret is near its end.
-    const published = run(0, MAX_BEHIND_TOKENS);
-    expect(shouldPublish(published, run(0, MAX_BEHIND_TOKENS), MAX_BEHIND_TOKENS - 2)).toBe(false);
+    const published = run(0, MIN_TRIM_TOKENS);
+    expect(shouldPublish(published, run(0, MIN_TRIM_TOKENS), MIN_TRIM_TOKENS - 2)).toBe(false);
   });
 
-  it('publishes to trim when the caret is far past the first published prompt', () => {
+  it('publishes to trim when MIN_TRIM_TOKENS can leave the head of the published window', () => {
+    // `current` is the window with its stale head cut.
     const published = run(0, 200);
-    const current = run(100, 100);
-    expect(shouldPublish(published, current, MAX_BEHIND_TOKENS)).toBe(false);
-    expect(shouldPublish(published, current, MAX_BEHIND_TOKENS + 1)).toBe(true);
+    expect(shouldPublish(published, run(MIN_TRIM_TOKENS - 1, 100), 100)).toBe(false);
+    expect(shouldPublish(published, run(MIN_TRIM_TOKENS, 100), 100)).toBe(true);
   });
 
   it('keeps the window it shows long enough to fill the lines of a wide screen', () => {
     // The widest screen shows about 40 tokens ahead of the caret.
     expect(MIN_AHEAD_TOKENS).toBeGreaterThanOrEqual(40);
-    expect(BEHIND_TOKENS).toBeLessThan(MAX_BEHIND_TOKENS);
+    // The cap is far beyond what whole lines leave behind.
+    expect(HARD_BEHIND_TOKENS).toBeGreaterThan(2 * MIN_TRIM_TOKENS);
   });
 });

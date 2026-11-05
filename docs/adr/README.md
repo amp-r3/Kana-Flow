@@ -71,3 +71,4 @@ Append-only log of architectural decisions, one file per decision.
 | [044](044-row-names-are-romaji.md)                                                   | Kana Row Names Are Romaji                                                                    | In force             |
 | [045](045-e2e-on-production-bundle-and-gated-deploy.md)                              | e2e on the Production Bundle, and a Deploy Gated by a Smoke Test                             | In force             |
 | [046](046-trainer-lifecycle-and-content-loading.md)                                  | Trainer Lifecycle and Vocabulary Loading                                                     | In force             |
+| [047](047-stream-trimmed-by-whole-lines.md)                                          | Text Stream Trimmed by Whole Lines                                                           | In force             |

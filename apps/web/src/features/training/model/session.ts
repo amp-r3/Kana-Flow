@@ -7,6 +7,7 @@ import type { Phase, PromptResult, SessionMetrics } from './types';
 import {
   AHEAD_TOKENS,
   EMPTY_STREAM,
+  HARD_BEHIND_TOKENS,
   MAX_WINDOW_PROMPTS,
   shouldPublish,
   staleCount,
@@ -89,6 +90,10 @@ export type Session = {
   readonly mistake: ReadonlySignal<Mistake | null>;
   // Tokens of the stream that have been charged an error (D11); read to paint a stream afresh.
   erroredTokens(): ReadonlySet<number>;
+  // The view reports the first token (absolute) of the line above the caret: what is before it can
+  // leave the stream without changing how the rest wraps (stream.ts). A view with no layout never
+  // calls it, and only the cap on the window applies.
+  setTrimPoint(token: number): void;
   loadPrompt(prompt: PromptItem, strictness: Strictness): void;
   handleIntent(intent: KeyIntent): void;
   finishSession(): void;
@@ -172,6 +177,8 @@ class TrainingSession implements Session {
   // The prompts drawn in the stream, which outlive their tokens in the matcher: the matcher drops
   // committed prompts, the stream keeps the line just typed on screen.
   private streamPrompts: StreamPrompt[] = [];
+  // The first token of the line above the caret, as the view last reported it; 0 until it does.
+  private trimBefore = 0;
   // Number, from the start of the test, of the matcher's first token; compact() raises it.
   private tokenBase = 0;
   private readonly erroredAbs = new Set<number>();
@@ -226,6 +233,7 @@ class TrainingSession implements Session {
     this.committedPtr = 0;
     this.tokenBase = 0;
     this.streamPrompts = [];
+    this.trimBefore = 0;
     this.erroredAbs.clear();
     const matcher = compile([prompt], strictness);
     const state = start(matcher);
@@ -334,6 +342,7 @@ class TrainingSession implements Session {
     this._isAssisted.value = false;
     this._canonicalRomaji.value = '';
     this.streamPrompts = [];
+    this.trimBefore = 0;
     this.tokenBase = 0;
     this.erroredAbs.clear();
     this._stream.value = EMPTY_STREAM;
@@ -345,6 +354,10 @@ class TrainingSession implements Session {
 
   erroredTokens(): ReadonlySet<number> {
     return this.erroredAbs;
+  }
+
+  setTrimPoint(token: number): void {
+    this.trimBefore = token;
   }
 
   private beginTest(now: number): void {
@@ -507,20 +520,22 @@ class TrainingSession implements Session {
     this.publishStream(this.tokenBase + v.displayedTokens);
   }
 
-  // Drops the prompts that ended long before the caret and publishes the window when the view needs
-  // it. Called when the displayed prompt changes; the view is redrawn at most once per completed
-  // prompt, and in practice every few.
+  // Publishes the window when the view needs it, cut to start at the line above the caret. Called
+  // when the displayed prompt changes; the view is redrawn at most once per completed prompt, and in
+  // practice every few dozen. What the view draws and the marks on its tokens change only here, so
+  // an old token keeps its red mark for as long as it is on the screen.
   private publishStream(caret: number): void {
-    const stale = staleCount(this.streamPrompts, caret);
-    if (stale > 0) this.streamPrompts.splice(0, stale);
+    const trim = Math.max(this.trimBefore, caret - HARD_BEHIND_TOKENS);
+    const stale = staleCount(this.streamPrompts, trim);
+    const current = stale > 0 ? this.streamPrompts.slice(stale) : this.streamPrompts;
+    // Not at every change: see stream.ts. The view is redrawn when the window is about to run out.
+    if (!shouldPublish(this._stream.value.prompts, current, caret)) return;
+    this.streamPrompts = current.slice();
     const head = this.streamPrompts[0]?.firstToken ?? 0;
     for (const token of this.erroredAbs) {
       if (token < head) this.erroredAbs.delete(token);
     }
-    // Not at every change: see stream.ts. The view is redrawn when the window is about to run out.
-    if (shouldPublish(this._stream.value.prompts, this.streamPrompts, caret)) {
-      this._stream.value = { prompts: [...this.streamPrompts] };
-    }
+    this._stream.value = { prompts: this.streamPrompts.slice() };
   }
 
   private updateCaret(v: EngineView): void {

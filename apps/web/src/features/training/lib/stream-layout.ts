@@ -21,6 +21,8 @@ export type StreamMetrics = {
 };
 
 export type Placement = {
+  // Line of the caret, counted from the first rendered token.
+  readonly line: number;
   // Lines scrolled off the top.
   readonly shift: number;
   readonly caret: { readonly x: number; readonly y: number };
@@ -52,6 +54,7 @@ export function placeCaret(
   const last = boxes.length - 1;
   if (last < 0) {
     return {
+      line: 0,
       shift: 0,
       caret: { x: 0, y: 0 },
       buffer: { x: 0, y: metrics.lineHeight - metrics.bufferLift },
@@ -61,7 +64,7 @@ export function placeCaret(
   const index = Math.min(Math.max(caretIndex, 0), boxes.length);
   const box = boxes[Math.min(index, last)];
   if (box === undefined) {
-    return { shift, caret: { x: 0, y: 0 }, buffer: { x: 0, y: 0 } };
+    return { line: 0, shift, caret: { x: 0, y: 0 }, buffer: { x: 0, y: 0 } };
   }
   const x = index <= last ? box.x : box.x + box.width;
 
@@ -73,6 +76,7 @@ export function placeCaret(
 
   const bufferWidth = bufferLength * metrics.bufferCharWidth;
   return {
+    line,
     shift: nextShift,
     caret: { x: x - 1, y: box.y + (metrics.lineHeight - metrics.caretHeight) / 2 },
     buffer: {
@@ -80,4 +84,21 @@ export function placeCaret(
       y: box.y + metrics.lineHeight - metrics.bufferLift,
     },
   };
+}
+
+/**
+ * Index into `boxes` of the first token of the line above `caretLine`, or of the first line when the
+ * caret is on it. Everything before it can leave the DOM without moving what is left: a line breaks
+ * only between prompts (`nowrap`) and breaks greedily from its start, so the lines after a line
+ * break are the same whatever precedes it (docs/spec/frontend.md, "Text stream").
+ */
+export function trimIndex(
+  boxes: readonly TokenBox[],
+  caretLine: number,
+  lineHeight: number,
+): number {
+  const target = caretLine - 1;
+  if (target <= 0) return 0;
+  const found = boxes.findIndex((box) => lineOf(box, lineHeight) >= target);
+  return Math.max(0, found);
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { createSession } from './session';
-import { AHEAD_TOKENS, BEHIND_TOKENS, MAX_BEHIND_TOKENS, MIN_AHEAD_TOKENS } from './stream';
+import { AHEAD_TOKENS, HARD_BEHIND_TOKENS, MIN_AHEAD_TOKENS, MIN_TRIM_TOKENS } from './stream';
 import type { Session } from './session';
 import { setupSettingsResetWatcher } from './settings-watcher';
 import { setTestConfig, testConfig } from '@/entities/settings';
@@ -882,8 +882,9 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
     }
 
     expect(session.caret.value).toBe(1000);
-    // One token per prompt: behind (up to the trim point) + ahead + the prompt on display.
-    expect(widest).toBeLessThanOrEqual(MAX_BEHIND_TOKENS + AHEAD_TOKENS + 5);
+    // One token per prompt, and a view with no layout reports no lines: only the cap on the tokens
+    // behind the caret applies, plus ahead and the prompt on display.
+    expect(widest).toBeLessThanOrEqual(HARD_BEHIND_TOKENS + MIN_TRIM_TOKENS + AHEAD_TOKENS + 5);
     const prompts = session.stream.value.prompts;
     for (let i = 1; i < prompts.length; i++) {
       const previous = prompts[i - 1];
@@ -894,7 +895,9 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
       );
     }
     const head = prompts[0];
-    expect(head && head.firstToken).toBeGreaterThanOrEqual(1000 - MAX_BEHIND_TOKENS - 2);
+    expect(head && head.firstToken).toBeGreaterThanOrEqual(
+      1000 - HARD_BEHIND_TOKENS - MIN_TRIM_TOKENS - 2,
+    );
   });
 
   it('a wrong key and a hint are charged to a token, by its number, and the mistake event is new each time', () => {
@@ -921,8 +924,36 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
     press(session, 'x');
     expect(session.erroredTokens().has(0)).toBe(true);
 
-    press(session, 'a'.repeat(BEHIND_TOKENS + 10));
+    session.setTrimPoint(1);
+    press(session, 'a'.repeat(HARD_BEHIND_TOKENS + MIN_TRIM_TOKENS + 10));
     expect(session.erroredTokens().has(0)).toBe(false);
+  });
+
+  it('keeps a red mark until the window that still draws the token is replaced', () => {
+    const session = make(() => a, { kind: 'time', seconds: 120 });
+    session.loadPrompt(a, 'learner');
+    press(session, 'x');
+    // A line starts at token 50: fewer than MIN_TRIM_TOKENS can leave, so nothing is published.
+    press(session, 'a'.repeat(30));
+    session.setTrimPoint(50);
+    press(session, 'a'.repeat(20));
+    expect(session.stream.value.prompts[0]?.firstToken).toBe(0);
+    expect(session.erroredTokens().has(0)).toBe(true);
+
+    // The next line start is far enough: the window is cut there and the mark goes with token 0.
+    session.setTrimPoint(90);
+    press(session, 'a'.repeat(20));
+    expect(session.stream.value.prompts[0]?.firstToken).toBe(90);
+    expect(session.erroredTokens().has(0)).toBe(false);
+  });
+
+  it('cuts the window at the line the view reported, and only by whole prompts', () => {
+    const session = make(() => a, { kind: 'time', seconds: 120 });
+    session.loadPrompt(a, 'learner');
+    session.setTrimPoint(100);
+    press(session, 'a'.repeat(130));
+    const head = session.stream.value.prompts[0];
+    expect(head?.firstToken).toBe(100);
   });
 
   it('never draws a prompt beyond the end of a count test', () => {
