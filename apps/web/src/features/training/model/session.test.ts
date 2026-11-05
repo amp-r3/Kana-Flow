@@ -1145,6 +1145,21 @@ describe('session: a zen test, and ending it by hand (metrics.md, Test end)', ()
     expect(session.metrics.value?.elapsedMs).toBeGreaterThan(0);
   });
 
+  it('canFinish() is true only for a zen test that is running', () => {
+    const session = make(zen);
+    session.loadPrompt(a, 'learner');
+    expect(session.canFinish()).toBe(false);
+    press(session, 'a');
+    expect(session.canFinish()).toBe(true);
+    session.finish();
+    expect(session.canFinish()).toBe(false);
+
+    const timed = make({ kind: 'count', prompts: 10 });
+    timed.loadPrompt(a, 'learner');
+    press(timed, 'a');
+    expect(timed.canFinish()).toBe(false);
+  });
+
   it('Ctrl/Cmd+Enter is the same thing as the button', () => {
     const session = make(zen);
     session.loadPrompt(a, 'learner');

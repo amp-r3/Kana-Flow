@@ -34,7 +34,7 @@ The primary metric is kana per minute (KPM); accuracy is measured per kana. The 
 **Idle end (D24).**
 
 - The idle time is the code constant `IDLE_END_MS` = 5000. Zen is exempt. The check starts at the first keystroke, so a test that has not started never ends.
-- Any key handled by the input source resets it, including rejected and ignored keys and Esc. A modifier pressed alone does not.
+- Any key handled by the input source resets it, including rejected and ignored keys and Esc. A modifier pressed alone does not, and neither does the repeat of a held key.
 - `endedAt` is the time of the last keystroke, so the idle wait does not lower KPM. The same applies to `hidden`.
 - The results screen states that the test ended because of no input.
 - A keystroke only stores `lastKeyAt`. A single `Scheduler` timer re-arms itself for the remaining time when it fires, so the hot path creates no timers and triggers no renders.

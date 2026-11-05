@@ -306,8 +306,11 @@ describe('input source: the hybrid of keydown, beforeinput and input', () => {
       insert('n', 'insertCompositionText');
       compose('compositionstart');
       insert('nn', 'insertCompositionText');
-      expect(chars()).toEqual(['n', 'n']);
       expect(input.value).toBe('nn');
+      // Consonants wait for proof; the end of a composition without kana releases them.
+      expect(chars()).toEqual([]);
+      compose('compositionend', 'nn');
+      expect(chars()).toEqual(['n', 'n']);
     });
 
     it('a plain insertion that could not be cancelled is processed once and cleared', () => {
@@ -346,8 +349,8 @@ describe('input source: the hybrid of keydown, beforeinput and input', () => {
       compose('compositionupdate', 'か');
       expect(source.imeNotice.value).toBe(true);
 
-      // Only the Latin 'k' reached the session; the kana did not, and nothing doubled.
-      expect(chars()).toEqual(['k']);
+      // The held 'k' was the start of the conversion: neither it nor the kana reached the session.
+      expect(chars()).toEqual([]);
       expect(source.layoutNotice.value).toBe(false);
 
       compose('compositionend', 'か');
@@ -390,6 +393,103 @@ describe('input source: the hybrid of keydown, beforeinput and input', () => {
     it('kanji and katakana count too', () => {
       compose('compositionupdate', '漢');
       expect(source.imeNotice.value).toBe(true);
+    });
+  });
+
+  describe('Latin composition waits for proof that the IME is off (frontend.md, input source 7)', () => {
+    it('holds a consonant, then releases it in order with the vowel that proves the IME off', () => {
+      compose('compositionstart');
+      insert('k', 'insertCompositionText');
+      expect(chars()).toEqual([]);
+      insert('ka', 'insertCompositionText');
+      expect(chars()).toEqual(['k', 'a']);
+    });
+
+    it('later letters of the composition go straight through', () => {
+      compose('compositionstart');
+      insert('ka', 'insertCompositionText');
+      insert('kak', 'insertCompositionText');
+      expect(chars()).toEqual(['k', 'a', 'k']);
+    });
+
+    it('kana drop the held letters and start over', () => {
+      compose('compositionstart');
+      insert('k', 'insertCompositionText');
+      insert('か', 'insertCompositionText');
+      compose('compositionend', 'か');
+      expect(chars()).toEqual([]);
+      expect(source.imeNotice.value).toBe(true);
+
+      // The proof is forgotten: the next consonant waits again.
+      compose('compositionstart');
+      insert('s', 'insertCompositionText');
+      expect(chars()).toEqual([]);
+    });
+
+    it('a Latin vowel hides the notice that kana raised', () => {
+      compose('compositionstart');
+      insert('か', 'insertCompositionText');
+      compose('compositionend', 'か');
+      expect(source.imeNotice.value).toBe(true);
+
+      // The keyboard went back to Latin: an IME that is on would have made あ of it.
+      compose('compositionstart');
+      insert('a', 'insertCompositionText');
+      expect(source.imeNotice.value).toBe(false);
+      expect(chars()).toEqual(['a']);
+    });
+
+    it('a consonant does not hide the notice', () => {
+      compose('compositionstart');
+      insert('か', 'insertCompositionText');
+      compose('compositionend', 'か');
+      compose('compositionstart');
+      insert('k', 'insertCompositionText');
+      expect(source.imeNotice.value).toBe(true);
+    });
+
+    it('a composition that ends without kana releases what it held', () => {
+      compose('compositionstart');
+      insert('n', 'insertCompositionText');
+      compose('compositionend', 'n');
+      expect(chars()).toEqual(['n']);
+    });
+
+    it('typing directly proves the IME off for the compositions that follow', () => {
+      keydown(input, 'a');
+      compose('compositionstart');
+      insert('k', 'insertCompositionText');
+      expect(chars()).toEqual(['a', 'k']);
+    });
+  });
+
+  describe('keys the browser keeps', () => {
+    it('Ctrl+Enter is left alone when there is nothing to finish', () => {
+      unbind();
+      source = createInputSource({ onIntent, canFinish: () => false });
+      unbind = source.bind(input);
+      button.focus();
+      const event = keydown(button, 'Enter', { ctrlKey: true });
+      expect(event.defaultPrevented).toBe(false);
+      expect(document.activeElement).toBe(button);
+      expect(onIntent).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+Enter finishes when it can', () => {
+      unbind();
+      source = createInputSource({ onIntent, canFinish: () => true });
+      unbind = source.bind(input);
+      const event = keydown(input, 'Enter', { ctrlKey: true });
+      expect(event.defaultPrevented).toBe(true);
+      expect(intents()).toEqual([{ kind: 'finish' }]);
+    });
+
+    it('a held key is cancelled and is not input', () => {
+      const event = keydown(input, 'a', { repeat: true });
+      expect(event.defaultPrevented).toBe(true);
+      expect(onIntent).not.toHaveBeenCalled();
+      keydown(input, 'a');
+      expect(chars()).toEqual(['a']);
     });
   });
 

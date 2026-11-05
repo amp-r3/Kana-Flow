@@ -9,6 +9,8 @@ export type InputSourceDeps = {
   // Where keydown is listened to; the document, unless a test passes another.
   readonly target?: EventTarget;
   readonly isDialogOpen?: () => boolean;
+  // Whether Ctrl/Cmd+Enter would end a test now. When it would not, the key is left to the browser.
+  readonly canFinish?: () => boolean;
 };
 
 export type InputSource = {
@@ -19,6 +21,9 @@ export type InputSource = {
   // Starts listening on the document and on the hidden input. Returns the function that stops it.
   readonly bind: (input: HTMLInputElement) => () => void;
 };
+
+// Latin vowels: a Latin one in a composition shows the IME is off.
+const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
 
 function isOtherTextField(target: EventTarget | null, input: HTMLInputElement): boolean {
   if (!(target instanceof HTMLElement) || target === input) return false;
@@ -38,6 +43,9 @@ function isOtherTextField(target: EventTarget | null, input: HTMLInputElement): 
  * 3. `input`, when `beforeinput` cannot be cancelled (Gboard composition): the value is compared with
  *    the last one seen and only the characters added to its end are processed.
  *
+ * Latin letters of a composition wait until the IME is shown to be off, so a Japanese IME that is on
+ * cannot start a test with its placeholder letter (ADR 051). Everything else goes straight through.
+ *
  * The hidden input is never read as text beyond that: it is cleared once a composition ends, and
  * after every input that is not part of one.
  */
@@ -49,6 +57,23 @@ export function createInputSource(deps: InputSourceDeps): InputSource {
     const target = deps.target ?? document;
     let lastValue = '';
     let composing = false;
+    // Latin composition text is held until it is clear the IME is off (frontend.md, input source 7):
+    // with the IME on, `k` is a Latin placeholder that becomes か. `imeOff` is that proof.
+    let imeOff = false;
+    let held: KeyIntent[] = [];
+
+    const release = (): void => {
+      const queue = held;
+      held = [];
+      for (const cls of queue) deps.onIntent(cls);
+    };
+
+    // Kana appeared: the held letters were the start of a conversion, not input.
+    const imeIsOn = (): void => {
+      held = [];
+      imeOff = false;
+      imeNotice.value = true;
+    };
 
     const dialogOpen = (): boolean =>
       deps.isDialogOpen ? deps.isDialogOpen() : Boolean(document.querySelector('dialog[open]'));
@@ -60,14 +85,21 @@ export function createInputSource(deps: InputSourceDeps): InputSource {
         return;
       }
       if (cls.kind === 'japanese') {
-        imeNotice.value = true;
+        imeIsOn();
         return;
       }
       if (cls.kind === 'char') {
         layoutNotice.value = false;
-        // Latin composition text may still come from an IME that is on; only direct typing
-        // proves it is off.
-        if (typed) imeNotice.value = false;
+        // Direct typing proves the IME is off. So does a Latin vowel in a composition: an IME that
+        // is on would have turned it into kana. A consonant proves nothing and waits.
+        if (typed || VOWELS.has(cls.char)) {
+          imeOff = true;
+          imeNotice.value = false;
+          release();
+        } else if (!imeOff) {
+          held.push(cls);
+          return;
+        }
       }
       if (cls.kind !== 'ignore') deps.onIntent(cls);
     };
@@ -78,12 +110,18 @@ export function createInputSource(deps: InputSourceDeps): InputSource {
 
     const onKeyDown = (event: Event): void => {
       if (!(event instanceof KeyboardEvent)) return;
-      // Never intercept with modifiers (Ctrl, Meta, Alt): browser shortcuts must keep working. The
-      // classification lets only Ctrl/Cmd+Enter through, which ends a zen test.
+      // Modifier combinations (Ctrl, Meta, Alt) belong to the browser. The classification lets
+      // only Ctrl/Cmd+Enter through, and only while it would end a test.
       const cls = classifyKeyDown(event);
       if (cls.kind === 'ignore') return;
       if (dialogOpen()) return;
       if (isOtherTextField(event.target, input)) return;
+      if (cls.kind === 'finish' && deps.canFinish && !deps.canFinish()) return;
+      // A held key is not input: cancelled, so it types nothing and counts nothing.
+      if (event.repeat) {
+        event.preventDefault();
+        return;
+      }
 
       // Esc on a button outside the input only brings the focus back; it is not a hint.
       if (cls.kind === 'reveal' && event.target !== input) {
@@ -133,13 +171,14 @@ export function createInputSource(deps: InputSourceDeps): InputSource {
     };
 
     const onCompositionUpdate = (event: Event): void => {
-      if (event instanceof CompositionEvent && isJapaneseText(event.data)) {
-        imeNotice.value = true;
-      }
+      if (event instanceof CompositionEvent && isJapaneseText(event.data)) imeIsOn();
     };
 
-    const onCompositionEnd = (): void => {
+    const onCompositionEnd = (event: Event): void => {
       composing = false;
+      // A composition that ended without kana was Latin text after all.
+      if (event instanceof CompositionEvent && isJapaneseText(event.data)) imeIsOn();
+      else release();
       input.value = '';
       lastValue = '';
     };
@@ -158,6 +197,7 @@ export function createInputSource(deps: InputSourceDeps): InputSource {
       input.removeEventListener('compositionstart', onCompositionStart);
       input.removeEventListener('compositionupdate', onCompositionUpdate);
       input.removeEventListener('compositionend', onCompositionEnd);
+      held = [];
       imeNotice.value = false;
       layoutNotice.value = false;
     };

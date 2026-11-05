@@ -246,6 +246,8 @@ The input layer feeds one stream of `KeyIntent`s from several sources (ADR 038, 
 - `keydown` with a Latin letter, `-` or `'` is handled at once and cancelled. `Unidentified` (mobile) and `Process` (IME) are skipped.
 - `beforeinput` of type `insertText` is handled and cancelled; when it cannot be cancelled (Gboard composition), `input` compares the field with the last value and processes only the characters added at its end. The field is cleared when a composition ends and after every input that is not part of one.
 - A letter outside the Latin alphabet is not translated by `event.code`: it is dropped without a mistake and asks for the layout. Kana or kanji ask to turn the IME off.
+- Latin text of a composition is held until the IME is shown to be off (a latin vowel, the end of a composition without kana, or a key typed directly); kana drop it (ADR 051). A latin vowel in a composition also hides the IME notice.
+- A repeated `keydown` is cancelled and is not input. Ctrl/Cmd+Enter is cancelled only when `Session.canFinish()` says it would end a test.
 - Typing outside the field returns the focus to it, except in another text field or while a dialog is open.
 ```
 
