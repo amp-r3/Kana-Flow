@@ -94,13 +94,19 @@ function prefersReducedMotion(): boolean {
   }
 }
 
+function emptyLineHeight(style: CSSStyleDeclaration, font: number): number {
+  const line = Number.parseFloat(style.lineHeight);
+  return Number.isNaN(line) ? Math.round(font * 1.5) : line;
+}
+
 /** The one place that reads the layout. */
 function readLayout(
   elements: StreamElements,
   tokens: readonly HTMLElement[],
   lines: number,
 ): Measurement {
-  const innerFont = Number.parseFloat(getComputedStyle(elements.inner).fontSize);
+  const innerStyle = getComputedStyle(elements.inner);
+  const innerFont = Number.parseFloat(innerStyle.fontSize);
   const bufferStyle = getComputedStyle(elements.buffer);
   const bufferFont = Number.parseFloat(bufferStyle.fontSize);
   const bufferLine = Number.parseFloat(bufferStyle.lineHeight);
@@ -111,7 +117,8 @@ function readLayout(
       width: token.offsetWidth,
     })),
     metrics: {
-      lineHeight: tokens[0]?.offsetHeight ?? 0,
+      // Without tokens (the vocabulary is loading) the view keeps the height of its lines.
+      lineHeight: tokens[0]?.offsetHeight ?? emptyLineHeight(innerStyle, innerFont),
       caretHeight: Math.round(innerFont * 1.1),
       viewWidth: elements.view.clientWidth,
       // The advance of the monospace font is 0.6 em.

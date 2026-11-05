@@ -70,7 +70,7 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
     expect(controller.isAssisted.value).toBe(false);
   });
 
-  it('loadContent failure falls back to single-kana mode with an i18n message', async () => {
+  it('loadContent failure keeps the setting and shows an i18n message with Retry', async () => {
     // Spy on loadContent and make it reject (simulating failed dynamic import chunk)
     const loadContentSpy = vi
       .spyOn(kanaModule, 'loadContent')
@@ -88,8 +88,8 @@ describe('trainer UI: focus redirection and content loader error fallback', () =
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     expect(loadContentSpy).toHaveBeenCalledWith('words');
-    // Must fall back to 'single'
-    expect(contentSetting.value).toBe('single');
+    // The setting is kept (frontend.md, "Loading"); kana are practised until Retry.
+    expect(contentSetting.value).toBe('words');
 
     // Must show the i18n error notice
     const expectedMessage = t('stage.contentLoadError');

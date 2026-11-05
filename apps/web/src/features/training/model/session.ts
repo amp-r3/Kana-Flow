@@ -55,6 +55,8 @@ export type SessionDeps = {
   readonly config: () => TestConfig;
   readonly clock?: Clock;
   readonly scheduler?: Scheduler;
+  // While true, keys are ignored: the prompts to type are still loading.
+  readonly inputBlocked?: () => boolean;
   // Called when a test is ended by hand with nothing to keep (no prompt completed, or no time
   // passed): it is dropped like a restart, and this starts the next one. Defaults to `reset()`.
   readonly onDiscard?: () => void;
@@ -104,6 +106,7 @@ export function createSession(deps: SessionDeps): Session {
     deps.clock ?? defaultClock,
     deps.scheduler ?? defaultScheduler,
     deps.onDiscard,
+    deps.inputBlocked,
   );
 }
 
@@ -205,6 +208,7 @@ class TrainingSession implements Session {
     private readonly clock: Clock,
     private readonly scheduler: Scheduler,
     private readonly onDiscard: (() => void) | undefined,
+    private readonly inputBlocked: (() => boolean) | undefined,
   ) {}
 
   loadPrompt(prompt: PromptItem, strictness: Strictness): void {
@@ -236,7 +240,7 @@ class TrainingSession implements Session {
   }
 
   handleIntent(intent: KeyIntent): void {
-    if (this._phase.value === 'finished' || intent.kind === 'ignore') {
+    if (this._phase.value === 'finished' || intent.kind === 'ignore' || this.inputBlocked?.()) {
       return;
     }
     if (intent.kind === 'finish') {

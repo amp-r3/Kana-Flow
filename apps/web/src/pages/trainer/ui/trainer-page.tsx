@@ -2,6 +2,7 @@ import type { JSX } from 'preact';
 import { useState, useLayoutEffect } from 'preact/hooks';
 import { useComputed } from '@preact/signals';
 import { t } from '@/shared/i18n';
+import { Button } from '@/shared/ui';
 import { createTrainer } from '@/features/training';
 import type { Trainer } from '@/features/training';
 import { ModePanel } from './mode-panel';
@@ -27,26 +28,29 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
     <div className="flex flex-1 flex-col items-center justify-center gap-6">
       <ModePanel />
 
-      {trainer.contentLoadFailed.value && (
-        <div className="text-miss text-ui-label max-w-layout-test mx-auto w-full p-2.5 text-center">
-          {t('stage.contentLoadError')}
-        </div>
-      )}
-
-      {trainer.noKanaForRows.value && (
-        <div
-          role="status"
-          className="text-fur-dim text-ui-label max-w-layout-test mx-auto w-full p-2.5 text-center"
-        >
-          {t('stage.noKanaForRows')}
-        </div>
-      )}
-
-      {trainer.isLoadingContent.value && (
-        <div className="text-fur-dim text-ui-label animate-blink max-w-layout-test mx-auto w-full p-2.5 text-center">
-          {t('stage.contentLoading')}
-        </div>
-      )}
+      {/* One slot for the notices, always there: a notice appearing must not move the text below. */}
+      <div
+        data-chrome
+        data-testid="stage-notice"
+        className="text-ui-label max-w-layout-test mx-auto flex min-h-12 w-full items-center justify-center gap-3 p-2.5 text-center"
+      >
+        {trainer.contentLoadFailed.value ? (
+          <>
+            <span role="alert" className="text-miss">
+              {t('stage.contentLoadError')}
+            </span>
+            <Button onClick={trainer.retryContent}>{t('route.retry')}</Button>
+          </>
+        ) : trainer.isLoadingContent.value ? (
+          <span role="status" className="text-fur-dim animate-blink">
+            {t('stage.contentLoading')}
+          </span>
+        ) : trainer.noKanaForRows.value ? (
+          <span role="status" className="text-fur-dim">
+            {t('stage.noKanaForRows')}
+          </span>
+        ) : null}
+      </div>
 
       {finished.value ? (
         <ResultsPanel session={session} onNextTest={trainer.restart} />
