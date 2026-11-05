@@ -101,17 +101,33 @@ test.describe('the text stream', () => {
   });
 });
 
-// Types the prompts as they come until `count` keys were pressed.
-async function typeKeys(page: Page, count: number): Promise<void> {
+// Types the prompts as they come, until `done` is true after a prompt or `limit` keys were pressed.
+// Returns the number of keys. How many tokens a key makes depends on the words, so the number of
+// keys needed for a redraw is not fixed.
+async function typeUntil(page: Page, limit: number, done: () => Promise<boolean>): Promise<number> {
   let pressed = 0;
-  while (pressed < count) {
-    for (const key of await canonicalOfPrompt(page)) {
-      if (pressed >= count) return;
+  while (pressed < limit && !(await done())) {
+    const keys = await canonicalOfPrompt(page);
+    const promptText = page.getByTestId('prompt-text');
+    const text = (await promptText.textContent()) ?? '';
+    for (const key of keys) {
       await page.keyboard.press(key);
       pressed += 1;
     }
-    await page.waitForTimeout(0);
+    // The page takes the keys a moment after they were sent: wait for the next prompt, or the same
+    // prompt would be typed again out of step.
+    try {
+      await expect(promptText).not.toHaveText(text, { timeout: 500 });
+    } catch {
+      // Either the same word came twice, or a final ん is still waiting for a second `n`: a single
+      // prompt's canonical spelling ends it with one, which in a stream is ambiguous.
+      if (text.endsWith('ん') && (await page.locator('.nk-test__buffer').textContent()) === 'n') {
+        await page.keyboard.press('n');
+        pressed += 1;
+      }
+    }
   }
+  return pressed;
 }
 
 type Redraw = { readonly shared: number; readonly moved: number; readonly caretGlide: number };
@@ -189,13 +205,14 @@ test.describe('redrawing the stream', () => {
       if (content === 'Words') await expect(page.getByTestId('translation')).not.toHaveText('');
       await watchRedraws(page);
 
-      await typeKeys(page, 260);
+      // Enough redraws to include trimmed ones: the first refills, the next ones trim.
+      const keys = await typeUntil(page, 900, async () => (await readRedraws(page)).length >= 3);
       await page.waitForTimeout(150);
 
       const redraws = await readRedraws(page);
-      // Steps, not every prompt: a few redraws in 260 keys, and some of them trimmed the text.
-      expect(redraws.length).toBeGreaterThan(0);
-      expect(redraws.length).toBeLessThan(20);
+      // Steps, not every prompt: at least three redraws, and far fewer than one in ten keys.
+      expect(redraws.length, `redraws in ${keys} keys`).toBeGreaterThanOrEqual(3);
+      expect(redraws.length).toBeLessThan(keys / 10);
       expect(
         redraws.filter((r) => r.shared > 0 && r.moved > 0),
         'tokens kept by a redraw changed place',
