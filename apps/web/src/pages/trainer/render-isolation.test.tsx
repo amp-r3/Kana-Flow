@@ -7,13 +7,15 @@ import { createTrainer } from '@/features/training';
 import type { Trainer } from '@/features/training';
 import type { PromptItem } from '@/entities/prompt';
 import { setTestConfig } from '@/entities/settings';
+import { MIN_AHEAD_TOKENS } from '@/features/training';
 
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 30));
 
 // Spec "Hot path" (D16): a keystroke that does not complete a prompt renders no component, and one
 // that completes a prompt renders at most one, the stream. Every component render of the page is
-// counted, from the very first key (which starts the test) on.
+// counted, from the very first key (which starts the test) on. The stream is redrawn only when its
+// window is about to run out (stream.ts), so most completing keys render nothing at all.
 describe('render isolation: the hot path renders nothing', () => {
   const neko: PromptItem = { key: 'word:neko', text: 'ねこ' };
 
@@ -73,14 +75,15 @@ describe('render isolation: the hot path renders nothing', () => {
     expect(trainer.session.phase.value).toBe('running');
   });
 
-  it('a key inside a prompt renders nothing, and the key that completes it renders the stream once', async () => {
+  it('a key inside a prompt renders nothing, and the key that completes it renders at most the stream', async () => {
     expect(await press('n')).toEqual([]);
     expect(await press('e')).toEqual([]);
     expect(await press('k')).toEqual([]);
     expect(trainer.session.promptResults.value).toHaveLength(0);
-    // こ completes ねこ: the next prompt is on display and the stream draws the new window.
-    expect(await press('o')).toEqual(['TextStream']);
+    // こ completes ねこ: the next prompt is on display. The window drawn is far from running out.
+    expect(await press('o')).toEqual([]);
     expect(trainer.session.promptResults.value).toHaveLength(1);
+    expect(container.querySelector('[data-testid="prompt-text"]')?.textContent).toBe('ねこ');
   });
 
   it('a rejected key, a hint, a wrong layout and its end render nothing', async () => {
@@ -109,9 +112,29 @@ describe('render isolation: the hot path renders nothing', () => {
     expect(trainer.session.promptResults.value).toHaveLength(45);
 
     rendered.forEach((components, i) => {
-      // The fourth key of each prompt completes it.
-      expect(components, `key ${i}`).toEqual(i % 4 === 3 ? ['TextStream'] : []);
+      // The fourth key of each prompt completes it: at most the stream renders, no other key does.
+      const completes = i % 4 === 3;
+      expect(components.length, `key ${i}`).toBeLessThanOrEqual(completes ? 1 : 0);
+      expect(
+        components.every((name) => name === 'TextStream'),
+        `key ${i}`,
+      ).toBe(true);
     });
+
+    // The stream is redrawn a few times, not at every prompt (2 tokens per prompt, a new window
+    // when fewer than MIN_AHEAD_TOKENS remain)...
+    const redraws = rendered.filter((components) => components.length > 0).length;
+    expect(redraws).toBeGreaterThanOrEqual(2);
+    expect(redraws).toBeLessThanOrEqual(6);
+
+    // ...and what is drawn always has the text ahead of the caret that a wide screen shows.
+    const numbers = Array.from(container.querySelectorAll('[data-token]')).map((el) =>
+      Number(el.getAttribute('data-token')),
+    );
+    expect(Math.max(...numbers) - trainer.session.caret.value).toBeGreaterThanOrEqual(
+      MIN_AHEAD_TOKENS - 1,
+    );
+    expect(numbers).toContain(trainer.session.caret.value);
   });
 
   it('writes the stream to the DOM instead: classes, and the attributes tests read', async () => {
@@ -226,7 +249,7 @@ describe('render isolation: a zen test', () => {
     expect(finishButton()?.disabled).toBe(false);
     expect(await press('e')).toEqual([]);
     expect(await press('k')).toEqual([]);
-    expect(await press('o')).toEqual(['TextStream']);
+    expect(await press('o')).toEqual([]);
     // The counter follows the completed prompts, as a text node.
     expect(container.querySelector('[data-testid="live-counter"]')?.textContent).toBe('1');
   });

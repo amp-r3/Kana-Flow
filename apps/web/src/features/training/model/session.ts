@@ -8,6 +8,7 @@ import {
   AHEAD_TOKENS,
   EMPTY_STREAM,
   MAX_WINDOW_PROMPTS,
+  shouldPublish,
   staleCount,
   streamPromptsOf,
 } from './stream';
@@ -74,9 +75,10 @@ export type Session = {
   // Committed tokens per minute and kana accuracy in percent, for the live strip (metrics.md).
   readonly liveKpm: ReadonlySignal<number>;
   readonly liveAccuracy: ReadonlySignal<number>;
-  // The text stream (frontend.md). `stream` lists the prompts to draw and changes when one enters
-  // or leaves, which is once per completed prompt. The rest changes on a keystroke and is meant to
-  // be written to the DOM without a render: `caret` is the number of the token the caret stands
+  // The text stream (frontend.md). `stream` lists the prompts to draw. It changes only when the view
+  // needs a new window, when the tokens ahead run low or the ones behind pile up (stream.ts): never
+  // on a keystroke inside a prompt, and not at every completed prompt either. The rest changes on a
+  // keystroke and is meant to be written to the DOM without a render: `caret` is the number of the token the caret stands
   // before, `romajiBuffer` the Latin typed beyond it, `mistake` the latest wrong key or hint.
   // Token numbers count from the start of the test and survive `compact()`.
   readonly stream: ReadonlySignal<StreamSnapshot>;
@@ -501,8 +503,9 @@ class TrainingSession implements Session {
     this.publishStream(this.tokenBase + v.displayedTokens);
   }
 
-  // Drops the prompts that ended long before the caret and publishes the window if it changed.
-  // Called when the displayed prompt changes, so the stream is redrawn once per completed prompt.
+  // Drops the prompts that ended long before the caret and publishes the window when the view needs
+  // it. Called when the displayed prompt changes; the view is redrawn at most once per completed
+  // prompt, and in practice every few.
   private publishStream(caret: number): void {
     const stale = staleCount(this.streamPrompts, caret);
     if (stale > 0) this.streamPrompts.splice(0, stale);
@@ -510,11 +513,10 @@ class TrainingSession implements Session {
     for (const token of this.erroredAbs) {
       if (token < head) this.erroredAbs.delete(token);
     }
-    const shown = this._stream.value.prompts;
-    const changed =
-      shown.length !== this.streamPrompts.length ||
-      shown.some((prompt, i) => prompt !== this.streamPrompts[i]);
-    if (changed) this._stream.value = { prompts: [...this.streamPrompts] };
+    // Not at every change: see stream.ts. The view is redrawn when the window is about to run out.
+    if (shouldPublish(this._stream.value.prompts, this.streamPrompts, caret)) {
+      this._stream.value = { prompts: [...this.streamPrompts] };
+    }
   }
 
   private updateCaret(v: EngineView): void {

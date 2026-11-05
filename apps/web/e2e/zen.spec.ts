@@ -117,7 +117,8 @@ test.describe('zen: a test without a length, ended by hand', () => {
 
   test('keeps the stream going over many prompts', async ({ page }) => {
     await chooseZen(page);
-    await typePrompts(page, 45);
+    // The window is trimmed in steps, once more than 60 tokens lie behind the caret.
+    await typePrompts(page, 70);
     // A window around the caret, not the whole test, and the first token numbers keep rising.
     const first = Number(await page.locator('[data-token]').first().getAttribute('data-token'));
     expect(first).toBeGreaterThan(0);

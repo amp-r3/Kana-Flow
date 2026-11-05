@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { effect } from '@preact/signals';
 import { createSession } from './session';
-import { AHEAD_TOKENS, BEHIND_TOKENS } from './stream';
+import { AHEAD_TOKENS, BEHIND_TOKENS, MAX_BEHIND_TOKENS, MIN_AHEAD_TOKENS } from './stream';
 import type { Session } from './session';
 import { setupSettingsResetWatcher } from './settings-watcher';
 import { setTestConfig, testConfig } from '@/entities/settings';
@@ -815,7 +815,7 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
     expect(session.caret.value).toBe(2);
   });
 
-  it('the stream changes once per completed prompt, not on the other keystrokes', () => {
+  it('the stream changes at most once per completed prompt, never on another key, and far less often than that', () => {
     const session = make(() => neko, { kind: 'time', seconds: 60 });
     session.loadPrompt(neko, 'learner');
     let changes = 0;
@@ -826,14 +826,34 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
     });
     expect(changes).toBe(1);
 
+    // Inside a prompt nothing changes; a completed prompt (2 tokens) usually changes nothing either.
     press(session, 'nek');
     expect(changes).toBe(1);
     press(session, 'o');
-    expect(changes).toBe(2);
-    for (let i = 0; i < 9; i++) press(session, 'neko');
-    expect(changes).toBe(11);
+    expect(changes).toBe(1);
+
+    // A run of prompts: the view gets a new window only when the one it has is about to run out.
+    for (let i = 0; i < 59; i++) press(session, 'neko');
+    expect(session.promptResults.value).toHaveLength(60);
+    expect(changes).toBeGreaterThan(1);
+    expect(changes).toBeLessThanOrEqual(1 + (60 * 2) / (AHEAD_TOKENS - MIN_AHEAD_TOKENS) + 2);
     expect(latest).toBe(session.stream.value);
     stop();
+  });
+
+  it('a new window is published before the caret runs out of text, so the lines are always full', () => {
+    const session = make(() => a, { kind: 'time', seconds: 120 });
+    session.loadPrompt(a, 'learner');
+
+    for (let i = 0; i < 400; i++) {
+      press(session, 'a', 1);
+      const prompts = session.stream.value.prompts;
+      const last = prompts.at(-1);
+      const end = last === undefined ? 0 : last.firstToken + last.tokens.length - 1;
+      expect(end - session.caret.value, `after ${i + 1} prompts`).toBeGreaterThanOrEqual(
+        MIN_AHEAD_TOKENS - 1,
+      );
+    }
   });
 
   it('numbers tokens from the start of the test, whatever compact() does to the matcher', () => {
@@ -862,8 +882,8 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
     }
 
     expect(session.caret.value).toBe(1000);
-    // One token per prompt: behind + ahead + the prompt on display and a margin.
-    expect(widest).toBeLessThanOrEqual(BEHIND_TOKENS + AHEAD_TOKENS + 5);
+    // One token per prompt: behind (up to the trim point) + ahead + the prompt on display.
+    expect(widest).toBeLessThanOrEqual(MAX_BEHIND_TOKENS + AHEAD_TOKENS + 5);
     const prompts = session.stream.value.prompts;
     for (let i = 1; i < prompts.length; i++) {
       const previous = prompts[i - 1];
@@ -874,7 +894,7 @@ describe('session: the text stream (frontend.md, Text stream and romaji buffer)'
       );
     }
     const head = prompts[0];
-    expect(head && head.firstToken).toBeGreaterThanOrEqual(1000 - BEHIND_TOKENS - 2);
+    expect(head && head.firstToken).toBeGreaterThanOrEqual(1000 - MAX_BEHIND_TOKENS - 2);
   });
 
   it('a wrong key and a hint are charged to a token, by its number, and the mistake event is new each time', () => {

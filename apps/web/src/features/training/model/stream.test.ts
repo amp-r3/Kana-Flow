@@ -1,7 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { compile } from '@/entities/prompt';
 import type { PromptItem } from '@/entities/prompt';
-import { BEHIND_TOKENS, lastToken, staleCount, streamPromptsOf } from './stream';
+import {
+  BEHIND_TOKENS,
+  MAX_BEHIND_TOKENS,
+  MIN_AHEAD_TOKENS,
+  lastToken,
+  shouldPublish,
+  staleCount,
+  streamPromptsOf,
+} from './stream';
 import type { StreamPrompt } from './stream';
 
 const item = (text: string): PromptItem => ({ key: `test:${text}`, text });
@@ -61,5 +69,53 @@ describe('stream: what leaves the window', () => {
     const prompts = [prompt(0, 0, 5), prompt(1, 5, 5)];
     expect(staleCount(prompts, 10_000)).toBe(1);
     expect(staleCount([], 100)).toBe(0);
+  });
+});
+
+describe('stream: when the view is given a new window', () => {
+  // `count` one-token prompts starting at token `from`.
+  const run = (from: number, count: number): StreamPrompt[] =>
+    Array.from({ length: count }, (_, i) => ({
+      index: from + i,
+      firstToken: from + i,
+      tokens: [{ glyph: 'あ', skip: false }],
+    }));
+
+  it('publishes the first window, and nothing when there is nothing to publish', () => {
+    expect(shouldPublish([], run(0, 80), 0)).toBe(true);
+    expect(shouldPublish([], [], 0)).toBe(false);
+  });
+
+  it('does not publish while enough tokens remain ahead and few pile up behind', () => {
+    const published = run(0, 100); // tokens 0..99
+    const current = run(0, 110);
+    expect(shouldPublish(published, current, 0)).toBe(false);
+    // Still MIN_AHEAD_TOKENS ahead of the caret.
+    expect(shouldPublish(published, current, 99 - MIN_AHEAD_TOKENS)).toBe(false);
+  });
+
+  it('publishes when the tokens ahead run low and the current window has more', () => {
+    const published = run(0, 100);
+    const current = run(0, 130);
+    expect(shouldPublish(published, current, 99 - MIN_AHEAD_TOKENS + 1)).toBe(true);
+  });
+
+  it('does not publish for low tokens ahead when there is nothing more to show (the end of a test)', () => {
+    // A short test: the whole text is published and the caret is near its end.
+    const published = run(0, MAX_BEHIND_TOKENS);
+    expect(shouldPublish(published, run(0, MAX_BEHIND_TOKENS), MAX_BEHIND_TOKENS - 2)).toBe(false);
+  });
+
+  it('publishes to trim when the caret is far past the first published prompt', () => {
+    const published = run(0, 200);
+    const current = run(100, 100);
+    expect(shouldPublish(published, current, MAX_BEHIND_TOKENS)).toBe(false);
+    expect(shouldPublish(published, current, MAX_BEHIND_TOKENS + 1)).toBe(true);
+  });
+
+  it('keeps the window it shows long enough to fill the lines of a wide screen', () => {
+    // The widest screen shows about 40 tokens ahead of the caret.
+    expect(MIN_AHEAD_TOKENS).toBeGreaterThanOrEqual(40);
+    expect(BEHIND_TOKENS).toBeLessThan(MAX_BEHIND_TOKENS);
   });
 });

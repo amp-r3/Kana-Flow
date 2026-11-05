@@ -18,6 +18,9 @@ export const BUDGETS = {
 // a `content` directory; every other lazy chunk is a route chunk.
 const CONTENT_SOURCE = /(^|\/)(words|phrases)\.[cm]?[jt]s$|(^|\/)content\//;
 
+// The global the probe publishes; it appears in no other place of the application.
+export const PROBE_MARKER = '__nekotypeProbe';
+
 const kb = (bytes) => bytes / 1024;
 const fmt = (bytes) => `${kb(bytes).toFixed(2)} KB`;
 
@@ -178,6 +181,17 @@ export function checkBudget(distDir) {
       if (!/\bcrossorigin\b/.test(tag)) {
         failures.push(`The font preload ${href ?? ''} has no crossorigin attribute`);
       }
+    }
+  }
+
+  // 6. The latency probe belongs to the test build (docs/spec/quality.md). It is behind a build
+  // constant and must be gone from what is deployed: it adds a frame callback and a task per key.
+  const assetFiles = existsSync(assetsDir) ? readdirSync(assetsDir) : [];
+  for (const file of assetFiles.filter((name) => name.endsWith('.js'))) {
+    if (readFileSync(join(assetsDir, file), 'utf-8').includes(PROBE_MARKER)) {
+      failures.push(
+        `assets/${file} contains the latency probe: it must not be in the production build`,
+      );
     }
   }
 

@@ -6,6 +6,11 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
   plugins: [tailwindcss(), preact()],
+  define: {
+    // The test build (`pnpm run build:probe`) carries the latency probe; the production build does
+    // not: the constant is false, and the probe is dead code the minifier removes.
+    __LATENCY_PROBE__: JSON.stringify(process.env['VITE_LATENCY_PROBE'] === 'true'),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -7,10 +7,23 @@ import type { Matcher } from '@/entities/prompt';
 // `compact()` drops committed prompts and renumbers what is left, but a token the stream draws keeps
 // its number, so nothing in the view has to be rebased when that happens.
 
-/** Tokens kept in the matcher after the end of the displayed prompt: more than the lines can show. */
-export const AHEAD_TOKENS = 60;
-/** Tokens kept behind the caret, so the line already typed is still on screen above the current one. */
+// The window is measured in tokens, because a screen holds a number of characters. A wide screen
+// shows at most about 40 tokens after the caret (the rest of its line and the next one) and 40
+// before it, so the numbers below leave room.
+//
+// The stream the view draws is not changed at every completed prompt: a change redraws a hundred
+// tokens and forces their layout, which is more than a keystroke may cost (quality.md). It is
+// published in steps instead, when the tokens ahead run low or the ones behind pile up, so most
+// completed prompts change nothing in the DOM.
+
+/** Tokens kept in the matcher after the end of the displayed prompt: the target of a refill. */
+export const AHEAD_TOKENS = 72;
+/** A published window is refreshed before fewer than this many tokens remain ahead of the caret. */
+export const MIN_AHEAD_TOKENS = 44;
+/** Tokens kept behind the caret when the window is trimmed, so the line just typed stays above. */
 export const BEHIND_TOKENS = 30;
+/** A published window is trimmed when the caret is this many tokens past its first prompt. */
+export const MAX_BEHIND_TOKENS = 60;
 /** A guard against a source of prompts without tokens. */
 export const MAX_WINDOW_PROMPTS = 150;
 
@@ -66,6 +79,29 @@ export function streamPromptsOf(
 
 export function lastToken(prompt: StreamPrompt): number {
   return prompt.firstToken + prompt.tokens.length - 1;
+}
+
+/**
+ * Whether the view should be given the current window: it has none yet; the tokens ahead of the caret
+ * in the published one are running low and the current window has more; or the published one has
+ * too many behind the caret.
+ */
+export function shouldPublish(
+  published: readonly StreamPrompt[],
+  current: readonly StreamPrompt[],
+  caret: number,
+): boolean {
+  const lastCurrent = current.at(-1);
+  if (lastCurrent === undefined) return false;
+  const firstPublished = published[0];
+  const lastPublished = published.at(-1);
+  if (firstPublished === undefined || lastPublished === undefined) return true;
+
+  const refill =
+    lastToken(lastCurrent) > lastToken(lastPublished) &&
+    lastToken(lastPublished) - caret < MIN_AHEAD_TOKENS;
+  const trim = caret - lastToken(firstPublished) > MAX_BEHIND_TOKENS;
+  return refill || trim;
 }
 
 /** How many leading prompts end more than BEHIND_TOKENS before the caret; the last one never goes. */

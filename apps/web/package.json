@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "build:probe": "VITE_LATENCY_PROBE=true vite build --outDir dist-probe",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && steiger ./src",
     "test": "vitest run",

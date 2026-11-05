@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { checkBudget } from '../../scripts/check-budget.mjs';
+import { checkBudget, PROBE_MARKER } from '../../scripts/check-budget.mjs';
 
 // Random bytes do not compress, so a file of N KB is about N KB raw, gzip and brotli.
 const KB = 1024;
@@ -31,6 +31,8 @@ type Fixture = {
   // The font preload in index.html: right (default), absent, naming a missing file, or without
   // crossorigin.
   preload?: 'ok' | 'absent' | 'dangling' | 'no-crossorigin';
+  // Put the latency probe's global into the bundle, as a test build would.
+  probe?: boolean;
 };
 
 const dirs: string[] = [];
@@ -60,7 +62,13 @@ function makeDist(f: Fixture): string {
   const padding = blob(f.htmlKb ?? 0.3).toString('base64');
   write(root, 'index.html', `<!doctype html><head>${tag}</head><!-- ${padding} -->`);
   write(root, kanaFont, blob(10));
-  write(root, 'assets/index.js', blob(f.jsKb ?? 10));
+  write(
+    root,
+    'assets/index.js',
+    f.probe === true
+      ? Buffer.concat([blob(f.jsKb ?? 10), Buffer.from(`;window.${PROBE_MARKER}={};`)])
+      : blob(f.jsKb ?? 10),
+  );
   write(root, 'assets/index.css', blob(f.cssKb ?? 3));
   for (const font of fonts) write(root, font.file, blob(font.size));
 
@@ -139,6 +147,16 @@ describe('check-budget', () => {
     expect(failuresFor({ preload: 'no-crossorigin' })).toEqual([
       expect.stringContaining('no crossorigin'),
     ]);
+  });
+
+  it('fails when the production build contains the latency probe', () => {
+    const failures = failuresFor({ probe: true });
+    expect(failures).toEqual([expect.stringContaining('latency probe')]);
+    expect(failures[0]).toContain('assets/index.js');
+  });
+
+  it('passes a build without the probe', () => {
+    expect(failuresFor({ probe: false })).toEqual([]);
   });
 
   it('fails when the HTML is over 5 KB', () => {

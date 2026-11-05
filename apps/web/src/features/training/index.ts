@@ -15,6 +15,7 @@ export { createTrainer } from './model/trainer';
 export type { Phase, TokenOutcome, PromptResult, SessionMetrics } from './model/types';
 
 export type { StreamToken, StreamPrompt, StreamSnapshot, Mistake } from './model/stream';
+export { MIN_AHEAD_TOKENS } from './model/stream';
 
 export { setupSettingsResetWatcher } from './model/settings-watcher';
 

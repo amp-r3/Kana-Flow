@@ -67,3 +67,4 @@ Append-only log of architectural decisions, one file per decision.
 | [040](040-text-stream-window-and-dom-writer.md)                                      | Text Stream Window and DOM Writer                                                            | In force             |
 | [041](041-test-screen-cutover.md)                                                    | The Test Screen on the Text Stream                                                           | In force             |
 | [042](042-zen-test-and-finish-key.md)                                                | The Zen Test and Its Finish Key                                                              | In force             |
+| [043](043-keystroke-latency-gate-and-stepwise-publishing.md)                         | Keystroke Latency Gate and Stepwise Stream Publishing                                        | In force             |

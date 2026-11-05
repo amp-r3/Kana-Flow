@@ -15,9 +15,9 @@ The baseline budgets are retained and extended with latency and lazy-chunk budge
 | Total first load                                                    | ≤ 160 KB                    | 60.6 KB      | `check-budget.mjs`                                               |
 | Lazy route chunk (gzip)                                             | ≤ 25 KB                     | —            | `check-budget.mjs`                                               |
 | Content chunk (gzip)                                                | ≤ 40 KB                     | —            | `check-budget.mjs`                                               |
-| Keystroke work (handler + style + layout), p95 at 4× CPU throttling | ≤ 8 ms                      | not measured | Playwright latency test                                          |
-| Keystroke → next frame, p95 at 4× CPU throttling                    | ≤ 2 frames (33 ms at 60 Hz) | not measured | Playwright latency test                                          |
-| Component renders per keystroke                                     | 0; ≤ 1 on prompt completion | 5            | Vitest render test                                               |
+| Keystroke work (handler + style + layout), p95 at 4× CPU throttling | ≤ 8 ms                      | 2.3 ms       | Playwright latency test                                          |
+| Keystroke → next frame, p95 at 4× CPU throttling                    | ≤ 2 frames (33 ms at 60 Hz) | 25 ms        | Playwright latency test                                          |
+| Component renders per keystroke                                     | 0; ≤ 1 on prompt completion | 0; 1         | Vitest render test                                               |
 | Lighthouse Performance, mobile profile                              | ≥ 95, median of 3 runs      | not measured | `@lhci/cli` on the production build served by vite preview in CI |
 
 Sign-in and sync do not count toward the initial budget: the sync client and account screens are lazy-loaded.
