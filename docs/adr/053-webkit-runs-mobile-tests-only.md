@@ -1,0 +1,7 @@
+# ADR 053: WebKit in Mobile Emulation Runs the `@mobile` Tests Only
+
+- **Status:** In force. Amends [ADR 045](045-e2e-on-production-bundle-and-gated-deploy.md) on what the WebKit project runs; follows [ADR 052](052-e2e-scope-and-latency-on-main.md).
+- **Context:** The `webkit-mobile` project ran the whole suite, 52 of the 104 e2e tests in a CI run, though most of them check logic that does not depend on the engine or on a phone (the stream, the zen test, routes, lifecycle). WebKit is the slower half of the run, and every test added to the suite was added to both.
+- **Decision:** The `webkit-mobile` project has `grep: /@mobile/`, so it runs only tests tagged `{ tag: '@mobile' }`. The tagged set: focus after a tap on the settings bar and after the rows dialog, typing without a click, the three keyboard-layout tests, the number of lines on a phone, Restart on a touch screen, and one full count test as a smoke test of the engine. Chromium still runs everything. A new test gets the tag only when it depends on the phone or on WebKit.
+- **Justification:** What WebKit can show that Chromium cannot is focus handling, touch, layout and the engine's own behaviour. The rest would give the same answer twice.
+- **Consequences:** The WebKit run is 9 tests (about 6 s locally) instead of 52. A WebKit-only regression in an untagged test is not caught; the fix for such a miss is to tag the test that exposes it. The existing `webkit-mobile` branches in tests stay.

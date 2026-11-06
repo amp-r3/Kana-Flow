@@ -2,62 +2,72 @@ import { test, expect } from '@playwright/test';
 import { canonicalOfPrompt } from './lib/prompt';
 
 test.describe('focus redirection and keyboard-first typing', () => {
-  test('(a) load, type immediately without clicking, the test starts', async ({ page }) => {
-    await page.goto('/');
+  test(
+    '(a) load, type immediately without clicking, the test starts',
+    { tag: '@mobile' },
+    async ({ page }) => {
+      await page.goto('/');
 
-    const input = page.locator('input[aria-label="Kana input sink"]');
-    await expect(input).toBeFocused();
+      const input = page.locator('input[aria-label="Kana input sink"]');
+      await expect(input).toBeFocused();
 
-    // Type a key immediately without clicking anywhere
-    await page.keyboard.press('KeyA');
+      // Type a key immediately without clicking anywhere
+      await page.keyboard.press('KeyA');
 
-    // The test must have started (live stats strip shows the kpm counter)
-    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
-  });
+      // The test must have started (live stats strip shows the kpm counter)
+      await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
+    },
+  );
 
-  test('(b) click a ConfigBar button, press a letter: focus is on the input AND the letter was processed (also with a wrong letter: mistake counted)', async ({
-    page,
-  }) => {
-    await page.goto('/');
-    const input = page.locator('input[aria-label="Kana input sink"]');
+  test(
+    '(b) click a ConfigBar button, press a letter: focus is on the input AND the letter was processed (also with a wrong letter: mistake counted)',
+    { tag: '@mobile' },
+    async ({ page }) => {
+      await page.goto('/');
+      const input = page.locator('input[aria-label="Kana input sink"]');
 
-    // Click a ConfigBar button (e.g. Katakana) to steal focus from input
-    const katakanaBtn = page.getByRole('radio', { name: 'Katakana' });
-    await katakanaBtn.click();
-    await expect(katakanaBtn).toBeFocused();
+      // Click a ConfigBar button (e.g. Katakana) to steal focus from input
+      const katakanaBtn = page.getByRole('radio', { name: 'Katakana' });
+      await katakanaBtn.click();
+      await expect(katakanaBtn).toBeFocused();
 
-    // Press a wrong letter key (e.g. 'z' which is not a basic kana)
-    await page.keyboard.press('KeyZ');
+      // Press a wrong letter key (e.g. 'z' which is not a basic kana)
+      await page.keyboard.press('KeyZ');
 
-    // Focus must immediately move back to input
-    await expect(input).toBeFocused();
+      // Focus must immediately move back to input
+      await expect(input).toBeFocused();
 
-    // Test starts and records mistake (arena is marked rejected)
-    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
-    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-rejected', 'true');
-  });
+      // Test starts and records mistake (arena is marked rejected)
+      await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
+      await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-rejected', 'true');
+    },
+  );
 
-  test('(c) open and close the rows dialog: focus returns, typing works', async ({ page }) => {
-    await page.goto('/');
-    const input = page.locator('input[aria-label="Kana input sink"]');
+  test(
+    '(c) open and close the rows dialog: focus returns, typing works',
+    { tag: '@mobile' },
+    async ({ page }) => {
+      await page.goto('/');
+      const input = page.locator('input[aria-label="Kana input sink"]');
 
-    // Open rows dialog
-    const rowsBtn = page.getByRole('button', { name: 'Kana Matrix' });
-    await rowsBtn.click();
+      // Open rows dialog
+      const rowsBtn = page.getByRole('button', { name: 'Kana Matrix' });
+      await rowsBtn.click();
 
-    const dialog = page.locator('dialog[open]');
-    await expect(dialog).toBeVisible();
+      const dialog = page.locator('dialog[open]');
+      await expect(dialog).toBeVisible();
 
-    // Close dialog
-    const closeBtn = dialog.getByLabel('Close');
-    await closeBtn.click();
-    await expect(page.locator('dialog[open]')).toHaveCount(0);
+      // Close dialog
+      const closeBtn = dialog.getByLabel('Close');
+      await closeBtn.click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
 
-    // Type a key: focus returns to input and test starts
-    await page.keyboard.press('KeyA');
-    await expect(input).toBeFocused();
-    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
-  });
+      // Type a key: focus returns to input and test starts
+      await page.keyboard.press('KeyA');
+      await expect(input).toBeFocused();
+      await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
+    },
+  );
 
   test('(d) set words mode, reload: the first prompt is a word/phrase, never a single kana', async ({
     page,
@@ -110,57 +120,59 @@ test.describe('focus redirection and keyboard-first typing', () => {
     await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
   });
 
-  test('(f) a full count test (10 prompts, type canonical answers) ends on results screen, "Next test" via Enter starts a new idle test', async ({
-    page,
-  }) => {
-    await page.goto('/');
-    const input = page.locator('input[aria-label="Kana input sink"]');
-    await expect(input).toBeFocused();
+  test(
+    '(f) a full count test (10 prompts, type canonical answers) ends on results screen, "Next test" via Enter starts a new idle test',
+    { tag: '@mobile' },
+    async ({ page }) => {
+      await page.goto('/');
+      const input = page.locator('input[aria-label="Kana input sink"]');
+      await expect(input).toBeFocused();
 
-    // Configure Count test with 10 prompts
-    const countRadio = page.getByRole('radio', { name: 'Count' });
-    await countRadio.click();
-    await expect(countRadio).toHaveAttribute('aria-checked', 'true');
+      // Configure Count test with 10 prompts
+      const countRadio = page.getByRole('radio', { name: 'Count' });
+      await countRadio.click();
+      await expect(countRadio).toHaveAttribute('aria-checked', 'true');
 
-    const tenPromptsRadio = page.getByRole('radio', { name: '10', exact: true });
-    await tenPromptsRadio.click();
-    await expect(tenPromptsRadio).toHaveAttribute('aria-checked', 'true');
+      const tenPromptsRadio = page.getByRole('radio', { name: '10', exact: true });
+      await tenPromptsRadio.click();
+      await expect(tenPromptsRadio).toHaveAttribute('aria-checked', 'true');
 
-    // Type canonical answers for all 10 prompts
-    for (let i = 0; i < 10; i++) {
-      await expect(page.getByTestId('prompt-arena')).toBeVisible();
-      const canonical = await canonicalOfPrompt(page);
-      const glyph = await page.getByTestId('prompt-text').innerText();
+      // Type canonical answers for all 10 prompts
+      for (let i = 0; i < 10; i++) {
+        await expect(page.getByTestId('prompt-arena')).toBeVisible();
+        const canonical = await canonicalOfPrompt(page);
+        const glyph = await page.getByTestId('prompt-text').innerText();
 
-      if (i < 9) {
-        if (canonical) {
-          await page.keyboard.type(canonical, { delay: 15 });
-        }
-        // Wait for prompt to change to next one
-        await expect(page.getByTestId('prompt-text')).not.toHaveText(glyph, { timeout: 2000 });
-      } else {
-        if (canonical) {
-          await page.keyboard.type(canonical, { delay: 15 });
+        if (i < 9) {
+          if (canonical) {
+            await page.keyboard.type(canonical, { delay: 15 });
+          }
+          // Wait for prompt to change to next one
+          await expect(page.getByTestId('prompt-text')).not.toHaveText(glyph, { timeout: 2000 });
+        } else {
+          if (canonical) {
+            await page.keyboard.type(canonical, { delay: 15 });
+          }
         }
       }
-    }
 
-    // After 10 prompts, the test completes automatically and renders ResultsPanel
-    const nextTestBtn = page.getByRole('button', { name: 'Next Test' });
-    await expect(nextTestBtn).toBeVisible({ timeout: 5000 });
-    await expect(nextTestBtn).toBeFocused();
+      // After 10 prompts, the test completes automatically and renders ResultsPanel
+      const nextTestBtn = page.getByRole('button', { name: 'Next Test' });
+      await expect(nextTestBtn).toBeVisible({ timeout: 5000 });
+      await expect(nextTestBtn).toBeFocused();
 
-    // D20: the results panel fades in (`animate-fadeIn` used to be an undefined class)
-    await expect(page.getByTestId('results-panel')).toHaveCSS('animation-name', 'fadeIn');
+      // D20: the results panel fades in (`animate-fadeIn` used to be an undefined class)
+      await expect(page.getByTestId('results-panel')).toHaveCSS('animation-name', 'fadeIn');
 
-    // Press Enter to activate "Next Test" button
-    await page.keyboard.press('Enter');
+      // Press Enter to activate "Next Test" button
+      await page.keyboard.press('Enter');
 
-    // Results screen closes, returns to idle test stage with input focused
-    await expect(nextTestBtn).toHaveCount(0);
-    await expect(input).toBeFocused();
-    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
-  });
+      // Results screen closes, returns to idle test stage with input focused
+      await expect(nextTestBtn).toHaveCount(0);
+      await expect(input).toBeFocused();
+      await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'idle');
+    },
+  );
 
   test('(i) a count test over words (ん at the end of prompts, next prompt shown early) ends on the results screen', async ({
     page,
