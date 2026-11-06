@@ -34,15 +34,25 @@ function apply(newLocale: Locale, words: Dictionary): void {
   });
 }
 
-/** Switches to a language once its dictionary is loaded; false if it could not be loaded. */
+// Numbers the switches, so a dictionary that arrives after a later choice does not undo it.
+let latestSwitch = 0;
+
+/**
+ * Switches to a language once its dictionary is loaded. False if it could not be loaded, or if
+ * another switch was asked for in the meantime: the last choice wins.
+ */
 async function switchTo(newLocale: Locale): Promise<boolean> {
+  latestSwitch += 1;
+  const request = latestSwitch;
   const ready = loadedDictionary(newLocale);
   if (ready !== undefined) {
     apply(newLocale, ready);
     return true;
   }
   try {
-    apply(newLocale, await loadDictionary(newLocale));
+    const words = await loadDictionary(newLocale);
+    if (request !== latestSwitch) return false;
+    apply(newLocale, words);
     return true;
   } catch {
     return false;

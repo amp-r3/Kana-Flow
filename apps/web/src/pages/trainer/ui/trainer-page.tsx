@@ -1,5 +1,5 @@
 import type { JSX } from 'preact';
-import { useState, useLayoutEffect, useEffect } from 'preact/hooks';
+import { useState, useLayoutEffect } from 'preact/hooks';
 import { useComputed } from '@preact/signals';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
@@ -24,8 +24,9 @@ export function TrainerPage(props: TrainerPageProps = {}): JSX.Element {
   const isFinished = finished.value;
   const Results = resultsPanel.value;
 
-  // The results chunk is fetched when idle already; this covers a test that ends before that.
-  useEffect(() => {
+  // The results chunk is fetched when idle already; this covers a test that ends before that, and
+  // a failed earlier load. A layout effect: a failure left from before is cleared before the paint.
+  useLayoutEffect(() => {
     if (isFinished) void loadResultsPanel();
   }, [isFinished]);
 
