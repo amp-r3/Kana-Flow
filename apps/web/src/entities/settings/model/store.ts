@@ -28,6 +28,7 @@ const _contentSetting = signal<ContentKind>('single');
 const _strictnessSetting = signal<Strictness>('learner');
 const _rowIdsSetting = signal<readonly RowId[]>(DEFAULT_BASIC_ROWS);
 const _weakFocusSetting = signal<boolean>(true);
+const _showTranslationSetting = signal<boolean>(true);
 const _testConfig = signal<TestConfig>(DEFAULT_TEST_CONFIG);
 
 export const scriptSetting: ReadonlySignal<ScriptMode> = _scriptSetting;
@@ -35,6 +36,7 @@ export const contentSetting: ReadonlySignal<ContentKind> = _contentSetting;
 export const strictnessSetting: ReadonlySignal<Strictness> = _strictnessSetting;
 export const rowIdsSetting: ReadonlySignal<readonly RowId[]> = _rowIdsSetting;
 export const weakFocusSetting: ReadonlySignal<boolean> = _weakFocusSetting;
+export const showTranslationSetting: ReadonlySignal<boolean> = _showTranslationSetting;
 export const testConfig: ReadonlySignal<TestConfig> = _testConfig;
 
 let boundStore: KeyValueStore | null = null;
@@ -49,6 +51,7 @@ function saveCurrentSettings(): void {
     strictness: _strictnessSetting.value,
     rowIds: _rowIdsSetting.value,
     weakFocus: _weakFocusSetting.value,
+    showTranslation: _showTranslationSetting.value,
     test: _testConfig.value,
   };
   try {
@@ -86,6 +89,7 @@ export function initSettings(store: KeyValueStore): void {
           _rowIdsSetting.value = validRows;
         }
         _weakFocusSetting.value = parsed.weakFocus;
+        _showTranslationSetting.value = parsed.showTranslation ?? true;
         _testConfig.value = parsed.test;
         return;
       }
@@ -100,6 +104,7 @@ export function initSettings(store: KeyValueStore): void {
   _strictnessSetting.value = 'learner';
   _rowIdsSetting.value = DEFAULT_BASIC_ROWS;
   _weakFocusSetting.value = true;
+  _showTranslationSetting.value = true;
   _testConfig.value = DEFAULT_TEST_CONFIG;
 }
 
@@ -130,6 +135,12 @@ export function setStrictness(strictness: Strictness): void {
 
 export function setWeakFocus(focus: boolean): void {
   _weakFocusSetting.value = focus;
+  notifyChange();
+}
+
+// Only what is shown changes, so a running test goes on (it is not among the settings that reset it).
+export function setShowTranslation(show: boolean): void {
+  _showTranslationSetting.value = show;
   notifyChange();
 }
 

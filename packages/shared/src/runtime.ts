@@ -53,6 +53,11 @@ export function isSettings(value: unknown): value is ValidSettings {
     return false;
   }
 
+  const showTranslation = value['showTranslation'];
+  if (showTranslation !== undefined && typeof showTranslation !== 'boolean') {
+    return false;
+  }
+
   return isTestConfig(value['test']);
 }
 

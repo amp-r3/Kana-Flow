@@ -5,6 +5,7 @@ import {
   setContent,
   setStrictness,
   setWeakFocus,
+  setShowTranslation,
   toggleRow,
   initSettings,
   setTestConfig,
@@ -53,6 +54,12 @@ describe('settings-watcher: one reactive effect calling the reset callback', () 
     // 6. Test config change
     setTestConfig({ kind: 'count', prompts: 50 });
     expect(resetCallCount).toBe(6);
+  });
+
+  it('does not reset for showTranslation: only what is shown changes', () => {
+    setShowTranslation(false);
+    setShowTranslation(true);
+    expect(resetCallCount).toBe(0);
   });
 
   it('stops listening when disposed', () => {

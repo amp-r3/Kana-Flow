@@ -46,6 +46,30 @@ describe('shared/runtime guards', () => {
     });
   });
 
+  // showTranslation was added to v1 as an optional field (spec storage-sync.md, D18).
+  describe('isSettings with showTranslation', () => {
+    const base = {
+      v: 1,
+      script: 'both',
+      content: 'single',
+      strictness: 'learner',
+      rowIds: ['vowels'],
+      weakFocus: true,
+      test: { kind: 'time', seconds: 30 },
+    };
+
+    it('accepts settings saved without the field, and with a boolean', () => {
+      expect(isSettings(base)).toBe(true);
+      expect(isSettings({ ...base, showTranslation: false })).toBe(true);
+      expect(isSettings({ ...base, showTranslation: true })).toBe(true);
+    });
+
+    it('rejects a value that is not a boolean', () => {
+      expect(isSettings({ ...base, showTranslation: 'no' })).toBe(false);
+      expect(isSettings({ ...base, showTranslation: null })).toBe(false);
+    });
+  });
+
   it('isKanaStats requires numeric a, m and t', () => {
     expect(isKanaStats({ a: 1, m: 0, t: 300 })).toBe(true);
     expect(isKanaStats({ a: '1', m: 0, t: 300 })).toBe(false);
