@@ -189,13 +189,20 @@ html {
   opacity: 1;
 }
 
-/* Restart shows when it has the focus (Tab), and always on a touch screen, which has no Tab. */
+/* Restart shows when it has the focus (Tab) or the mouse is over it, and always on a touch screen,
+   which has neither. */
 .nk-on-focus {
   transition: opacity var(--dur-hover) var(--ease-out);
 }
 
 .nk-on-focus:not(:focus-visible) {
   opacity: 0;
+}
+
+@media (hover: hover) {
+  .nk-on-focus:hover {
+    opacity: 1;
+  }
 }
 
 @media (pointer: coarse) {

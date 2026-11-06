@@ -5,24 +5,28 @@ import { isApplePlatform } from '@/shared/lib';
 import { testConfig } from '@/entities/settings';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
 import type { Session } from '@/features/training';
-import { TextStream, useTestChrome, useTestInput } from '@/features/training';
+import { TextStream, useTestChrome, useFinishButton } from '@/features/training';
+import type { TestInput } from '@/features/training';
 import { LiveLine } from './live-line';
 
 export type TestStageProps = {
   readonly session: Session;
+  /** The hidden field of the page and its focus (the page owns it, see `useTestInput`). */
+  readonly input: TestInput;
+  /** Restarts and gives the keyboard back to the field, both inside the click. */
   readonly onRestart: () => void;
 };
 
 /**
- * The test screen: a hidden field that takes the keyboard, the live line, the stream, one line for
+ * The test screen: the live line, the stream, one line for
  * notices, the translation and the hints. Nothing here reads a signal that a keystroke changes
  * while rendering: the lines of text below are signals passed as text nodes, and the stream writes
  * itself (docs/spec/frontend.md, "Hot path"). So a keystroke renders no component, and a completed
  * prompt renders only the stream.
  */
-export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
-  const { source, inputRef, stageRef, finishRef, focusInput, onInputFocus, onInputBlur } =
-    useTestInput(session);
+export function TestStage({ session, input, onRestart }: TestStageProps): JSX.Element {
+  const { source, stageRef, focusInput } = input;
+  const finishRef = useFinishButton(session);
 
   useTestChrome(session);
 
@@ -53,21 +57,6 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
       onClick={focusInput}
       className="nk-stage max-w-layout-test mx-auto flex w-full cursor-text flex-col gap-4 py-8 outline-none select-none"
     >
-      {/* The field that takes the keyboard; the stream is only a picture of what it receives. */}
-      <input
-        ref={inputRef}
-        type="text"
-        onFocus={onInputFocus}
-        onBlur={onInputBlur}
-        autoComplete="off"
-        autoCapitalize="off"
-        autoCorrect="off"
-        spellcheck={false}
-        lang="en"
-        aria-label={t('stage.inputLabel')}
-        className="sr-only"
-      />
-
       <LiveLine session={session} />
 
       <TextStream session={session} />
@@ -102,6 +91,7 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
             variant="ghost"
             size="sm"
             onClick={(e) => {
+              // The click is dealt with here; the stage would only focus the field a second time.
               e.stopPropagation();
               onRestart();
             }}
@@ -121,6 +111,8 @@ export function TestStage({ session, onRestart }: TestStageProps): JSX.Element {
               disabled
               onClick={(e) => {
                 e.stopPropagation();
+                // A finish with nothing to keep is dropped and leaves no screen to take the focus.
+                focusInput();
                 session.finish();
               }}
               className="flex items-center gap-2"

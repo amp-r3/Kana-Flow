@@ -24,4 +24,6 @@ export { createPromptWeights } from './lib/prompt-weights';
 
 export type { WeakKanaItem } from './lib/weakest-kana';
 export { weakestKana } from './lib/weakest-kana';
-export { useTestInput } from './lib/use-test-input';
+export { useTestInput, useFinishButton } from './lib/use-test-input';
+export type { TestInput } from './lib/use-test-input';
+export { useEnterForNext } from './lib/use-enter-for-next';

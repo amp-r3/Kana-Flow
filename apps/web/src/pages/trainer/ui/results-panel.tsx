@@ -3,7 +3,7 @@ import { useRef, useLayoutEffect } from 'preact/hooks';
 import { t } from '@/shared/i18n';
 import { Button } from '@/shared/ui';
 import type { Session } from '@/features/training';
-import { weakestKana } from '@/features/training';
+import { weakestKana, useEnterForNext } from '@/features/training';
 import { SpeedChart } from './speed-chart';
 import { WeakestKanaList } from './weakest-kana-list';
 
@@ -16,6 +16,9 @@ export function ResultsPanel({ session, onNextTest }: ResultsPanelProps): JSX.El
   const nextBtnRef = useRef<HTMLButtonElement | null>(null);
   const m = session.metrics.value;
   const results = session.promptResults.value;
+
+  // Enter works also after a click beside the button took the focus away from it.
+  useEnterForNext(onNextTest);
 
   // A layout effect: the focus is on the button before the first frame, so Enter pressed as soon as
   // the screen shows is never lost (a passive effect runs after the paint).

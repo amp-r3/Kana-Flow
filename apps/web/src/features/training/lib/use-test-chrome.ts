@@ -9,7 +9,9 @@ const PEEK_DISTANCE_PX = 8;
  * order, so the first Tab reaches Restart (docs/design, "Экран теста"). It is one attribute on the
  * document, `data-testing`, that the stylesheet turns into `opacity` and `visibility` for the
  * elements marked `data-chrome`: no component renders when the first key starts the test. It ends
- * with the test; a mouse movement beyond a few pixels shows the interface again until the next key.
+ * with the test; a mouse movement beyond a few pixels shows the interface again until the next key
+ * other than Tab and Shift. A key press also forgets where the mouse started, so a slow drift over
+ * a whole test shows nothing.
  */
 export function useTestChrome(session: Session): void {
   useSignalEffect(() => {
@@ -28,7 +30,11 @@ export function useTestChrome(session: Session): void {
         origin = null;
       }
     };
-    const onKey = (): void => {
+    // Any key counts as the start of a new movement. Tab and Shift only walk the focus through the
+    // interface that is shown: they must not hide it from under the user.
+    const onKey = (event: KeyboardEvent): void => {
+      origin = null;
+      if (event.key === 'Tab' || event.key === 'Shift') return;
       if (!root.hasAttribute('data-testing')) root.setAttribute('data-testing', '');
     };
     window.addEventListener('mousemove', onMove, { passive: true });

@@ -25,7 +25,7 @@ The primary metric is kana per minute (KPM); accuracy is measured per kana. The 
 | Zen           | "Finish" button or Ctrl/Cmd+Enter                                                | `manual`    | Under the conditions below    | No            |
 | Time or count | 5 seconds without input                                                          | `idle`      | Under the conditions below    | No            |
 | Any           | The tab becomes hidden during a running test                                     | `hidden`    | Under the conditions below    | No            |
-| Any           | Restart (Tab, Enter) or in-app navigation                                        | —           | No                            | No            |
+| Any           | Restart (Tab, Enter), opening the rows dialog or in-app navigation               | —           | No                            | No            |
 
 **Conditions.** A test ended by `manual`, `idle` or `hidden` is saved only if at least one prompt is completed and `durationMs` is greater than 0. Otherwise it is discarded like a restart, and the application returns to a new test without a results screen.
 
