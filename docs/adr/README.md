@@ -78,3 +78,4 @@ Append-only log of architectural decisions, one file per decision.
 | [051](051-input-source-rules.md)                                                     | Input Source: Held IME Letters, Auto-repeat and Ctrl/Cmd+Enter                               | In force             |
 | [052](052-e2e-scope-and-latency-on-main.md)                                          | Browser Tests Off the Local Hot Path, Latency Gate on `main`                                 | In force             |
 | [053](053-webkit-runs-mobile-tests-only.md)                                          | WebKit in Mobile Emulation Runs the `@mobile` Tests Only                                     | In force             |
+| [054](054-ci-in-the-playwright-image.md)                                             | CI Runs in the Playwright Image, with a Time Limit                                           | In force             |
