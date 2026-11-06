@@ -5,6 +5,7 @@ import {
   strictnessSetting,
   rowIdsSetting,
   weakFocusSetting,
+  showTranslationSetting,
   testConfig,
 } from '@/entities/settings';
 import { progressStats } from '@/entities/stats';
@@ -26,6 +27,9 @@ export type _CheckContentSetting = AssertFalse<IsWritable<typeof contentSetting,
 export type _CheckStrictnessSetting = AssertFalse<IsWritable<typeof strictnessSetting, 'value'>>;
 export type _CheckRowIdsSetting = AssertFalse<IsWritable<typeof rowIdsSetting, 'value'>>;
 export type _CheckWeakFocusSetting = AssertFalse<IsWritable<typeof weakFocusSetting, 'value'>>;
+export type _CheckShowTranslationSetting = AssertFalse<
+  IsWritable<typeof showTranslationSetting, 'value'>
+>;
 export type _CheckTestConfig = AssertFalse<IsWritable<typeof testConfig, 'value'>>;
 export type _CheckProgressStats = AssertFalse<IsWritable<typeof progressStats, 'value'>>;
 export type _CheckLocale = AssertFalse<IsWritable<typeof locale, 'value'>>;
@@ -59,6 +63,7 @@ describe('store state: ReadonlySignal guarantees', () => {
     expect(strictnessSetting.value).toBeDefined();
     expect(rowIdsSetting.value).toBeDefined();
     expect(weakFocusSetting.value).toBeDefined();
+    expect(showTranslationSetting.value).toBeDefined();
     expect(testConfig.value).toBeDefined();
     expect(progressStats.value).toBeDefined();
     expect(locale.value).toBeDefined();

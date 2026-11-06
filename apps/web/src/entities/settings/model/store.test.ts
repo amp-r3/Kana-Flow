@@ -8,6 +8,7 @@ import {
   strictnessSetting,
   rowIdsSetting,
   weakFocusSetting,
+  showTranslationSetting,
   testConfig,
   DEFAULT_TEST_CONFIG,
   DEFAULT_TIME_TEST,
@@ -17,6 +18,7 @@ import {
   setContent,
   setStrictness,
   setWeakFocus,
+  setShowTranslation,
   toggleRow,
   selectAllRows,
   clearRows,
@@ -194,5 +196,40 @@ describe('practice-settings store: domain rules, actions and persistence', () =>
     initSettings(store);
     expect(testConfig.value).toEqual({ kind: 'count', prompts: 25 });
     expect(contentSetting.value).toBe('words');
+  });
+
+  it('showTranslation is on by default, also for settings saved without the field', () => {
+    expect(showTranslationSetting.value).toBe(true);
+    store.set(
+      STORAGE_KEYS.SETTINGS,
+      JSON.stringify({
+        v: 1,
+        script: 'katakana',
+        content: 'words',
+        strictness: 'ime',
+        rowIds: ['vowels'],
+        weakFocus: true,
+        test: { kind: 'time', seconds: 30 },
+      }),
+    );
+    setShowTranslation(false);
+    initSettings(store);
+    expect(scriptSetting.value).toBe('katakana');
+    expect(showTranslationSetting.value).toBe(true);
+  });
+
+  it('showTranslation is saved and restored', () => {
+    setShowTranslation(false);
+    flushSettings();
+    const saved: unknown = JSON.parse(store.get(STORAGE_KEYS.SETTINGS) ?? 'null');
+    expect(saved).toMatchObject({ showTranslation: false });
+
+    setShowTranslation(true);
+    initSettings(store);
+    expect(showTranslationSetting.value).toBe(false);
+  });
+
+  it('showTranslation is not a practice setting', () => {
+    expect(getPracticeSettings()).not.toHaveProperty('showTranslation');
   });
 });

@@ -25,6 +25,8 @@ export const en = {
   'settings.reset.description':
     'Erases the accuracy and reaction-time statistics stored in this browser.',
 
+  'settings.showTranslation': 'Show the translation under the text',
+
   // Config bar
   'config.script.hiragana': 'Hiragana',
   'config.script.katakana': 'Katakana',

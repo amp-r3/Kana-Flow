@@ -27,6 +27,8 @@ export const ru = {
   'settings.reset.description':
     'Удаляет статистику точности и времени реакции, сохранённую в этом браузере.',
 
+  'settings.showTranslation': 'Показывать перевод под текстом',
+
   // Config bar
   'config.script.hiragana': 'Хирагана',
   'config.script.katakana': 'Катакана',

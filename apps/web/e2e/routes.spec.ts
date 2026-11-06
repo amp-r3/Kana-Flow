@@ -71,3 +71,44 @@ test.describe('routes: direct visits, navigation without a reload, settings', ()
     await expect(page.getByRole('heading', { level: 1, name: 'About' })).toBeVisible();
   });
 });
+
+test.describe('settings: show the translation', () => {
+  test('turning it off keeps the stream in place and survives a reload', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (localStorage.getItem('kanaflow:settings:v1') === null) {
+        localStorage.setItem(
+          'kanaflow:settings:v1',
+          JSON.stringify({
+            v: 1,
+            script: 'hiragana',
+            content: 'words',
+            strictness: 'learner',
+            rowIds: ['vowels', 'k', 's', 't', 'n', 'h', 'm', 'y', 'r', 'w'],
+            weakFocus: false,
+            test: { kind: 'time', seconds: 120 },
+          }),
+        );
+      }
+    });
+    await page.goto('/');
+    const translation = page.getByTestId('translation');
+    await expect(translation).not.toHaveText('');
+    const arena = page.getByTestId('prompt-arena');
+    const before = await arena.boundingBox();
+
+    await page.getByRole('link', { name: 'settings' }).click();
+    const toggle = page.getByRole('switch', { name: 'Show the translation under the text' });
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    // The settings are saved after a short delay.
+    await page.waitForTimeout(500);
+
+    await page.goto('/');
+    await expect(page.getByTestId('prompt-text')).not.toHaveText('');
+    await expect(translation).toHaveText('');
+    const after = await arena.boundingBox();
+    expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThan(1);
+    expect(Math.abs((after?.height ?? 0) - (before?.height ?? 0))).toBeLessThan(1);
+  });
+});

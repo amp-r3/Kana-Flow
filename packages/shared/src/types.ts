@@ -32,6 +32,8 @@ export type ValidSettings = {
   readonly strictness: 'learner' | 'ime';
   readonly rowIds: readonly string[];
   readonly weakFocus: boolean;
+  // Added to v1 later: settings saved without it mean `true` (spec storage-sync.md, D18).
+  readonly showTranslation?: boolean;
   readonly test: ValidTestConfig;
 };
 

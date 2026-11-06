@@ -80,3 +80,4 @@ Append-only log of architectural decisions, one file per decision.
 | [053](053-webkit-runs-mobile-tests-only.md)                                          | WebKit in Mobile Emulation Runs the `@mobile` Tests Only                                     | In force             |
 | [054](054-ci-in-the-playwright-image.md)                                             | CI Runs in the Playwright Image, with a Time Limit                                           | In force             |
 | [055](055-test-screen-focus-and-chrome.md)                                           | The Input Field Lives on the Page; Hover, Tab and Enter on the Test Screen                   | In force             |
+| [056](056-show-translation-setting.md)                                               | The `showTranslation` Setting: an Optional Field of Settings v1                              | In force             |

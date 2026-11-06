@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { useComputed } from '@preact/signals';
 import { t, locale } from '@/shared/i18n';
 import { isApplePlatform } from '@/shared/lib';
-import { testConfig } from '@/entities/settings';
+import { testConfig, showTranslationSetting } from '@/entities/settings';
 import { Kbd, RefreshIcon, Button } from '@/shared/ui';
 import type { Session } from '@/features/training';
 import { TextStream, useTestChrome, useFinishButton } from '@/features/training';
@@ -46,7 +46,7 @@ export function TestStage({ session, input, onRestart }: TestStageProps): JSX.El
   );
   const translation = useComputed(() => {
     const meaning = session.currentPrompt.value?.meaning;
-    if (meaning === undefined) return '';
+    if (meaning === undefined || !showTranslationSetting.value) return '';
     return locale.value === 'ru' ? meaning.ru : meaning.en;
   });
 
