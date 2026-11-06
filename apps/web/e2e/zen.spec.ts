@@ -96,11 +96,24 @@ test.describe('zen: a test without a length, ended by hand', () => {
   });
 
   test('keeps a test whose only prompt ends in ん, typed with a single n', async ({ page }) => {
+    // One word in the vocabulary ends in ん, so a random Restart finds it only now and then. The
+    // random source is replaced by a number the test sets, and Restart sweeps it across [0, 1):
+    // the word is picked whenever the number falls in its slice of the pool, and that slice is far
+    // wider than a step of the sweep. The sweep is the same on every run.
+    await page.addInitScript(() => {
+      Reflect.set(window, '__random', 0.5);
+      Math.random = () => Number(Reflect.get(window, '__random'));
+    });
     await chooseZen(page);
     await page.getByRole('radio', { name: 'Words' }).click();
+    // Until the vocabulary has loaded the screen shows single kana (one of them is ん), and the
+    // chunk, once it arrives, restarts the test. Only a word has a translation: wait for one
+    // before looking for the word.
+    await expect(page.getByTestId('translation')).not.toHaveText('');
     const promptText = page.getByTestId('prompt-text');
-    // Restart until the prompt on display ends in ん.
-    for (let i = 0; i < 200 && !(await promptText.innerText()).endsWith('ん'); i++) {
+    const steps = 400;
+    for (let i = 0; i < steps && !(await promptText.innerText()).endsWith('ん'); i++) {
+      await page.evaluate((r) => Reflect.set(window, '__random', r), (i + 0.5) / steps);
       await page.getByRole('button', { name: 'Restart test' }).click();
     }
     await expect(promptText).toHaveText(/ん$/);
