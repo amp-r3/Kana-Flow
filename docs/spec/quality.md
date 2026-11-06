@@ -6,21 +6,23 @@ The baseline budgets are retained and extended with latency and lazy-chunk budge
 
 | Item                                                                | Budget                      | Baseline     | End of P2    | Checked by                                                       |
 | ------------------------------------------------------------------- | --------------------------- | ------------ | ------------ | ---------------------------------------------------------------- |
-| HTML                                                                | ≤ 5 KB                      | 0.27 KB      | 0.44 KB      | `check-budget.mjs`                                               |
-| Initial JS (gzip)                                                   | ≤ 35 KB                     | 24.0 KB      | 33.42 KB     | `check-budget.mjs`                                               |
-| Initial CSS (gzip)                                                  | ≤ 10 KB                     | 5.0 KB       | 6.03 KB      | `check-budget.mjs`                                               |
+| HTML                                                                | ≤ 5 KB                      | 0.27 KB      | 0.45 KB      | `check-budget.mjs`                                               |
+| Initial JS (gzip)                                                   | ≤ 35 KB                     | 24.0 KB      | 32.67 KB     | `check-budget.mjs`                                               |
+| Initial CSS (gzip)                                                  | ≤ 10 KB                     | 5.0 KB       | 6.13 KB      | `check-budget.mjs`                                               |
 | Noto Sans JP (kana only)                                            | ≤ 45 KB                     | 16.4 KB      | 20.77 KB     | `check-budget.mjs`                                               |
 | JetBrains Mono                                                      | ≤ 45 KB                     | 14.9 KB      | 10.69 KB     | `check-budget.mjs`                                               |
 | Golos Text                                                          | ≤ 45 KB                     | —            | 9.55 KB      | `check-budget.mjs`                                               |
-| Total first load                                                    | ≤ 160 KB                    | 60.6 KB      | 102.39 KB    | `check-budget.mjs`                                               |
-| Lazy route chunk (gzip)                                             | ≤ 25 KB                     | —            | —            | `check-budget.mjs`                                               |
-| Content chunk (gzip)                                                | ≤ 40 KB                     | —            | —            | `check-budget.mjs`                                               |
-| Keystroke work (handler + style + layout), p95 at 4× CPU throttling | ≤ 8 ms                      | not measured | 2.3 ms       | Playwright latency test                                          |
-| Keystroke → next frame, p95 at 4× CPU throttling                    | ≤ 2 frames (33 ms at 60 Hz) | not measured | 25 ms        | Playwright latency test                                          |
-| Keystroke work, worst of 200 (median of 3 runs), 4× CPU throttling  | ≤ 25 ms                     | not measured | 15.9–19 ms   | Playwright latency test                                          |
-| Keystroke → next frame, worst of 200 (median of 3 runs), 4×         | ≤ 50 ms                     | not measured | 31.7–44.2 ms | Playwright latency test                                          |
+| Total first load                                                    | ≤ 160 KB                    | 60.6 KB      | 101.74 KB    | `check-budget.mjs`                                               |
+| Lazy route chunk (gzip)                                             | ≤ 25 KB                     | —            | 1.98 KB      | `check-budget.mjs`                                               |
+| Content chunk (gzip)                                                | ≤ 40 KB                     | —            | 2.05 KB      | `check-budget.mjs`                                               |
+| Keystroke work (handler + style + layout), p95 at 4× CPU throttling | ≤ 8 ms                      | not measured | 1.7 ms       | Playwright latency test                                          |
+| Keystroke → next frame, p95 at 4× CPU throttling                    | ≤ 2 frames (33 ms at 60 Hz) | not measured | 21.9 ms      | Playwright latency test                                          |
+| Keystroke work, worst of 200 (median of 3 runs), 4× CPU throttling  | ≤ 25 ms                     | not measured | 12.9 ms      | Playwright latency test                                          |
+| Keystroke → next frame, worst of 200 (median of 3 runs), 4×         | ≤ 50 ms                     | not measured | 25.5 ms      | Playwright latency test                                          |
 | Component renders per keystroke                                     | 0; ≤ 1 on prompt completion | 5            | 0; 1         | Vitest render test                                               |
 | Lighthouse Performance, mobile profile                              | ≥ 95, median of 3 runs      | not measured | not measured | `@lhci/cli` on the production build served by vite preview in CI |
+
+"End of P2" is commit e33484a: sizes from `check-budget.mjs`, the largest lazy chunk of each kind, and the latency from the CI run on that commit, the highest value of the three content kinds. Latency depends on the machine: the same build measures roughly twice as slow on a slower developer machine, where the worst-keystroke ceilings can fail; the gate is defined by the CI run (ADR 048, ADR 052).
 
 Sign-in and sync do not count toward the initial budget: the sync client and account screens are lazy-loaded.
 
@@ -41,7 +43,7 @@ The Playwright test enables 4× CPU throttling via the Chrome DevTools Protocol 
 - **`apps/web`:** unit tests for logic; render-isolation tests for the hot path; Playwright e2e only for what needs a real browser (focus, composition, layout, the production bundle, WebKit); the rules of the session, the settings and the key classification are unit tests, and a case a unit test already covers is not repeated in e2e (ADR 052). The e2e cover: full time, count and zen tests; idle end and a hidden tab; a restart leaving statistics unchanged; live conversion; layout and IME notices; a learning lesson; results and personal best; the statistics page; guest → sign-in (mocked OAuth); offline → sync; two tabs syncing concurrently.
 - **`apps/api`:** tests on a local D1: OAuth callback (mocked), `seq` handling (≤ last, = last + 1, > last + 1), merge rules, a lost `version` update retried without double counting, the error table, request limits, anonymous reports.
 - **WebKit scope:** the `webkit-mobile` project runs only the tests tagged `@mobile` (`grep: /@mobile/`): focus after a tap, the keyboard layout notices, the number of lines on a phone, Restart on a touch screen and one full test. Everything else runs on Chromium. Tag a new test `@mobile` only when it depends on the phone or on the WebKit engine (ADR 053).
-- **Device matrix:** Android Chrome with Gboard and iOS Safari, manual pass required for P2 and P7.
+- **Device matrix:** Android Chrome with Gboard and iOS Safari, manual pass required for P7. The P2 pass was deferred to P7 by the maintainer when P2 was closed (2026-11-06); it includes the open Gboard question of ADR 038 and the checks listed in ADR 051 and ADR 055.
 
 ## CI
 
