@@ -112,7 +112,7 @@ Fonts are subset by hand, not in CI: `pnpm --filter @nekotype/web run fonts` dow
 
 ### End-to-End Testing (Playwright)
 
-End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify` in CI. The pre-push hook does not run them (`verify:quick`); run `pnpm run e2e` yourself when a change touches browser behaviour. The keystroke latency test is separate (`pnpm run e2e:latency`) and runs in CI on `main` and by hand, not on pull requests (ADR 052). They need Chromium and WebKit once; WebKit also needs its system libraries (`--with-deps`, which asks for `sudo` on Linux). Without them set `E2E_SKIP_WEBKIT=1` to run Chromium only (CI always runs both).
+End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify` in CI. CI runs in the `mcr.microsoft.com/playwright` image, so it installs no browser (ADR 054); the install below is for your own machine. The pre-push hook does not run them (`verify:quick`); run `pnpm run e2e` yourself when a change touches browser behaviour. The keystroke latency test is separate (`pnpm run e2e:latency`) and runs in CI on `main` and by hand, not on pull requests (ADR 052). They need Chromium and WebKit once; WebKit also needs its system libraries (`--with-deps`, which asks for `sudo` on Linux). Without them set `E2E_SKIP_WEBKIT=1` to run Chromium only (CI always runs both).
 
 To install the browser binary and run the E2E suite:
 
@@ -161,7 +161,7 @@ Nekotype is a fully static SPA (`apps/web/dist/`, no backend, state in `localSto
 
 ### CI/CD Pipeline
 
-`.github/workflows/deploy.yml` runs on every push to `main` and on every pull request:
+`.github/workflows/deploy.yml` runs on every push to `main` and on every pull request, in the Playwright image `mcr.microsoft.com/playwright:v<version>-noble` (its tag is the version of `@playwright/test` in the lockfile, which a unit test checks) with a 15-minute limit (ADR 054):
 
 1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e on Chromium, and the `@mobile` ones on WebKit). Any failure blocks the deploy. On `main` and on a manual run, `pnpm run e2e:latency` follows (ADR 052).
 2. `wrangler pages deploy apps/web/dist` — PRs get a preview deployment; a push to `main` is deployed first to the preview branch `release-candidate`. Fork PRs verify but never deploy, since they cannot read secrets.

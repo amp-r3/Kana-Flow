@@ -1,0 +1,10 @@
+# ADR 054: CI Runs in the Playwright Image, with a Time Limit
+
+- **Status:** In force. Amends [ADR 045](045-e2e-on-production-bundle-and-gated-deploy.md) and [ADR 052](052-e2e-scope-and-latency-on-main.md) on how CI gets its browsers.
+- **Context:** Every CI run executed `playwright install --with-deps chromium webkit`. The cache of `~/.cache/ms-playwright` held the browser binaries only, so the system libraries were installed with `apt` on every run: about 45 s normally, and in one run (PR #54) the step did not finish in over eight minutes. The step had no time limit.
+- **Decision:**
+  1. The `deploy` job runs in the container `mcr.microsoft.com/playwright:v<version>-noble` with `--init --ipc=host`. Chromium, WebKit and their libraries are in the image; the cache step and the install step are removed. `setup-node` and `pnpm/action-setup` stay, so the Node and pnpm versions still come from the repository.
+  2. The tag is the version of `@playwright/test` in `pnpm-lock.yaml`. A unit test (`apps/web/src/app/ci-image.test.ts`, part of `verify:quick`) fails when they differ and names the tag to write, so an update of Playwright cannot leave the image behind.
+  3. The job has `timeout-minutes: 15`; a run takes three to five.
+- **Justification:** The browsers of an image are built for one Playwright version and arrive with a pull of a layer cache, not a package install on a shared mirror. Nothing is downloaded or installed per run, so there is no step that waits on the network for a long time, and the limit ends one that does.
+- **Consequences:** The image is large (over a gigabyte), so its pull may cost as much time as the install it replaces; the gain is mostly reliability. Updating `@playwright/test` now also means updating the tag in `deploy.yml` (the test says so). Local runs are unchanged (`playwright install --with-deps` on your machine). To go back, restore the cache and install steps and drop the `container` block.
