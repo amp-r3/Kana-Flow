@@ -31,6 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The workspace belongs to the runner's user and the container runs as root, so git refuses it
+      # as "dubious ownership" and `pnpm install` fails in the `prepare` script (`git config`).
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       # pnpm version comes from `packageManager` in package.json.
       - uses: pnpm/action-setup@v4
 
