@@ -1,2 +1,2 @@
 export { TrainerPage } from './ui/trainer-page';
-export { loadResultsPanel } from './results-loader';
+export { prefetchResultsPanel } from './results-loader';

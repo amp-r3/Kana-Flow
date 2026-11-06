@@ -1,7 +1,7 @@
 import type { ContentKind } from '@/entities/settings';
 import { loadContent } from '@/entities/prompt';
 import { preloadLocale } from '@/shared/i18n';
-import { loadResultsPanel } from '@/pages/trainer';
+import { prefetchResultsPanel } from '@/pages/trainer';
 import { routes } from './routes';
 import { ROUTE_PATHS } from './route-paths';
 
@@ -60,7 +60,7 @@ export function schedulePrefetch(content: () => ContentKind): void {
         content: content(),
         loadRoute: (path) => routes[path].load(),
         loadContent,
-        loadExtras: [loadResultsPanel, () => preloadLocale('ru')],
+        loadExtras: [prefetchResultsPanel, () => preloadLocale('ru')],
       });
     },
     {
