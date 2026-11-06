@@ -39,6 +39,9 @@ export default defineConfig({
           {
             name: 'webkit-mobile',
             use: { ...devices['iPhone 13'] },
+            // Only what depends on the phone or on the WebKit engine: focus after a tap, layouts,
+            // the number of lines, a full test. Everything else runs on Chromium (ADR 053).
+            grep: /@mobile/,
           },
         ]),
   ],

@@ -81,24 +81,26 @@ test.describe('the text stream', () => {
     await expect(page.getByTestId('translation')).not.toHaveText('');
   });
 
-  test('the stream shows two lines on a phone and three on a wide screen', async ({
-    page,
-  }, testInfo) => {
-    await page.goto('/');
-    // Rows of tokens that are inside the clipped view.
-    const rows = () =>
-      page.evaluate(() => {
-        const view = document.querySelector('.nk-test__text')?.getBoundingClientRect();
-        if (view === undefined) return 0;
-        const tops = new Set<number>();
-        for (const token of document.querySelectorAll('[data-token]')) {
-          const r = token.getBoundingClientRect();
-          if (r.top >= view.top - 1 && r.bottom <= view.bottom + 1) tops.add(Math.round(r.top));
-        }
-        return tops.size;
-      });
-    await expect.poll(rows).toBe(testInfo.project.name === 'webkit-mobile' ? 2 : 3);
-  });
+  test(
+    'the stream shows two lines on a phone and three on a wide screen',
+    { tag: '@mobile' },
+    async ({ page }, testInfo) => {
+      await page.goto('/');
+      // Rows of tokens that are inside the clipped view.
+      const rows = () =>
+        page.evaluate(() => {
+          const view = document.querySelector('.nk-test__text')?.getBoundingClientRect();
+          if (view === undefined) return 0;
+          const tops = new Set<number>();
+          for (const token of document.querySelectorAll('[data-token]')) {
+            const r = token.getBoundingClientRect();
+            if (r.top >= view.top - 1 && r.bottom <= view.bottom + 1) tops.add(Math.round(r.top));
+          }
+          return tops.size;
+        });
+      await expect.poll(rows).toBe(testInfo.project.name === 'webkit-mobile' ? 2 : 3);
+    },
+  );
 });
 
 // Types the prompts as they come, until `done` is true after a prompt or `limit` keys were pressed.
@@ -272,18 +274,20 @@ test.describe('the interface while a test runs', () => {
     await expect(page.getByRole('navigation')).toBeHidden();
   });
 
-  test('Restart shows when it has the focus, and always on a touch screen', async ({
-    page,
-  }, testInfo) => {
-    await page.goto('/');
-    const restart = page.getByRole('button', RESTART);
-    if (testInfo.project.name === 'webkit-mobile') {
+  test(
+    'Restart shows when it has the focus, and always on a touch screen',
+    { tag: '@mobile' },
+    async ({ page }, testInfo) => {
+      await page.goto('/');
+      const restart = page.getByRole('button', RESTART);
+      if (testInfo.project.name === 'webkit-mobile') {
+        await expect(restart).toHaveCSS('opacity', '1');
+        return;
+      }
+      await expect(restart).toHaveCSS('opacity', '0');
+      await page.keyboard.press('Tab');
+      await expect(restart).toBeFocused();
       await expect(restart).toHaveCSS('opacity', '1');
-      return;
-    }
-    await expect(restart).toHaveCSS('opacity', '0');
-    await page.keyboard.press('Tab');
-    await expect(restart).toBeFocused();
-    await expect(restart).toHaveCSS('opacity', '1');
-  });
+    },
+  );
 });

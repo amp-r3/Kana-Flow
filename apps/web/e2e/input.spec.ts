@@ -12,7 +12,7 @@ async function pressCyrillic(target: Locator, key: string): Promise<void> {
   await target.dispatchEvent('keydown', { key, bubbles: true, cancelable: true });
 }
 
-test.describe('input: layouts', () => {
+test.describe('input: layouts', { tag: '@mobile' }, () => {
   test('a Cyrillic key asks to switch the layout, starts nothing and counts no mistake', async ({
     page,
   }) => {
