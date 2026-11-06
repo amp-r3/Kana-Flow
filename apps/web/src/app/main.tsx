@@ -6,12 +6,15 @@ import { contentSetting } from '@/entities/settings';
 import { startRouter } from '@/shared/lib';
 import './styles/index.css';
 
-initApp();
+const ready = initApp();
 startRouter();
 
 const root = document.getElementById('app');
 if (root) {
-  render(<App />, root);
-  // After the first render: fetch the other screens and the content chunks while the CPU is idle.
-  schedulePrefetch(() => contentSetting.value);
+  // The first render waits for the language (a Russian dictionary is a chunk of its own).
+  void ready.then(() => {
+    render(<App />, root);
+    // After the first render: fetch the other screens and the chunks while the CPU is idle.
+    schedulePrefetch(() => contentSetting.value);
+  });
 }

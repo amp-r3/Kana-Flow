@@ -34,7 +34,9 @@ export function App(): JSX.Element {
                 { value: 'ru', label: 'RU' },
               ]}
               value={locale.value}
-              onChange={setLocale}
+              onChange={(next) => {
+                void setLocale(next);
+              }}
               ariaLabel={t('app.language')}
               size="sm"
             />

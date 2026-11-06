@@ -52,6 +52,8 @@ Vocabulary (words, phrases) is loaded per kind, and only the selected kind matte
 - While the selected vocabulary loads, the stream is empty (it keeps its height), typing is ignored and a loading notice is shown. A chunk that arrives is cached; it restarts the test only if its kind is still selected.
 - A failed load never changes the content setting. The notice names the failure and offers Retry; until it succeeds, kana are practised from the fallback pool and typing is allowed. A failure of a kind that is not selected shows nothing.
 - Loading, error and "no kana for these rows" notices share one reserved slot above the stream, so none of them moves the text. The slot hides with the other interface while a test runs.
+- The results screen and the Russian dictionary are chunks of their own, fetched on idle with the others ([ADR 057](../adr/057-lazy-results-screen-and-russian-dictionary.md)). If a test ends before the results chunk is there, a loading notice stands in its place (an error with Retry on a failure), and Next test and Enter work meanwhile.
+- A saved Russian language holds the first render until its dictionary has loaded; if it cannot be loaded the interface is in English and the choice stays saved. The language switch loads the dictionary first and changes the language only then.
 - Leaving the training screen drops a running test without saving it (metrics.md, "Test end").
 
 ## UI architecture

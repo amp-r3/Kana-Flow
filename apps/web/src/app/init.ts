@@ -24,9 +24,10 @@ function routeTitle(path: string): string {
   }
 }
 
-export function initApp(): void {
+/** Resolves when the interface language is ready: render only then, so no string flashes in English. */
+export function initApp(): Promise<void> {
   const store = new LocalStorageStore();
-  initLocale(store);
+  const localeReady = initLocale(store);
   initSettings(store);
   initProgress(store);
 
@@ -55,4 +56,6 @@ export function initApp(): void {
       }
     });
   }
+
+  return localeReady;
 }

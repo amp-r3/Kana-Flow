@@ -1,11 +1,8 @@
-import { locale } from './locale';
-import { en, type TranslationKey } from './en';
-import { ru } from './ru';
+import { dictionary } from './locale';
+import type { TranslationKey } from './en';
 
 export function t(key: TranslationKey, params?: Record<string, string | number>): string {
-  const currentLocale = locale.value;
-  const dict = currentLocale === 'ru' ? ru : en;
-  let str: string = dict[key];
+  let str: string = dictionary.value[key];
 
   if (params) {
     for (const [pKey, pVal] of Object.entries(params)) {

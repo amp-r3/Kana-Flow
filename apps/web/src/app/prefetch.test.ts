@@ -13,10 +13,12 @@ describe('prefetch: the other screens and the content chunks, after the first re
   it('loads every route and the chosen content chunks', async () => {
     const loadRoute = vi.fn<PrefetchDeps['loadRoute']>(() => Promise.resolve());
     const loadContent = vi.fn<PrefetchDeps['loadContent']>(() => Promise.resolve());
-    await prefetch({ content: 'words', loadRoute, loadContent });
+    const extra = vi.fn(() => Promise.resolve());
+    await prefetch({ content: 'words', loadRoute, loadContent, loadExtras: [extra] });
 
     expect(loadRoute.mock.calls.map((call) => call[0])).toEqual([...ROUTE_PATHS]);
     expect(loadContent.mock.calls).toEqual([['words']]);
+    expect(extra).toHaveBeenCalledTimes(1);
   });
 
   it('ignores failures: a rejected chunk neither throws nor stops the others', async () => {
@@ -26,7 +28,10 @@ describe('prefetch: the other screens and the content chunks, after the first re
     const loadContent = vi.fn<PrefetchDeps['loadContent']>(() =>
       Promise.reject(new Error('offline')),
     );
-    await expect(prefetch({ content: 'single', loadRoute, loadContent })).resolves.toBeUndefined();
+    const extra = vi.fn(() => Promise.reject(new Error('offline')));
+    await expect(
+      prefetch({ content: 'single', loadRoute, loadContent, loadExtras: [extra] }),
+    ).resolves.toBeUndefined();
     expect(loadRoute).toHaveBeenCalledTimes(ROUTE_PATHS.length);
     expect(loadContent).toHaveBeenCalledTimes(2);
   });
