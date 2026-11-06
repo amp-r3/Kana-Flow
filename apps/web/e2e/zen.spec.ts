@@ -67,17 +67,12 @@ test.describe('zen: a test without a length, ended by hand', () => {
     await expect(page.getByRole('radio', { name: 'Zen' })).toHaveAttribute('aria-checked', 'true');
   });
 
+  // Cmd+Enter, and Ctrl+Enter in a test that is not zen, are decided without a browser
+  // (input-adapter.test.ts, input-source.test.ts, session.test.ts); this one proves the real key path.
   test('Ctrl+Enter ends the test', async ({ page }) => {
     await chooseZen(page);
     await typePrompts(page, 3);
     await page.keyboard.press('Control+Enter');
-    await expect(page.getByTestId('results-panel')).toBeVisible();
-  });
-
-  test('Cmd+Enter ends the test', async ({ page }) => {
-    await chooseZen(page);
-    await typePrompts(page, 3);
-    await page.keyboard.press('Meta+Enter');
     await expect(page.getByTestId('results-panel')).toBeVisible();
   });
 
@@ -126,14 +121,6 @@ test.describe('zen: a test without a length, ended by hand', () => {
     await expect(page.getByTestId('live-counter')).toHaveText('1');
     await page.keyboard.press('Control+Enter');
     await expect(page.getByTestId('results-panel')).toBeVisible();
-  });
-
-  test('Ctrl+Enter does nothing in a test that is not zen', async ({ page }) => {
-    await page.goto('/');
-    await typePrompts(page, 2);
-    await page.keyboard.press('Control+Enter');
-    await expect(page.getByTestId('prompt-arena')).toHaveAttribute('data-phase', 'running');
-    await expect(page.getByTestId('results-panel')).toHaveCount(0);
   });
 
   test('the first Tab still reaches Restart, with Finish after it', async ({ page }) => {

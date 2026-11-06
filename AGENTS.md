@@ -95,7 +95,7 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
 ## Testing
 
 - Unit tests: Vitest, colocated as `*.test.ts(x)`; DOM tests use `// @vitest-environment happy-dom`.
-- E2E: Playwright in `e2e/`.
+- E2E: Playwright in `e2e/`. Only for what needs a real browser (focus, IME, layout, the production bundle). A rule that a unit test covers is not repeated there.
 - Fix the code, not the test, unless the test encodes behaviour the spec has changed. In that case cite the spec item in the commit message.
 - Report test results as they are; never claim a check passed without running it.
 

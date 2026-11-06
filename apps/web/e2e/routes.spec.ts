@@ -1,25 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('routes: direct visits, navigation without a reload, settings', () => {
-  for (const [path, heading] of [
-    ['/learn', 'Learn'],
-    ['/stats', 'Statistics'],
-    ['/settings', 'Settings'],
-    ['/about', 'About'],
-  ] as const) {
-    test(`${path} opens from its address`, async ({ page }) => {
-      await page.goto(path);
-      await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
-      await expect(page).toHaveTitle(`${heading} — Nekotype`);
-    });
-  }
-
-  test('an unknown path shows the not-found screen with a way back', async ({ page }) => {
-    await page.goto('/no-such-screen');
-    await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
-    await page.getByRole('button', { name: 'Back to the trainer' }).click();
-    await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByTestId('prompt-arena')).toBeVisible();
+  // The other screens and the unknown path are covered without a browser (app/App.test.tsx,
+  // app/init.test.ts); one direct visit is left to show that the production bundle and the server's
+  // fallback to the entry page work together.
+  test('/settings opens from its address', async ({ page }) => {
+    await page.goto('/settings');
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(page).toHaveTitle('Settings — Nekotype');
   });
 
   test('navigation does not reload the page, and Back returns to a working trainer', async ({
