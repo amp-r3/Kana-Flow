@@ -91,7 +91,8 @@ Open your browser to `http://localhost:5173`.
 Run the full verification pipeline (typecheck, ESLint + Steiger FSD lint, Prettier check, Vitest tests with the engine coverage threshold, production build, size budgets, Playwright e2e):
 
 ```bash
-pnpm run verify
+pnpm run verify         # what CI runs on a pull request
+pnpm run verify:quick   # the same without e2e (what the pre-push hook runs)
 ```
 
 To run individual verification gates:
@@ -103,14 +104,15 @@ pnpm run format:check # prettier --check .
 pnpm test             # vitest run in every package (engine with a coverage threshold)
 pnpm run build        # vite production build into apps/web/dist
 pnpm run budget       # check-budget.mjs (size budgets from the Vite manifest)
-pnpm run e2e          # Playwright on the production bundle (Chromium, WebKit in mobile emulation), then the latency test
+pnpm run e2e          # Playwright on the production bundle (Chromium, WebKit in mobile emulation)
+pnpm run e2e:latency  # the keystroke latency test (about 2 min); CI runs it on main and by hand, not on pull requests
 ```
 
 Fonts are subset by hand, not in CI: `pnpm --filter @nekotype/web run fonts` downloads the pinned sources into `apps/web/scripts/font-src/` (ignored by git), checks their SHA-256 and rewrites `glyphs.txt` and the `woff2` files in `apps/web/src/assets/fonts/` (ADR 034).
 
 ### End-to-End Testing (Playwright)
 
-End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify`, locally and in CI. They need Chromium and WebKit once; WebKit also needs its system libraries (`--with-deps`, which asks for `sudo` on Linux). Without them set `E2E_SKIP_WEBKIT=1` to run Chromium only (CI always runs both).
+End-to-end browser integration tests are powered by Playwright and run as the last step of `pnpm run verify` in CI. The pre-push hook does not run them (`verify:quick`); run `pnpm run e2e` yourself when a change touches browser behaviour. The keystroke latency test is separate (`pnpm run e2e:latency`) and runs in CI on `main` and by hand, not on pull requests (ADR 052). They need Chromium and WebKit once; WebKit also needs its system libraries (`--with-deps`, which asks for `sudo` on Linux). Without them set `E2E_SKIP_WEBKIT=1` to run Chromium only (CI always runs both).
 
 To install the browser binary and run the E2E suite:
 
@@ -123,12 +125,12 @@ pnpm run e2e                        # Run the Playwright suite against the produ
 
 `pnpm install --frozen-lockfile` runs the `prepare` script, which points Git at the versioned hooks in `.githooks/`. No extra dependencies are involved.
 
-| Hook         | Runs                                                                                                               | Notes                                                                                                                                                                                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                                                                                                                                |
-| `pre-push`   | `pnpm run verify` (includes e2e); `prettier --check` only if the push changes only `.md` files                     | Runs the e2e against its own production build served on port 5273 (`E2E_PORT`), never a dev server you keep running; needs `pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit` once (or `E2E_SKIP_WEBKIT=1`) |
+| Hook         | Runs                                                                                                               | Notes                                                                                                                                                                                                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pre-commit` | Line limit for `AGENTS.md`/`CLAUDE.md` (250), `prettier --check` on staged files, then `typecheck`, `lint`, `test` | Code checks are skipped when only Markdown files are staged                                                                                                                                                                                                                              |
+| `pre-push`   | `pnpm run verify:quick` (no e2e); `prettier --check` only if the push changes only `.md` files                     | The e2e are not part of it: `pnpm run e2e` runs them against their own production build served on port 5273 (`E2E_PORT`), never a dev server you keep running; they need `pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit` once (or `E2E_SKIP_WEBKIT=1`) |
 
-CI still runs `verify` on every push and pull request; the hooks catch the same failures earlier. In an emergency, `git commit --no-verify` / `git push --no-verify` skips them.
+CI runs `verify` (with e2e) on every push and pull request; the hooks catch the same failures, except the browser ones, earlier. In an emergency, `git commit --no-verify` / `git push --no-verify` skips them.
 
 ---
 
@@ -161,7 +163,7 @@ Nekotype is a fully static SPA (`apps/web/dist/`, no backend, state in `localSto
 
 `.github/workflows/deploy.yml` runs on every push to `main` and on every pull request:
 
-1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e on Chromium and WebKit). Any failure blocks the deploy.
+1. `pnpm install --frozen-lockfile` → `pnpm run verify` (typecheck + lint + Prettier + unit tests with coverage + build + size budget + e2e on Chromium and WebKit). Any failure blocks the deploy. On `main` and on a manual run, `pnpm run e2e:latency` follows (ADR 052).
 2. `wrangler pages deploy apps/web/dist` — PRs get a preview deployment; a push to `main` is deployed first to the preview branch `release-candidate`. Fork PRs verify but never deploy, since they cannot read secrets.
 3. `scripts/smoke-deploy.mjs` requests the deployment that was just made (the address wrangler writes to `WRANGLER_OUTPUT_FILE_PATH`, else the branch alias): every route and its trailing-slash form must answer `200` with the application, a missing `/assets/*` file and an unknown path must answer `404` and not the application, and the bundle named by the entry page must load. These are behaviours of Cloudflare Pages that the dev server and the unit tests cannot show (ADR 039). Run it by hand against any address: `pnpm --filter @nekotype/web exec tsx scripts/smoke-deploy.mjs https://nekotype.pages.dev`.
 4. On `main` only, after the candidate passes: the same build is deployed to production and the smoke test runs against production again. A failed candidate stops the workflow before production (ADR 045).
