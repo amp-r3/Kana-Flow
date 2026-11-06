@@ -21,9 +21,14 @@ import {
 import type { ScriptMode, ContentKind } from '@/entities/settings';
 import type { Strictness } from '@/entities/prompt';
 
+export type ModePanelProps = {
+  /** The rows dialog is about to open. */
+  readonly onOpenRows: () => void;
+};
+
 // The speed-test options: script, material and strictness in the first row, test, length, weak
 // kana and rows in the second (design: ModePanel).
-export function ModePanel(): JSX.Element {
+export function ModePanel({ onOpenRows }: ModePanelProps): JSX.Element {
   const [rowsDialogOpen, setRowsDialogOpen] = useState(false);
   const currentScript = scriptSetting.value;
   const currentContent = contentSetting.value;
@@ -155,6 +160,7 @@ export function ModePanel(): JSX.Element {
               variant="ghost"
               size="sm"
               onClick={() => {
+                onOpenRows();
                 setRowsDialogOpen(true);
               }}
               ariaLabel={t('app.rows')}
