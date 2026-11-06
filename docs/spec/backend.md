@@ -1,6 +1,6 @@
 # Backend
 
-The backend is a Hono application running as Cloudflare Pages Functions on the `nekotype` Pages project, with a D1 database; sign-in is Google and GitHub only, via the Arctic library. One finished test costs 4–5 written D1 rows.
+The backend is a Hono application running as Cloudflare Pages Functions on the `nekotype` Pages project, with a D1 database; sign-in is Google and GitHub only, via the Arctic library. One finished test costs 4–5 written D1 rows; a sync that carries only learning progress costs 1–2.
 
 ## Free-tier limits that constrain the design
 
@@ -13,6 +13,8 @@ The backend is a Hono application running as Cloudflare Pages Functions on the `
 | [D1 over-limit behaviour](https://developers.cloudflare.com/changelog/post/2026-09-01-d1-free-tier-limit-enforcement/) | Queries fail until midnight UTC           | The client keeps data in `outbox` and `delta` and retries later; the application keeps working locally |
 
 **Row budget per finished test:** result row 1 + automatic primary-key index entry 1 (a `TEXT PRIMARY KEY` creates one) + `results_user_time` index entry 1 + `user_stats` 1 + `user_settings` 0–1 = 4–5 rows. The authoritative figure is `meta.rows_written` returned by D1; the acceptance limit is 6. At 6 rows the daily write limit allows about 16,000 tests.
+
+**Row budget per learning sync:** `user_stats` 1 + `user_settings` 0–1 = 1–2 rows. A learning session adds no row of its own, and the sessions between two syncs travel in one batch.
 
 ## D1 schema
 
@@ -33,11 +35,11 @@ CREATE TABLE user_settings (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   json TEXT NOT NULL, updated_at INTEGER NOT NULL
 );
--- statistics, counters, learning, personal bests and last applied seq per device in one row
+-- typing statistics, counters, learning state, typing records and last applied seq per device in one row
 CREATE TABLE user_stats (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   kana_stats TEXT NOT NULL, counters TEXT NOT NULL, learn TEXT NOT NULL,
-  personal_bests TEXT NOT NULL, device_seq TEXT NOT NULL, last_sync_at INTEGER NOT NULL,
+  typing_records TEXT NOT NULL, device_seq TEXT NOT NULL, last_sync_at INTEGER NOT NULL,
   version INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE results (
@@ -54,30 +56,39 @@ CREATE TABLE content_reports (
 
 `user_stats.device_seq` maps `deviceId` → last applied `seq` (see [Batches](storage-sync.md#batches)). The `user_stats` row is created with the user in the OAuth callback, so a sync always finds it.
 
+`user_stats.learn` holds the learning state ([Metrics](metrics.md#data-model)). For a learner with both tracks fully unlocked after a year of daily sessions it is about 200 KB, mostly the last 10 recall answers of 229 kana and 365 days of answer-time buckets per track: well below the 2 MB row limit. The CPU cost of merging such a row is part of the P5 acceptance.
+
 ## API
 
-| Method and path                    | Purpose                                                                                                                                                    |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/auth/:provider`          | Start OAuth (`google` with PKCE, `github`): state cookie and redirect                                                                                      |
-| `GET /api/auth/:provider/callback` | Verify state, fetch profile, create or find user, set session, redirect to `/`                                                                             |
-| `POST /api/auth/logout`            | Delete session and cookie                                                                                                                                  |
-| `GET /api/me`                      | Profile or 401                                                                                                                                             |
-| `DELETE /api/me`                   | Delete the account and all its data; set `content_reports.user_id` to NULL for its reports                                                                 |
-| `POST /api/sync`                   | Body: `deviceId`, `seq`, batch. Response: snapshot of settings, statistics, counters, learning, personal bests, and the last applied seq for this deviceId |
-| `GET /api/sync`                    | Snapshot and the last applied seq for the deviceId query parameter, used after a `409`                                                                     |
-| `GET /api/results?before=&limit=`  | Paginated test history (at most 50 per request), newest first; `before` is the cursor `<endedAt>:<id>`                                                     |
-| `POST /api/reports`                | Content reports from guests and signed-in users; requires a valid Cloudflare Turnstile token; one report and at most 8 KB per request                      |
+| Method and path                    | Purpose                                                                                                                                                          |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/auth/:provider`          | Start OAuth (`google` with PKCE, `github`): state cookie and redirect                                                                                            |
+| `GET /api/auth/:provider/callback` | Verify state, fetch profile, create or find user, set session, redirect to `/`                                                                                   |
+| `POST /api/auth/logout`            | Delete session and cookie                                                                                                                                        |
+| `GET /api/me`                      | Profile or 401                                                                                                                                                   |
+| `DELETE /api/me`                   | Delete the account and all its data; set `content_reports.user_id` to NULL for its reports                                                                       |
+| `POST /api/sync`                   | Body: `deviceId`, `seq`, batch. Response: snapshot of settings, statistics, counters, learning state, typing records, and the last applied seq for this deviceId |
+| `GET /api/sync`                    | Snapshot and the last applied seq for the deviceId query parameter, used after a `409`                                                                           |
+| `GET /api/results?before=&limit=`  | Paginated test history (at most 50 per request), newest first; `before` is the cursor `<endedAt>:<id>`                                                           |
+| `POST /api/reports`                | Content reports from guests and signed-in users; requires a valid Cloudflare Turnstile token; one report and at most 8 KB per request                            |
 
 ### Request and response bodies
 
-`Settings`, `TestResult`, `KanaStat`, `Counters`, `LearnEntry`, `LearnState` and `PersonalBests` are defined in [Metrics](metrics.md), [Learning](learning.md) and [Storage and sync](storage-sync.md). These types live in `shared/types`; the matching valibot schemas live in `shared/schemas`.
+`Settings`, `TestResult`, `KanaStat`, `Counters`, `TypingRecords`, `Track`, `RecallAnswer`, `LearnEntry`, `LearnStat` and `LearnState` are defined in [Metrics](metrics.md) and [Storage and sync](storage-sync.md). These types live in `shared/types`; the matching valibot schemas live in `shared/schemas`.
 
 ```ts
+type LearnDelta = {
+  entries: Record<KanaKey, LearnEntry>; // changed entries
+  unlocked: Record<Track, KanaKey[]>; // newly unlocked kana
+  recent: Record<KanaKey, RecallAnswer[]>; // new recall answers, at most 10 per kana
+  stats: Record<KanaKey, LearnStat>; // increments
+  activeDays: [first: number, last: number][]; // runs of days that became active
+  recallBuckets: Record<Track, Record<string, Record<string, number>>>; // increments
+};
 type SyncDelta = {
   kanaStats: Record<KanaKey, KanaStat>; // increments
   counters: Counters; // increments
-  learnEntries: Record<KanaKey, LearnEntry>; // changed entries
-  unlockedGroups: Record<Script, string[]>;
+  learn: LearnDelta;
   settings: Settings | null; // null when unchanged
 };
 type SyncRequest = {
@@ -92,7 +103,7 @@ type Snapshot = {
   kanaStats: Record<KanaKey, KanaStat>;
   counters: Counters;
   learn: LearnState;
-  personalBests: PersonalBests;
+  typingRecords: TypingRecords;
 };
 type SyncResponse = { lastSeq: number; snapshot: Snapshot }; // POST and GET /api/sync
 type ResultsResponse = { results: TestResult[]; next: string | null }; // next: cursor for `before`
@@ -134,11 +145,11 @@ Every error body is `{ "error": { "code": string, "lastSeq"?: number } }`.
 Two devices of one user can sync at the same moment, and the update of `user_stats` is a read-modify-write of one JSON row. [`batch()`](https://developers.cloudflare.com/d1/worker-api/d1-database/) makes the write atomic but does not protect the earlier read, so writes use optimistic concurrency on `user_stats.version`:
 
 1. Read `user_stats`, including `version`, and apply the `seq` rules.
-2. Compute the merged statistics, counters, learning state, personal bests and `device_seq`.
+2. Compute the merged statistics, counters, learning state, typing records and `device_seq` by the rules in [Storage and sync](storage-sync.md#merge-rules).
 3. Run `batch()` with `UPDATE user_stats SET … , version = version + 1 WHERE user_id = ? AND version = ?`, `INSERT OR IGNORE` for each result, and the `user_settings` upsert if settings changed.
 4. If the `UPDATE` reports `meta.changes` = 0, another request won: repeat from step 1 once. If it loses again, return `503 conflict`; the client keeps its batch and resends it.
 
-A batch that lost still inserts its results, because `batch()` runs every statement. This is harmless: inserts are idempotent by `id`, and personal bests are computed from every result of the batch, not only newly inserted ones. A lost attempt spends extra rows, so the row budget above applies to the uncontended case.
+A batch that lost still inserts its results, because `batch()` runs every statement. This is harmless: inserts are idempotent by `id`, and typing records are computed from every result of the batch, not only newly inserted ones. A lost attempt spends extra rows, so the row budget above applies to the uncontended case.
 
 ## Authentication and security
 

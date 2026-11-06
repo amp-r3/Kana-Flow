@@ -4,7 +4,9 @@
 
 # Nekotype (ねこタイプ)
 
-> A lightweight, keyboard-first Japanese kana speed trainer inspired by Monkeytype. Master Hiragana and Katakana with instantaneous typing feedback, dual-tier romaji matching, adaptive weak-kana weighting, and zero latency.
+> A lightweight, keyboard-first web app for learning Hiragana and Katakana from zero, with adaptive unlocking and progress tracking, and for typing Japanese words and phrases in romaji with instantaneous feedback, dual-tier romaji matching and zero latency.
+
+**Status.** The code implements phases P0–P2: a typing trainer with Single Kana, Words and Phrases, described below. The MVP specified in [docs/spec/](docs/spec/README.md) is learning-first ([ADR 058](docs/adr/058-learning-first.md)): from P3, `/` teaches kana one at a time with recall, recognition and spaced reviews, and typing keeps words and phrases on `/type`.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Max%20Strict-blue.svg)](https://www.typescriptlang.org/)

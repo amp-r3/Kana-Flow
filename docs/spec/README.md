@@ -2,6 +2,8 @@
 
 Nov 1, 2026 · @Амир
 
+Revised Nov 6, 2026: learning first ([ADR 058](../adr/058-learning-first.md)).
+
 ## Document scope
 
 This document specifies the Nekotype MVP: required behaviour, data models, interfaces, performance budgets and acceptance criteria. "Baseline" refers to the repository state at commit 0f4927d.
@@ -17,10 +19,10 @@ This document specifies the Nekotype MVP: required behaviour, data models, inter
 | ---------------------------------- | -------------------------------------------------------------------- |
 | [README.md](README.md)             | Scope, constraints, changes from the baseline (D1…)                  |
 | [engine.md](engine.md)             | Input engine API, tokens, prompt boundaries, accepted input, errors  |
-| [metrics.md](metrics.md)           | Metrics, test end, data model, results and statistics screens        |
+| [metrics.md](metrics.md)           | Learning and typing metrics, test end, data model, screens           |
 | [architecture.md](architecture.md) | Monorepo layout, dependency rules, key technical decisions           |
-| [frontend.md](frontend.md)         | Input source, text stream, keyboard, hot path, loading               |
-| [learning.md](learning.md)         | Learning mode: groups, lessons, boxes                                |
+| [frontend.md](frontend.md)         | Input source, text stream, keyboard, hot path, loading, routes       |
+| [learning.md](learning.md)         | Learning: tracks, unlocking, sessions, reviews, boxes, kana chart    |
 | [content.md](content.md)           | Content pipeline: sources, words, phrases, build checks, attribution |
 | [storage-sync.md](storage-sync.md) | IndexedDB, settings, merge rules, batches, sync triggers             |
 | [backend.md](backend.md)           | Free-tier limits, D1 schema, API, security, environments             |
@@ -33,9 +35,9 @@ Item prefixes: **D** — change from the baseline (this file); **A** — design 
 
 ## Product scope
 
-Nekotype is a web trainer for fast and accurate romaji input of Japanese kana text, modelled on Monkeytype. The MVP consists of the speed-typing core, a kana learning mode, accounts with cross-device sync, and dictionary-sourced words and phrases.
+Nekotype teaches hiragana and katakana from zero and tracks the learner's progress; its second part is typing Japanese words and phrases in romaji. Learning is the core of the product ([ADR 058](../adr/058-learning-first.md)): kana unlock one at a time as the learner becomes confident with the ones already unlocked, are practised by recall (kana → romaji) and recognition (romaji → kana), and are kept by daily reviews. Romaji is the way to answer and a real skill for typing words, not the measure of knowing a kana. The MVP consists of the learning mode, typing of dictionary-sourced words and phrases, accounts with cross-device sync, and kana audio.
 
-**Target users:** people who already read kana and want to type faster. The learning mode covers kana only.
+**Target users:** people starting Japanese who do not read kana yet, and kana readers who want to type words and phrases faster. Learning covers kana only.
 
 **Constraints:**
 
@@ -47,20 +49,21 @@ Nekotype is a web trainer for fast and accurate romaji input of Japanese kana te
 
 ### In scope
 
-| Area          | Included                                                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Speed mode    | Hiragana, katakana, both; content: kana, words, phrases; tests by time (15/30/60/120 s), by count (10/25/50/100 prompts), zen |
-| Learning mode | Kana only: introduction by group, recognition (romaji → choose kana), recall (typing), mixed review, mastery tracking         |
-| Input         | Japanese text stream with a romaji buffer at the caret; two strictness modes; keyboard-layout and IME warnings                |
-| Statistics    | Per-kana statistics, test history, personal bests, kana-chart heatmap, charts, started/finished test counters                 |
-| Accounts      | Guest mode; sign-in with Google and GitHub; guest data merged on sign-in; sync of settings, results and progress              |
-| Content       | JLPT N5–N4 words from JMdict, short phrases from Tatoeba; displayed in kana only; English translations                        |
-| Interface     | English and Russian UI, a badge on a personal best, animations, keyboard shortcuts, dark theme                                |
-| Other         | "Report a problem" action for words and phrases; source attribution page                                                      |
+| Area       | Included                                                                                                                                                                                                                                                                                                                          |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Learning   | Hiragana and katakana as independent tracks; kana unlocked one at a time by confidence; recall (typing the romaji) and recognition (choosing the kana from 4); weighted task choice with a focus on new kana; Leitner boxes with daily reviews; kana chart with learning states; mastered count, daily median answer time, streak |
+| Typing     | Words and phrases in hiragana, katakana or both; tests by time (15/30/60/120 s), by count (10/25/50/100 prompts), zen; KPM and kana accuracy compared with the user's average and personal best                                                                                                                                   |
+| Input      | Japanese text stream with a romaji buffer at the caret; two strictness modes; keyboard-layout and IME warnings                                                                                                                                                                                                                    |
+| Statistics | Learning progress by day and streak; test history, personal bests, KPM-per-test chart; started/finished counters                                                                                                                                                                                                                  |
+| Accounts   | Guest mode; sign-in with Google and GitHub; guest data merged on sign-in; sync of settings, learning progress, results and statistics                                                                                                                                                                                             |
+| Audio      | The sound of each kana after every task, from openly licensed recordings, loaded lazily (P6)                                                                                                                                                                                                                                      |
+| Content    | JLPT N5–N4 words from JMdict, short phrases from Tatoeba; displayed in kana only; English translations                                                                                                                                                                                                                            |
+| Interface  | English and Russian UI, a badge on a personal best, animations, keyboard shortcuts, dark theme                                                                                                                                                                                                                                    |
+| Other      | "Report a problem" action for words and phrases; source attribution page                                                                                                                                                                                                                                                          |
 
 ### Out of scope
 
-Russian translations of words and phrases, kanji in any form (including furigana), custom word sets, audio, offline PWA, light and additional themes, leaderboards, content admin panel, vocabulary SRS, grammar, Hepburn-only mode. These items are listed in [Post-MVP backlog](backlog.md).
+Speed tests on single kana (removed by [ADR 058](../adr/058-learning-first.md)), Russian translations of words and phrases, kanji in any form (including furigana and kanji learning), custom word sets, audio for words and phrases, speech synthesis, offline PWA, light and additional themes, leaderboards, content admin panel, vocabulary SRS, grammar, Hepburn-only mode. Except the speed tests, these items are listed in [Post-MVP backlog](backlog.md).
 
 ## Changes from the baseline
 
@@ -84,7 +87,7 @@ The NFA approach (`start`/`step`/`isComplete`), the kana table format, the promp
 | D14 | Input via `keydown` only                                                                                         | Hybrid input source (see [Frontend](frontend.md))                                                                                                                                                                                                                                                                                                                                                   |
 | D15 | Cyrillic input is mapped silently by `event.code`                                                                | A non-latin character is rejected without counting as an error; a "switch keyboard layout to English" notice is shown                                                                                                                                                                                                                                                                               |
 | D16 | `TestStage` and `LiveStatsStrip` re-render on every keystroke                                                    | Zero component renders per keystroke (see [Frontend](frontend.md))                                                                                                                                                                                                                                                                                                                                  |
-| D17 | Stores are module-level singletons                                                                               | Sessions are created by a `createSession()` factory so speed and learning sessions do not share state                                                                                                                                                                                                                                                                                               |
+| D17 | Stores are module-level singletons                                                                               | Sessions are created by factories (`createSession()` for typing, `createLearnSession()` for learning), so typing and learning sessions do not share state                                                                                                                                                                                                                                           |
 | D18 | localStorage with a synchronous `KeyValueStore`                                                                  | IndexedDB with an asynchronous store; migration of `kanaflow:*:v1` keys                                                                                                                                                                                                                                                                                                                             |
 | D19 | 70 words and 30 phrases defined by hand                                                                          | Replaced by the content pipeline; current data is kept as test fixtures                                                                                                                                                                                                                                                                                                                             |
 | D20 | Defects: empty pool throws; `computeItemWeight` is unused; `animate-fadeIn` is undefined                         | Fixed in P0: rows that give no kana for the script (extended rows with hiragana) fall back to the basic rows and the training screen says so, without changing the saved row selection (ADR 028); word and phrase weights are the mean of their kana weights via `computeItemWeight`; `animate-fadeIn` is defined and respects `prefers-reduced-motion`. These are the only behaviour changes in P0 |
@@ -92,3 +95,6 @@ The NFA approach (`start`/`step`/`isComplete`), the kana table format, the promp
 | D22 | っ merges when the next spelling does not start with a vowel, `n` or `y`, so っー yields `--`                    | っ merges per spelling of the next token: a spelling starting with a latin consonant other than `n` and `y` is doubled, and the xtu/ltu/xtsu/ltsu prefix is accepted before any spelling (see "Tokens")                                                                                                                                                                                             |
 | D23 | Kana statistics are recorded per prompt, so a restarted test still changes them                                  | Statistics of a test are applied once, together with its saved result. A restart discards them (see "Test end" in [Metrics and statistics](metrics.md))                                                                                                                                                                                                                                             |
 | D24 | A test runs until its timer or prompt count is reached, however long the user is idle                            | A time or count test ends after 5 seconds without input and is saved without personal-best eligibility; zen is exempt (see "Test end")                                                                                                                                                                                                                                                              |
+| D25 | `single` (speed tests on single kana, with a row selection) is a content kind and the default                    | Removed ([ADR 058](../adr/058-learning-first.md)): kana are learned in the learning mode, and typing covers words and phrases. A saved `content: 'single'` becomes `words` and `rowIds` is dropped (see [Storage and sync](storage-sync.md))                                                                                                                                                        |
+| D26 | The trainer is the main screen                                                                                   | `/` is the learning screen ([Learning](learning.md)); typing moves to `/type`, and `/learn` redirects to `/` (see [Frontend](frontend.md))                                                                                                                                                                                                                                                          |
+| D27 | Per-kana statistics from typing (`a`, `m`, `t`) weight the prompts                                               | Typing keeps per-kana attempts and errors for word weights only; learning keeps its own answers and never reads them (A39)                                                                                                                                                                                                                                                                          |

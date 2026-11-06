@@ -1,6 +1,6 @@
 # Frontend
 
-The training screen consists of a Japanese text stream with a romaji buffer at the caret. A keystroke MUST NOT trigger a component render.
+Two pages take keyboard input: learning on `/` ([Learning](learning.md)) and typing on `/type`, a Japanese text stream with a romaji buffer at the caret. A keystroke MUST NOT trigger a component render on either.
 
 ## Input source (D14, D15)
 
@@ -12,49 +12,53 @@ The training screen consists of a Japanese text stream with a romaji buffer at t
 6. A non-latin letter is rejected without counting as an error; a "Switch your keyboard layout to English" notice appears and hides after the next latin character.
 7. The "Turn off the Japanese IME" notice is shown only when composition data contains kana or kanji. Composition events with latin data (Gboard on Android) do not show it. Latin text of a composition is held back until the IME is shown to be off: a consonant waits (with the IME on it is only the placeholder of a kana), a latin vowel releases it (an IME that is on would have made kana of it) and so does a composition that ends without kana, or a key typed directly. Kana drop whatever is held, so a Japanese IME that is on never starts a test or counts a mistake with its first letter. A latin vowel in a composition also hides the notice; a consonant does not. The only cost on Gboard is that the first consonant of a word is processed together with the vowel after it.
 8. The `handleIntent({kind:'char', char})` seam for an on-screen keyboard is retained.
-9. The hidden field belongs to the trainer page, not to the test screen, and stays in the document on the results screen. Restart, the zen "Finish" button and "Next test" give it the focus synchronously inside their click handler, because a phone keeps its keyboard open only for a focus set during the gesture. The field takes keys on the test screen only; on the results screen a key is left to the controls there (ADR 055).
+9. The hidden field belongs to the page, not to the screen inside it. On `/type` it stays in the document on the results screen. Restart, the zen "Finish" button and "Next test" give it the focus synchronously inside their click handler, because a phone keeps its keyboard open only for a focus set during the gesture. The field takes keys on the test screen only; on the results screen a key is left to the controls there (ADR 055).
+10. On `/` the field takes keys in introduction and recall tasks; in a recognition task the keys 1–4 choose an option, and on the chart and the summary a key is left to the controls there. "Continue" and "Review" focus the field in their click handler, and it keeps the focus through a session, so a phone keeps its keyboard open between tasks.
 
 ## Text stream and romaji buffer (D13)
 
-- **Stream:** 2–3 lines of prompts; the current line is in focus and completed lines scroll up. Prompts are separated by a gap. The engine window is extended as described in [Input engine rules](engine.md); it holds the prompts the stream draws after the displayed one, between 44 and 72 tokens (ADR 040, 043). The text that leaves the stream leaves in whole lines: the stream starts at the first prompt of the line above the caret, so no remaining token changes its line or its place on the screen when the stream is redrawn, and the caret does not move across the screen (a measurement puts it in place at once, with no transition). Only a view with no layout falls back to a cap in tokens (ADR 047).
+- **Stream:** on `/type`, 2–3 lines of prompts; the current line is in focus and completed lines scroll up. Prompts are separated by a gap. The engine window is extended as described in [Input engine rules](engine.md); it holds the prompts the stream draws after the displayed one, between 44 and 72 tokens (ADR 040, 043). The text that leaves the stream leaves in whole lines: the stream starts at the first prompt of the line above the caret, so no remaining token changes its line or its place on the screen when the stream is redrawn, and the caret does not move across the screen (a measurement puts it in place at once, with no transition). Only a view with no layout falls back to a cap in tokens (ADR 047).
 - **Token states:** upcoming (`untyped`), completed (`fur`), current (`eye` caret before the token), errored (`miss` with a `miss-dim` underline). Skip tokens are rendered; the caret passes over them.
 - **Romaji buffer** next to the caret renders the remainder from `engine.view()` as latin; displayed tokens are already marked in the stream. It does not shift the text. Example for きて: `k` → buffer "k"; `ki` → き is marked and the buffer is empty; `kit` → buffer "t".
 - **Translation** of the current word or phrase is shown below the stream; its height is reserved for two lines, since a translation wraps on a narrow screen and the stream must not move (the design's rule); controlled by `showTranslation` in settings, on by default.
 - **Live indicators:** the counter (time left or prompts completed), KPM and kana accuracy, on one line above the stream.
 - **Repeat mark:** during a repeat ([Metrics](metrics.md)) the same line shows "repeat" in `fur-dim` with a `stroke-hair` outline. It is rendered once per test and does not change on a keystroke.
-- **While a test runs,** the navigation and the config bar are hidden and leave the tab order, so the first Tab reaches Restart. They fade out and then leave the tab order; a mouse movement of more than 8 px shows them until the next key (ADR 041). Tab and Shift do not hide them again, so the keyboard can reach the navigation; any other key does, and every key press forgets where the mouse movement started, so a slow drift over a whole test shows nothing (ADR 055). Opening the rows dialog ends a running test like Restart, so it cannot run out behind the dialog. The translation line with its actions, the hint, notices and the zen "Finish" button stay available. Space for them is reserved, so the text does not move.
+- **While a test runs,** the navigation and the config bar are hidden and leave the tab order, so the first Tab reaches Restart. They fade out and then leave the tab order; a mouse movement of more than 8 px shows them until the next key (ADR 041). Tab and Shift do not hide them again, so the keyboard can reach the navigation; any other key does, and every key press forgets where the mouse movement started, so a slow drift over a whole test shows nothing (ADR 055). The translation line with its actions, the hint, notices and the zen "Finish" button stay available. Space for them is reserved, so the text does not move.
 
 ## Keyboard
 
 | Key                         | Action                                                                                                                                                                                                                                                                                                                                                    |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tab, then Enter             | Restart: Tab moves focus to the Restart button, Enter activates it (baseline behaviour). The button shows when it has the focus or the mouse is over it, and always on a touch screen, which has neither. Tab is never intercepted, so keyboard navigation is unaffected                                                                                  |
-| Esc                         | Hint for the active prompt                                                                                                                                                                                                                                                                                                                                |
+| Esc                         | Typing: hint for the active prompt. Recall: shows the romaji of the kana. Both count as an error                                                                                                                                                                                                                                                          |
 | Ctrl/Cmd+Enter              | Finish a zen test: the one modifier combination the input takes. It does nothing in other tests, before the first key, or with a dialog open or focus in another text field. The Finish button in a zen test does the same; it is enabled once the test runs, comes after Restart in the tab order, and shows the shortcut (`⌘ + enter` on Apple devices) |
 | Enter on the results screen | Next test, wherever the focus is except on a link, a control or in a dialog, which keep Enter for themselves; modifiers and a held key do nothing                                                                                                                                                                                                         |
-| 1–4                         | Choose an option in learning-mode recognition                                                                                                                                                                                                                                                                                                             |
+| 1–4                         | Choose an option in a recognition task, from the digit row or the numeric keypad                                                                                                                                                                                                                                                                          |
+| Enter, Space                | After a wrong recognition choice: the next task                                                                                                                                                                                                                                                                                                           |
+| Enter on the summary        | "Continue": the next learning session, with the same exceptions as on the results screen                                                                                                                                                                                                                                                                  |
 
 ## Hot path (D16)
 
 - Signals are passed into JSX as text nodes or written to the DOM via `useSignalEffect` and refs. Token state classes are toggled via `classList` on refs, without re-rendering.
 - Keystrokes are tracked with counters; the keystroke array is no longer copied.
 - A keystroke that does not complete a prompt: **0** component renders. A keystroke that completes a prompt: at most **1** render (the stream line component). Verified by a test using `options.diffed`, following `render-isolation.test.tsx`.
+- A recall task keeps the same budget: **0** renders for a keystroke that does not finish the answer, at most **1** for the one that does. The next task, shown after the pause, renders once.
 - Animations use `transform` and `opacity` only; `prefers-reduced-motion` disables them, as in the baseline.
 - A rejected key flashes the caret in `miss` for 120 ms through a separate layer animated with `opacity`. With `prefers-reduced-motion` the colour changes for 120 ms without a transition.
 - Noto Sans JP is loaded with `<link rel="preload">` (absent in the baseline).
 
 ## Loading
 
-After the first render, on `requestIdleCallback`, the client prefetches all lazy route chunks and the content chunks matching the current settings. This keeps the application usable when the network drops after load.
+After the first render, on `requestIdleCallback`, the client prefetches all lazy route chunks and the content chunks matching the current typing settings. This keeps the application usable when the network drops after load.
 
-Vocabulary (words, phrases) is loaded per kind, and only the selected kind matters to the screen:
+Vocabulary (words, phrases) is loaded per kind, and only the selected kind matters to the typing screen:
 
 - While the selected vocabulary loads, the stream is empty (it keeps its height), typing is ignored and a loading notice is shown. A chunk that arrives is cached; it restarts the test only if its kind is still selected.
-- A failed load never changes the content setting. The notice names the failure and offers Retry; until it succeeds, kana are practised from the fallback pool and typing is allowed. A failure of a kind that is not selected shows nothing.
-- Loading, error and "no kana for these rows" notices share one reserved slot above the stream, so none of them moves the text. The slot hides with the other interface while a test runs.
-- The results screen and the Russian dictionary are chunks of their own, fetched on idle with the others ([ADR 057](../adr/057-lazy-results-screen-and-russian-dictionary.md)). If a test ends before the results chunk is there, a loading notice stands in its place (an error with Retry on a failure), and Next test and Enter work meanwhile.
+- A failed load never changes the content setting. The notice names the failure and offers Retry; until it succeeds there is nothing to type, since there is no fallback kana pool ([ADR 058](../adr/058-learning-first.md)). A failure of a kind that is not selected shows nothing.
+- Loading and error notices share one reserved slot above the stream, so neither moves the text. The slot hides with the other interface while a test runs.
+- The results screen, the session summary and the Russian dictionary are chunks of their own, fetched on idle with the others ([ADR 057](../adr/057-lazy-results-screen-and-russian-dictionary.md)). If a test or a session ends before its chunk is there, a loading notice stands in its place (an error with Retry on a failure), and Next test, Continue and Enter work meanwhile.
 - A saved Russian language holds the first render until its dictionary has loaded; if it cannot be loaded the interface is in English and the choice stays saved. The language switch loads the dictionary first and changes the language only then.
-- Leaving the training screen drops a running test without saving it (metrics.md, "Test end").
+- Leaving the typing screen drops a running test without saving it (metrics.md, "Test end"). Leaving a learning session keeps its recorded answers ([Learning](learning.md)).
 
 ## UI architecture
 
@@ -67,25 +71,25 @@ From P2 the interface follows the [Nekotype design system](../design/README.md) 
 
 **Slices** (a starting point; ADR 015 still merges a slice with a single consumer into it):
 
-| Layer      | Slices                                                                                                 |
-| ---------- | ------------------------------------------------------------------------------------------------------ |
-| `pages`    | `trainer`, `learn`, `stats`, `settings`, `about`                                                       |
-| `features` | `training` (`createSession`, input source), `learn-session`, `sync`, `report-content`                  |
-| `entities` | `prompt` (picker, weights, content), `stats` (local view, results, bests), `learn`, `user`, `settings` |
+| Layer      | Slices                                                                                                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pages`    | `learn` (`/`), `trainer` (`/type`), `stats`, `settings`, `about`                                                                                                                   |
+| `features` | `training` (`createSession`, the typing session), `learn-session` (`createLearnSession`, task choice), `sync`, `report-content`                                                    |
+| `entities` | `prompt` (picker, weights, content), `stats` (typing statistics, local view, results, records), `learn` (learning state, confidence, unlocking, boxes, streak), `user`, `settings` |
 
-Slices on one layer do not import each other, so a flow crossing features, such as sign-out running a sync first, is composed in the page or in `app`.
+Slices on one layer do not import each other, so a flow crossing features, such as sign-out running a sync first, is composed in the page or in `app`. The input source, used by both sessions, is in `shared` ([Architecture](architecture.md)).
 
 **Screens in the MVP:**
 
-| Route       | Basic content                                                                                                                                                                                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/`         | Config bar, stream, romaji buffer, live indicators, results                                                                                                                                                                                                  |
-| `/learn`    | See [Learning mode](learning.md)                                                                                                                                                                                                                             |
-| `/stats`    | See [Metrics and statistics](metrics.md)                                                                                                                                                                                                                     |
-| `/settings` | `showTranslation`, learning strictness, "Reset progress" for guests. Account section: sign-in buttons (hidden on previews), profile, sync status (synced, pending, offline, session expired, blocked), sign-out, account deletion with a confirmation dialog |
-| `/about`    | See [Content pipeline](content.md) and P7                                                                                                                                                                                                                    |
+| Route       | Basic content                                                                                                                                                                                                                                                                                         |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`         | Learning: kana chart, progress, learning and review sessions, session summary; see [Learning](learning.md)                                                                                                                                                                                            |
+| `/type`     | Typing: config bar, stream, romaji buffer, live indicators, results                                                                                                                                                                                                                                   |
+| `/stats`    | See [Metrics and statistics](metrics.md)                                                                                                                                                                                                                                                              |
+| `/settings` | Learning: strictness, target answer time, sound (P6). Typing: `showTranslation`. "Reset progress" for guests. Account section: sign-in buttons (hidden on previews), profile, sync status (synced, pending, offline, session expired, blocked), sign-out, account deletion with a confirmation dialog |
+| `/about`    | See [Content pipeline](content.md) and P7                                                                                                                                                                                                                                                             |
 
-Speed-test options stay in the config bar on `/`. The navigation holds the logo, links to `/`, `/learn`, `/stats` and `/settings`, the `en`/`ru` switch and a sign-in link to `/settings`, hidden on previews; `/about` is linked from the page footer. "Reset progress" is on `/settings`, for guests only (A33). The report dialog has a `reason` select, an optional comment and the Turnstile widget.
+Typing options stay in the config bar on `/type`: content (words or phrases), script, strictness, test kind and length, weak kana; there is no row selection. The navigation holds the logo, links to `/` (learn), `/type`, `/stats` and `/settings`, the `en`/`ru` switch and a sign-in link to `/settings`, hidden on previews; `/about` is linked from the page footer. `/learn` redirects to `/` ([Architecture](architecture.md)). "Reset progress" is on `/settings`, for guests only (A33). The report dialog has a `reason` select, an optional comment and the Turnstile widget.
 
 ## Interface
 

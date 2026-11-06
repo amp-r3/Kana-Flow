@@ -1,6 +1,6 @@
 # ADR 019: Runtime Fallback for Vocabulary Pools in `buildPool`
 
-- **Status:** Amended by [ADR 028](028-empty-pool-falls-back-to-basic-rows.md): the empty single-kana pool no longer reaches `pickPrompt`.
+- **Status:** Amended by [ADR 028](028-empty-pool-falls-back-to-basic-rows.md): the empty single-kana pool no longer reaches `pickPrompt`. Superseded by [ADR 058](058-learning-first.md) from P3: content `single` is removed, so there is no kana pool to fall back to.
 
 - **Context:** Plan 5.5 requires: "If a pool is empty at runtime anyway, fall back to the single-kana pool."
 - **Decision:**

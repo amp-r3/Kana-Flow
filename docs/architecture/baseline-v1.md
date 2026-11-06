@@ -1,5 +1,7 @@
 > **Scope.** Describes the v1 baseline code as it stands after the P1 engine cutover: the application in `apps/web/src/` and the two packages it uses, `packages/engine` and `packages/shared`. Where it disagrees with the [MVP specification](../spec/README.md), the specification applies; this document is rewritten as the MVP phases land (spec item D21).
 
+> **Direction.** [ADR 058](../adr/058-learning-first.md) made learning the core of the MVP: from P3, `/` is the learning screen and typing keeps words and phrases on `/type`. This document still describes the code as it is, a typing trainer with Single Kana, Words and Phrases.
+
 # Nekotype Architecture Documentation
 
 Nekotype is a high-performance, keyboard-first Japanese kana speed trainer engineered around a Non-deterministic Finite Automaton (NFA) romaji engine, fine-grained Preact signals, and strict Feature-Sliced Design (FSD) architecture.
