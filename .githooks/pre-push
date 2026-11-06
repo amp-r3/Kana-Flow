@@ -1,8 +1,10 @@
 #!/bin/sh
-# Full verification before code leaves the machine: the same `verify` that CI runs
-# (typecheck, lint, formatting, unit tests with coverage, build, size budgets, e2e).
-# The output is not silenced: `--silent` is inherited by the nested pnpm calls and hid the output of a
-# failing e2e run, which showed only as "failed to push some refs".
+# Verification before code leaves the machine: `verify:quick`, which is `verify` without the browser
+# tests (typecheck, lint, formatting, unit tests with coverage, build, size budgets). The e2e run in CI
+# on every pull request and the latency test on `main` before the deploy (ADR 052); run them here by
+# hand with `pnpm run e2e` when a change touches browser behaviour.
+# The output is not silenced: `--silent` is inherited by the nested pnpm calls and would hide the output of
+# a failing step, which showed only as "failed to push some refs".
 # A push that changes only Markdown files skips it and checks formatting instead: no code changed, and CI
 # still runs the full `verify` on the pull request.
 # Bypass in an emergency with `git push --no-verify`.
@@ -17,4 +19,4 @@ if [ -n "$base" ]; then
   fi
 fi
 
-pnpm run verify
+pnpm run verify:quick

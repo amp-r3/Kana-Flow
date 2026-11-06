@@ -76,3 +76,4 @@ Append-only log of architectural decisions, one file per decision.
 | [049](049-session-boundaries.md)                                                     | Session Boundaries: Injected Statistics, Config Read Once, Private Finish                    | In force             |
 | [050](050-completed-prompts-at-test-end.md)                                          | Prompts Completed at the End of a Test, and the Memory of a Long Test                        | In force             |
 | [051](051-input-source-rules.md)                                                     | Input Source: Held IME Letters, Auto-repeat and Ctrl/Cmd+Enter                               | In force             |
+| [052](052-e2e-scope-and-latency-on-main.md)                                          | Browser Tests Off the Local Hot Path, Latency Gate on `main`                                 | In force             |

@@ -51,6 +51,13 @@ jobs:
       # `verify` already produces apps/web/dist, so no second build is needed.
       - run: pnpm run verify
 
+      # The keystroke latency test takes about two minutes, so it does not run on pull requests: it
+      # runs on `main` and by hand, before anything is deployed, and a failure stops the workflow
+      # before the candidate and production (ADR 052).
+      - name: Keystroke latency gate
+        if: github.event_name != 'pull_request'
+        run: pnpm run e2e:latency
+
       # The branch a build is first deployed to. A pull request has its own preview. A push to main
       # goes to `release-candidate` first, a preview deployment that is not production (ADR 045).
       - name: Resolve branch name

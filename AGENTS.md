@@ -35,11 +35,13 @@ pnpm run lint         # eslint . && steiger ./src, per package
 pnpm test             # vitest run in every package (engine: with a coverage threshold)
 pnpm run build        # production build into apps/web/dist/
 pnpm run budget       # size budgets on apps/web/dist/
-pnpm run verify       # typecheck + lint + format:check + test (coverage) + build + budget + e2e (what CI runs)
+pnpm run verify:quick # typecheck + lint + format:check + test (coverage) + build + budget (what pre-push runs)
+pnpm run verify       # verify:quick + e2e (what CI runs on a pull request)
 pnpm run e2e          # Playwright; one-time: pnpm --filter @nekotype/web exec playwright install --with-deps chromium webkit
+pnpm run e2e:latency  # keystroke latency test (about 2 min); CI runs it on main and by hand, not on pull requests (ADR 052)
 ```
 
-Run a single test file from its package: `cd apps/web && pnpm exec vitest run src/path/file.test.ts`.
+Run a single test file from its package: `cd apps/web && pnpm exec vitest run src/path/file.test.ts`. Run one e2e file on Chromium: `cd apps/web && pnpm exec playwright test e2e/<file>.spec.ts --project=chromium`. Do it when a change touches browser behaviour (focus, IME, layout); CI runs the whole suite.
 
 ## Git workflow
 
@@ -47,7 +49,7 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
 - One branch per phase or logical change (`p1-engine`, `fix/...`, `docs/...`), merged through a pull request with squash merge. Each PR gets a Cloudflare preview URL.
 - Commit messages follow Conventional Commits: `feat(scope): ...`, `fix(...)`, `chore: ...`, `docs: ...`.
 - No AI attribution in commits or PRs: no `Co-Authored-By` trailer for an assistant, no "Generated with …" line.
-- When a task is done and `pnpm run verify` passes, commit, push the branch and open a PR
+- When a task is done and `pnpm run verify:quick` passes, commit, push the branch and open a PR
   without asking. Do not commit to a branch the maintainer did not ask for.
 - The PR description lists: what changed, why, anything touched outside the task's scope,
   and what to check manually on the preview URL.
@@ -55,9 +57,9 @@ Run a single test file from its package: `cd apps/web && pnpm exec vitest run sr
   When the maintainer says to merge, squash-merge with `gh pr merge --squash --delete-branch`.
 - Git hooks live in `.githooks/`:
   - `pre-commit`: `prettier --check` on staged files, then typecheck, lint, unit tests (code checks are skipped for Markdown-only commits); `AGENTS.md`/`CLAUDE.md` over 250 lines are rejected.
-  - `pre-push`: `pnpm run verify` (which includes e2e); when only Markdown files changed, `prettier --check` instead. Do not run `verify` by hand before pushing: the hook does it.
+  - `pre-push`: `pnpm run verify:quick` (no e2e); when only Markdown files changed, `prettier --check` instead. Do not run it by hand before pushing: the hook does it.
 - Never bypass hooks with `--no-verify` unless the maintainer explicitly asks. If a hook fails, fix the cause.
-- CI (`.github/workflows/deploy.yml`) runs `verify` on every push and PR and deploys with wrangler.
+- CI (`.github/workflows/deploy.yml`) runs `verify` (with e2e) on every push and PR, the latency test on `main` and by hand, and deploys with wrangler.
 
 ## Architecture rules (baseline, kept in the MVP)
 
