@@ -1,0 +1,57 @@
+// @vitest-environment happy-dom
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render } from 'preact';
+import { createTrainer } from '@/features/training';
+import type { Trainer } from '@/features/training';
+import type { PromptItem } from '@/entities/prompt';
+import { setTestConfig } from '@/entities/settings';
+import { TrainerPage } from './ui/trainer-page';
+
+// The results chunk cannot be fetched.
+vi.mock('./ui/results-panel', () => {
+  throw new Error('offline');
+});
+
+const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 30));
+const neko: PromptItem = { key: 'word:neko', text: 'ねこ' };
+
+describe('results screen: the chunk fails to load', () => {
+  let container: HTMLDivElement;
+  let trainer: Trainer;
+
+  beforeEach(async () => {
+    setTestConfig({ kind: 'zen' });
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    trainer = createTrainer({ nextPrompt: () => neko });
+    render(<TrainerPage trainer={trainer} />, container);
+    await settle();
+    const field = container.querySelector('input');
+    for (const k of 'neko') {
+      field?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }),
+      );
+    }
+    await settle();
+    trainer.session.finish();
+    await settle();
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    document.documentElement.removeAttribute('data-testing');
+    setTestConfig({ kind: 'time', seconds: 30 });
+  });
+
+  it('shows the error with Retry, and Next test and Enter still start a test', async () => {
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    const labels = Array.from(container.querySelectorAll('button')).map((b) => b.textContent);
+    expect(labels).toContain('Try again');
+    expect(labels).toContain('Next Test');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+    expect(trainer.session.phase.value).toBe('idle');
+  });
+});

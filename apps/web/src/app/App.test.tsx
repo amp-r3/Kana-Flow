@@ -12,8 +12,8 @@ describe('App shell: navigation, lazy screens and the unknown path', () => {
   let container: HTMLDivElement;
   let stopRouter: () => void;
 
-  beforeEach(() => {
-    setLocale('en');
+  beforeEach(async () => {
+    await setLocale('en');
     window.history.replaceState(null, '', '/');
     stopRouter = startRouter();
     container = document.createElement('div');
@@ -111,7 +111,7 @@ describe('App shell: navigation, lazy screens and the unknown path', () => {
 
   it('the navigation follows the interface language', async () => {
     render(<App />, container);
-    setLocale('ru');
+    await setLocale('ru');
     await settle();
     expect(container.querySelector('nav a[href="/learn"]')?.textContent).toBe('обучение');
   });
@@ -122,8 +122,8 @@ describe('App shell: a keystroke renders nothing but the stream', () => {
   let stopRouter: () => void;
   let prevDiffed: ((vnode: VNode) => void) | undefined;
 
-  beforeEach(() => {
-    setLocale('en');
+  beforeEach(async () => {
+    await setLocale('en');
     window.history.replaceState(null, '', '/');
     stopRouter = startRouter();
     container = document.createElement('div');

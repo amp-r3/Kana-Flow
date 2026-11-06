@@ -1,5 +1,7 @@
 import type { ContentKind } from '@/entities/settings';
 import { loadContent } from '@/entities/prompt';
+import { preloadLocale } from '@/shared/i18n';
+import { loadResultsPanel } from '@/pages/trainer';
 import { routes } from './routes';
 import { ROUTE_PATHS } from './route-paths';
 
@@ -17,6 +19,8 @@ export type PrefetchDeps = {
   readonly content: ContentKind;
   readonly loadRoute: (path: (typeof ROUTE_PATHS)[number]) => Promise<unknown>;
   readonly loadContent: (kind: VocabularyKind) => Promise<unknown>;
+  // The other lazy pieces of the first screen: the results panel and the Russian dictionary.
+  readonly loadExtras: readonly (() => Promise<unknown>)[];
 };
 
 /**
@@ -28,6 +32,7 @@ export async function prefetch(deps: PrefetchDeps): Promise<void> {
   const requests = [
     ...ROUTE_PATHS.map((path) => deps.loadRoute(path)),
     ...contentKindsFor(deps.content).map((kind) => deps.loadContent(kind)),
+    ...deps.loadExtras.map((load) => load()),
   ];
   await Promise.allSettled(requests);
 }
@@ -55,6 +60,7 @@ export function schedulePrefetch(content: () => ContentKind): void {
         content: content(),
         loadRoute: (path) => routes[path].load(),
         loadContent,
+        loadExtras: [loadResultsPanel, () => preloadLocale('ru')],
       });
     },
     {

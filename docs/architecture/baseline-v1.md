@@ -62,7 +62,7 @@ Under standard FSD, the `widgets/` layer hosts multi-slice compositional blocks.
 - `app/route-paths.ts` lists the screens (`/`, `/learn`, `/stats`, `/settings`, `/about`); `app/routes.tsx` maps each to a loader. `/` is in the initial chunk, the others are dynamic imports (separate chunks, checked by `check-budget.mjs` as route chunks). `app/route-state.ts` holds the loaded screens and the failed ones; `RouteView` renders the screen, a loading line, a retry notice or the not-found screen.
 - `app/App.tsx` is the shell: `Nav` and `Footer` from `shared/ui` (they take their strings and the navigation handler as props), the language switch, `<main>`. The pages carry no frame of their own.
 - `public/_redirects` rewrites the four non-root routes (with and without a trailing slash) to `/` with status 200 (not `/index.html`, ADR 039); `redirects.test.ts` keeps it equal to `ROUTE_PATHS`. There is no catch-all, so `404.html` still answers unknown paths and missing assets.
-- `app/prefetch.ts` fetches the lazy screens and the content chunks on `requestIdleCallback` (a timer where it is missing) after the first render. The tab title follows the screen and the language (`initApp`).
+- `app/prefetch.ts` fetches the lazy screens and the content chunks on `requestIdleCallback` (a timer where it is missing) after the first render. The same pass loads the results screen and the Russian dictionary, which are chunks of their own (ADR 057). The tab title follows the screen and the language (`initApp`).
 
 ### Styles and design tokens (ADR 034)
 
@@ -214,7 +214,7 @@ The session keeps the displayed prompt and, after it, up to 72 tokens of prompts
 
 1. In `apps/web/src/shared/i18n/`, create `es.ts` with the same keys as `en.ts` (`ru.ts` shows the form; a test checks key parity).
 2. Add the locale code to `Locale` and to the checks in `initLocale` in `apps/web/src/shared/i18n/locale.ts`.
-3. Pick the dictionary for it in `apps/web/src/shared/i18n/translate.ts` (today `t()` chooses between `ru` and `en`).
+3. Load it like `ru` in `apps/web/src/shared/i18n/dictionary.ts`: a dictionary other than `en` is a lazy chunk, and `t()` reads the `dictionary` signal (ADR 057).
 4. Add the language toggle option in `apps/web/src/app/App.tsx` (the `Segmented` in the navigation).
 
 ### Recipe D: Adding a Test Mode (e.g. Sudden Death)
@@ -273,11 +273,11 @@ Every commit and pull request must satisfy `pnpm run verify`, which CI also runs
 5. **`pnpm run build` (`vite build`)**: Production client bundle into `apps/web/dist`, with the Vite manifest.
 6. **`pnpm run budget` (`node scripts/check-budget.mjs`)**: Reads the manifest and enforces hard budget limits (gzip unless stated; brotli is reported next to it). Figures from the design-foundation build (ADR 034):
    - Initial HTML: ≤ 5 KB (actual 0.44 KB)
-   - Initial JS, the entry and its static imports: ≤ 35 KB (actual 33.42 KB)
+   - Initial JS, the entry and its static imports: ≤ 35 KB (actual 32.67 KB)
    - Initial CSS: ≤ 10 KB (actual 6.03 KB)
    - Fonts (woff2, read from `dist`): ≤ 45 KB per file (actual 20.77 KB Noto Sans JP 400, 10.66 and 10.69 KB JetBrains Mono 400/500, 9.38 and 9.55 KB Golos Text 400/500)
    - Total first load: ≤ 160 KB, including the SVG of the initial chunk, the logo (actual 102.39 KB)
-   - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; there are no route chunks yet)
+   - Lazy route chunk: ≤ 25 KB; content chunk (`words`/`phrases` modules): ≤ 40 KB (actual 1.60 KB and 2.05 KB; the largest route chunk is the Russian dictionary, 1.98 KB)
 7. **`pnpm run e2e` (`playwright test`)**: Chromium and WebKit (iPhone 13 emulation) against the production bundle (`vite build` into `dist-e2e`, served by `vite preview` on a port of its own, 5273; ADR 045), then the latency test (`playwright.latency.config.ts`): it runs a probe build (`pnpm run build:probe`, `vite preview`) with 4× CPU throttling and checks, for Single Kana, Words and Phrases, the keystroke p95 budgets and a ceiling on the worst keystroke (ADR 043, 048). `check-budget` fails when `dist` contains the probe.
 
 Git hooks run the same checks earlier (`pre-commit`: staged formatting, typecheck, lint, unit tests; `pre-push`: `verify`).

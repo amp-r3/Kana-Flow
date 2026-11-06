@@ -141,7 +141,7 @@ Nekotype adheres to strict first-load asset caps, checked by `pnpm run budget` (
 | Asset                      | Budget Limit | Actual (gzip / woff2) | Status                    |
 | -------------------------- | ------------ | --------------------- | ------------------------- |
 | **Initial HTML**           | $\le 5$ KB   | **0.44 KB**           | ✅ Passed                 |
-| **Initial JavaScript**     | $\le 35$ KB  | **33.42 KB**          | ✅ Passed                 |
+| **Initial JavaScript**     | $\le 35$ KB  | **32.67 KB**          | ✅ Passed                 |
 | **Initial CSS**            | $\le 10$ KB  | **6.03 KB**           | ✅ Passed                 |
 | **Noto Sans JP 400**       | $\le 45$ KB  | **20.77 KB** (woff2)  | ✅ Passed                 |
 | **JetBrains Mono 400/500** | $\le 45$ KB  | **10.66 / 10.69 KB**  | ✅ Passed                 |
@@ -149,7 +149,7 @@ Nekotype adheres to strict first-load asset caps, checked by `pnpm run budget` (
 | **Logo (SVG)**             | counted      | **1.45 KB**           | ✅ Passed                 |
 | **Total First Load**       | $\le 160$ KB | **102.39 KB**         | ✅ Passed (64% of budget) |
 | **Lazy content chunk**     | $\le 40$ KB  | **2.05 KB** (largest) | ✅ Passed                 |
-| **Lazy route chunk**       | $\le 25$ KB  | none yet              | —                         |
+| **Lazy route chunk**       | $\le 25$ KB  | **1.98 KB** (largest) | ✅ Passed                 |
 
 ---
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { en, ru, t, locale, setLocale, initLocale } from './index';
+import { en, t, locale, setLocale, initLocale } from './index';
+import { ru } from './ru';
 import { MemoryKeyValueStore, STORAGE_KEYS } from '@/shared/lib';
 
 // Compile-time verification: ru satisfies Record<keyof typeof en, string>
@@ -24,36 +25,36 @@ describe('i18n: translations and locale handling', () => {
     }
   });
 
-  it('translates strings for active locale with parameter interpolation', () => {
-    setLocale('en');
+  it('translates strings for active locale with parameter interpolation', async () => {
+    await setLocale('en');
     expect(t('app.title')).toBe('Nekotype');
     expect(t('stage.revealed', { answer: 'ka' })).toBe('Revealed: ka');
 
-    setLocale('ru');
+    await setLocale('ru');
     expect(t('app.title')).toBe('Nekotype');
     expect(t('config.script.hiragana')).toBe('Хирагана');
     expect(t('stage.revealed', { answer: 'ka' })).toBe('Ответ: ka');
 
     // Reset back to en
-    setLocale('en');
+    await setLocale('en');
   });
 
-  it('setLocale without a store persists to the store bound by initLocale', () => {
+  it('setLocale without a store persists to the store bound by initLocale', async () => {
     const store = new MemoryKeyValueStore();
-    initLocale(store);
-    setLocale('ru');
+    await initLocale(store);
+    await setLocale('ru');
     expect(store.get(STORAGE_KEYS.LOCALE)).toBe('ru');
-    setLocale('en');
+    await setLocale('en');
     expect(store.get(STORAGE_KEYS.LOCALE)).toBe('en');
   });
 
-  it('setLocale persists locale to store and updates locale signal', () => {
+  it('setLocale persists locale to store and updates locale signal', async () => {
     const store = new MemoryKeyValueStore();
-    setLocale('ru', store);
+    await setLocale('ru', store);
     expect(store.get('nekotype:locale')).toBe('ru');
     expect(locale.value).toBe('ru');
 
-    setLocale('en', store);
+    await setLocale('en', store);
     expect(store.get('nekotype:locale')).toBe('en');
     expect(locale.value).toBe('en');
   });

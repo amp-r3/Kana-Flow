@@ -1,0 +1,11 @@
+# ADR 057: The Results Screen and the Russian Dictionary Are Lazy Chunks
+
+- **Status:** In force.
+- **Context:** The initial JS stood at 34.59 KB of the 35 KB budget (33.42 KB at the end of P2), and P3 adds metrics, IndexedDB and a new results screen. The results screen is shown only when a test ends, and the Russian dictionary is needed only by Russian users, yet both were in the initial chunk.
+- **Decision:**
+  - **Results.** `pages/trainer/results-loader.ts` imports `ui/results-panel` dynamically and keeps the loaded component, a failure flag and the request in flight (the same approach as `app/route-state.ts`). `TrainerPage` loads it when a test ends; `schedulePrefetch` loads it on idle, so in practice the chunk is there before the first test ends. Until it is, `ResultsPending` shows the loading notice (`route.loading`), or `route.loadError` with Retry on a failure. Next test and Enter work in both states.
+  - **Dictionary.** `en` stays in the initial chunk; `ru` is a chunk of its own, loaded by `shared/i18n/dictionary.ts` (a request is made once; a failure is not cached). `locale` and `dictionary` are signals that change together and only after the dictionary has arrived. `t()` reads the dictionary signal.
+  - `initLocale` and `setLocale` are asynchronous. At startup the first render waits for the saved (or detected) language, so nothing flashes in English; if the dictionary cannot be loaded the interface is English and the saved choice is kept. The switch loads the dictionary first and saves the choice only then; on a failure it stays in the current language. `ru` is part of the idle prefetch, so the switch works offline.
+  - `ru` is no longer exported from `shared/i18n`; the parity test imports it from `./ru`.
+- **Justification:** Both pieces cost nothing on the hot path and are needed late or rarely. Waiting for the dictionary before the first render costs one small request for Russian users only, and avoids a visible switch of every string.
+- **Consequences:** Initial JS is 32.67 KB (-1.92 KB: the results screen about 1.2 KB, the dictionary about 2 KB, less the loaders). A failed switch to Russian shows no message; the control stays on the current language. Adding a language is a chunk of its own (`baseline-v1.md`, recipe C). Tests that read Russian strings `await setLocale('ru')`.

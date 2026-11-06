@@ -8,6 +8,7 @@ import type { Trainer } from '@/features/training';
 import type { PromptItem } from '@/entities/prompt';
 import { setTestConfig } from '@/entities/settings';
 import { MIN_AHEAD_TOKENS } from '@/features/training';
+import { loadResultsPanel } from './results-loader';
 
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 30));
@@ -25,6 +26,8 @@ describe('render isolation: the hot path renders nothing', () => {
   let prevDiffed: ((vnode: VNode) => void) | undefined;
 
   beforeEach(async () => {
+    // The results screen is a lazy chunk; the checks below count its render like any other.
+    await loadResultsPanel();
     setTestConfig({ kind: 'time', seconds: 120 });
     container = document.createElement('div');
     document.body.appendChild(container);
